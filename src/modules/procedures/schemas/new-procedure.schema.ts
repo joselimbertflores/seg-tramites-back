@@ -1,12 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 import { Account, TypeProcedure } from 'src/modules/administration/schemas';
 import { stateProcedure } from '../interfaces';
 import { ExternalProcedure } from './external-procedure.schema';
 import { InternalProcedure } from './internal-procedure.schema';
 
 @Schema({ discriminatorKey: 'group', timestamps: true })
-export class ProcedureBase {
+export class ProcedureBase extends Document {
   @Prop({
     type: String,
     required: true,
