@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsMongoId, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsMongoId, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 
 export class CommunicationPropsDto {
   @IsMongoId()
@@ -14,4 +14,10 @@ export class CancelCommunicationDto {
   @ArrayMinSize(1)
   @Type(() => CommunicationPropsDto)
   selected: CommunicationPropsDto[];
+}
+
+export class RejectCommunicationDto {
+  @IsString()
+  @IsNotEmpty()
+  description: string;
 }

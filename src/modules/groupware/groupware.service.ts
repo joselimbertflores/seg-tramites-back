@@ -12,16 +12,11 @@ export class GroupwareService {
     this.clients[payload.userId] = { ...payload, socketIds };
   }
 
-  onClientDisconnected(id_socket: string) {
-    const client = Object.values(this.clients).find(({ socketIds }) =>
-      socketIds.includes(id_socket),
-    );
+  onClientDisconnected(socketId: string) {
+    const client = Object.values(this.clients).find(({ socketIds }) => socketIds.includes(socketId));
     if (!client) return;
-    this.clients[client.userId].socketIds = client.socketIds.filter(
-      (id) => id !== id_socket,
-    );
-    if (this.clients[client.userId].socketIds.length === 0)
-      delete this.clients[client.userId];
+    this.clients[client.userId].socketIds = client.socketIds.filter((id) => id !== socketId);
+    if (this.clients[client.userId].socketIds.length === 0) delete this.clients[client.userId];
   }
 
   remove(id_account: string) {
@@ -30,8 +25,8 @@ export class GroupwareService {
     return client;
   }
 
-  getUser(id_account: string): userSocket {
-    return this.clients[id_account];
+  getUser(userId: string): userSocket {
+    return this.clients[userId];
   }
 
   getClients(): userSocket[] {

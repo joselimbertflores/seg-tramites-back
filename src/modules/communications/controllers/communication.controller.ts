@@ -13,7 +13,7 @@ import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
 import { CreateCommunicationDto } from '../dtos/communication.dto';
-import { CancelCommunicationDto } from '../dtos';
+import { CancelCommunicationDto, RejectCommunicationDto } from '../dtos';
 
 @Controller('communication')
 @onlyAssignedAccount()
@@ -44,9 +44,9 @@ export class CommunicationController {
 
   @Post()
   async create(@GetAccountRequest() account: Account, @Body() communication: CreateCommunicationDto) {
-    const mails = await this.inboxService.create(communication, account);
-    // this.groupwareGateway.sendMails(mails);
-    return { message: 'Tramite enviado' };
+    const communications = await this.inboxService.create(communication, account);
+    this.groupwareGateway.sentCommunications(communications);
+    return communications;
   }
 
   @Get('inbox')
@@ -59,15 +59,15 @@ export class CommunicationController {
     return this.outboxService.findAll(id_account, paginationParams);
   }
 
-  @Put('accept/:id_mail')
-  acceptMail(@Param('id_mail', IsMongoidPipe) id_mail: string) {
-    return this.inboxService.accept(id_mail);
+  @Put('accept/:id')
+  acept(@Param('id', IsMongoidPipe) communicationId: string) {
+    return this.inboxService.accept(communicationId);
   }
 
   @Put('reject/:id')
   reject(
     @Param('id', IsMongoidPipe) id: string,
-    @Body() data: UpdateCommunicationDto,
+    @Body() data: RejectCommunicationDto,
     @GetAccountRequest() account: Account,
   ) {
     return this.inboxService.reject(id, account, data);

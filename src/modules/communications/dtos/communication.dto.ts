@@ -52,3 +52,4 @@ export class CreateCommunicationDto {
   @Type(() => RecipientDto)
   recipients: RecipientDto[];
 }
+

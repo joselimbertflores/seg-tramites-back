@@ -1,20 +1,10 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-  HttpException,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException, HttpException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, isValidObjectId, Model, Types } from 'mongoose';
 
 import { OfficerService } from './officer.service';
 import { Account } from '../schemas';
-import {
-  CreateAccountDto,
-  CreateOfficerDto,
-  FilterAccountDto,
-  UpdateAccountDto,
-} from '../dtos';
+import { CreateAccountDto, CreateOfficerDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
 import { User, UserDocument } from 'src/modules/users/schemas';
 import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
 import { UserService } from 'src/modules/users/services';
@@ -96,11 +86,7 @@ export class AccountService {
         dependencia: new mongoose.Types.ObjectId(dependency),
       }),
       ...(term && {
-        $or: [
-          { fullname: regex },
-          { 'officer.dni': regex },
-          { jobtitle: regex },
-        ],
+        $or: [{ fullname: regex }, { 'officer.dni': regex }, { jobtitle: regex }],
       }),
     };
     const data = await this.accountModel
@@ -137,19 +123,12 @@ export class AccountService {
         ],
       });
     const accounts = data[0].paginatedResults;
-    await this.accountModel.populate(accounts, [
-      { path: 'dependencia' },
-      { path: 'user', select: '-password' },
-    ]);
+    await this.accountModel.populate(accounts, [{ path: 'dependencia' }, { path: 'user', select: '-password' }]);
     const length = data[0].totalCount[0] ? data[0].totalCount[0].count : 0;
     return { accounts, length };
   }
 
-  async update(
-    id: string,
-    userDto: UpdateUserDto,
-    accountDto: UpdateAccountDto,
-  ) {
+  async update(id: string, userDto: UpdateUserDto, accountDto: UpdateAccountDto) {
     const accountDB = await this.accountModel.findById(id);
     if (!accountDB) throw new NotFoundException(`La cuenta ${id} no existe`);
     const session = await this.connection.startSession();
@@ -158,11 +137,7 @@ export class AccountService {
       await this.userService.update(accountDB.user._id, userDto, session);
       const updatedAccount = await this.accountModel
         .findByIdAndUpdate(id, accountDto, { new: true, session })
-        .populate([
-          { path: 'dependencia' },
-          { path: 'officer' },
-          { path: 'user', select: '-password' },
-        ]);
+        .populate([{ path: 'dependencia' }, { path: 'officer' }, { path: 'user', select: '-password' }]);
       await session.commitTransaction();
       return updatedAccount;
     } catch (error) {
@@ -260,12 +235,11 @@ export class AccountService {
         },
       })
       .match({
-        ...(filterByDependency
-          ? { dependencia: new Types.ObjectId(term) }
-          : { fullname: new RegExp(term, 'i') }),
+        ...(filterByDependency ? { dependencia: new Types.ObjectId(term) } : { fullname: new RegExp(term, 'i') }),
       });
     if (!filterByDependency) query.limit(5);
     query.project({ fullname: 0 });
-    return await query;
+    const docs = await query;
+    return await this.accountModel.populate(docs, { path: 'user', select: '-password' });
   }
 }
