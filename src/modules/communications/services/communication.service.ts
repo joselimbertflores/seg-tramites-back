@@ -10,11 +10,10 @@ import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
 import { Procedure, ProcedureBase } from '../../procedures/schemas';
 import { stateProcedure, StatusMail } from '../../procedures/interfaces';
-import { GetInboxParamsDto, UpdateCommunicationDto } from '../../procedures/dto';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication } from '../schemas/communication.schema';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
-import { RejectCommunicationDto } from '../dtos';
+import { CancelCommunicationDto, FilterInboxDto, FilterOutboxDto, RejectCommunicationDto } from '../dtos';
 
 interface setProcessStateProps {
   mailId: string | undefined;
@@ -23,7 +22,7 @@ interface setProcessStateProps {
   session: ClientSession;
 }
 @Injectable()
-export class InboxService {
+export class CommunicationService {
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
     @InjectModel(ProcedureBase.name) private procedureModel: Model<ProcedureBase>,
@@ -41,46 +40,53 @@ export class InboxService {
     // return mailDB;
   }
 
-  async findAll(accountId: string, { limit, offset, status }: GetInboxParamsDto) {
-    const query: FilterQuery<Communication> = {
-      'recipient.cuenta': accountId,
-      ...(status ? { status } : { $or: [{ status: StatusMail.Received }, { status: StatusMail.Pending }] }),
-    };
-    const [mails, length] = await Promise.all([
-      this.communicationModel.find(query).skip(offset).limit(limit).sort({ sentDate: -1 }).populate('procedure').lean(),
-      this.communicationModel.count(query),
-    ]);
-    return { mails, length };
-  }
-
-  async search(id_account: string, term: string, { limit, offset, status }: GetInboxParamsDto) {
+  async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
     const regex = new RegExp(term, 'i');
-    const query: FilterQuery<Communication> = { 'receiver.cuenta': id_account };
-    status ? (query.status = status) : (query.$or = [{ status: StatusMail.Received }, { status: StatusMail.Pending }]);
+    const extraFilterQuery: FilterQuery<Communication> = {
+      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
+      ...(group && { 'procedure.group': group }),
+    };
     const [data] = await this.communicationModel
       .aggregate()
-      .match(query)
+      .match({
+        'recipient.cuenta': accountId,
+        ...(status ? { status } : { $or: [{ status: StatusMail.Received }, { status: StatusMail.Pending }] }),
+        ...(from && { 'sender.fullname': new RegExp(from, 'i') }),
+      })
       .lookup({
-        from: 'procedures',
+        from: 'procedurebases',
         localField: 'procedure',
         foreignField: '_id',
         as: 'procedure',
       })
       .unwind('$procedure')
-      .match({
-        $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }],
-      })
+      .match(extraFilterQuery)
       .facet({
-        paginatedResults: [{ $skip: offset }, { $limit: limit }],
-        totalCount: [
+        results: [{ $skip: offset }, { $limit: limit }],
+        total: [
           {
             $count: 'count',
           },
         ],
       });
-    const mails = data.paginatedResults;
-    const length = data.totalCount[0] ? data.totalCount[0].count : 0;
-    return { mails, length };
+    const communications = data.results;
+    const length = data.total[0] ? data.total[0].count : 0;
+    return { communications, length };
+  }
+
+  async getOutbox(accountId: string, { term, limit, offset, status, isOriginal }: FilterOutboxDto) {
+    const regex = new RegExp(term, 'i');
+    const query: FilterQuery<Communication> = {
+      'sender.cuenta': accountId,
+      ...(status ? { status } : { $or: [{ status: StatusMail.Rejected }, { status: StatusMail.Pending }] }),
+      ...(isOriginal !== undefined && { isOriginal }),
+      ...(term && { $or: [{ reference: regex }, { 'recipient.fullname': regex }] }),
+    };
+    const [communications, length] = await Promise.all([
+      this.communicationModel.find(query).skip(offset).limit(limit).populate('procedure').sort({ sentDate: -1 }),
+      this.communicationModel.count(query),
+    ]);
+    return { communications, length };
   }
 
   async create(communicationDto: CreateCommunicationDto, account: Account) {
@@ -115,7 +121,6 @@ export class InboxService {
       await session.commitTransaction();
       return results;
     } catch (error) {
-      console.log(error);
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException();
@@ -148,6 +153,45 @@ export class InboxService {
     return { message: 'Tramite rechazado' };
   }
 
+  async cancel(account: Account, { selected }: CancelCommunicationDto) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const communicationsDB = await this.communicationModel.find({
+        _id: { $in: selected },
+      });
+      if (communicationsDB.length !== selected.length) {
+        throw new BadRequestException(`Algunos de los envios seleccionados no existen`);
+      }
+      const recivedBy = communicationsDB.find(({ status }) => status !== StatusMail.Pending);
+      if (recivedBy) {
+        throw new BadRequestException(`${recivedBy.recipient.fullname} ya ha recibido el tramite`);
+      }
+      await this.communicationModel.deleteMany({ _id: { $in: selected } }, { session });
+      for (const communication of communicationsDB) {
+        if (communication.isOriginal) {
+          await this._restoreStage(communication.procedure._id, account._id, session);
+        }
+      }
+      await session.commitTransaction();
+      return {
+        message: `Se cancelaron ${communicationsDB.length} envios`,
+        communications: communicationsDB.map(({ _id, recipient }) => ({
+          communicationId: _id,
+          recipientId: recipient.cuenta,
+        })),
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Ha ocurrido un error al cancelar');
+    } finally {
+      await session.endSession();
+    }
+  }
+
   private async _checkDuplicate(
     procedureId: string,
     recipients: RecipientDto[],
@@ -167,54 +211,6 @@ export class InboxService {
       const fullName = recipients.find(({ accountId }) => accountId == duplicate.recipient.cuenta._id).fullname;
       throw new BadRequestException(`${fullName} ya tiene el tramite en su bandeja`);
     }
-  }
-
-  private async checkIfMailsHaveBeenReceived(ids_mails: string[]): Promise<Communication[]> {
-    const mails = await this.communicationModel.find({
-      _id: { $in: ids_mails },
-    });
-    if (mails.length === 0) throw new BadRequestException('Los envios ya han sido cancelados');
-    const receivedMail = mails.find((mail) => mail.status !== StatusMail.Pending);
-    // if (receivedMail) {
-    //   throw new BadRequestException(
-    //     `El tramite ya ha sido ${
-    //       receivedMail.status === StatusMail.Rejected ? 'rechazado' : 'recibido'
-    //     } por el funcionario ${receivedMail.receiver.fullname}`,
-    //   );
-    // }
-    return mails;
-  }
-
-  private async restoreStage(
-    id_procedure: string,
-    id_emiter: string,
-    session: ClientSession,
-  ): Promise<Communication | undefined> {
-    const lastStage = await this.communicationModel.findOneAndUpdate(
-      {
-        procedure: id_procedure,
-        'receiver.cuenta': id_emiter,
-        $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
-      },
-      { status: StatusMail.Received },
-      { session, sort: { _id: -1 }, new: true },
-    );
-    if (!lastStage) {
-      const isProcessStarted = await this.communicationModel.findOne(
-        { procedure: id_procedure, status: { $ne: StatusMail.Rejected } },
-        null,
-        { session },
-      );
-      await this.procedureModel.updateOne(
-        { _id: id_procedure },
-        {
-          send: false,
-          ...(!isProcessStarted && { state: stateProcedure.INSCRITO }),
-        },
-        { session },
-      );
-    }
-    return lastStage;
   }
 
   private async _setProcessState({ mailId, session, recipients, procedureId }: setProcessStateProps): Promise<void> {
@@ -261,6 +257,21 @@ export class InboxService {
         throw new BadRequestException('Debe enviar el original');
       }
       await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.EN_REVISION }, { session });
+    }
+  }
+
+  private async _restoreStage(procedureId: string, senderAccountId: string, session: ClientSession): Promise<void> {
+    const lastStage = await this.communicationModel.findOneAndUpdate(
+      {
+        procedure: procedureId,
+        'recipient.cuenta': senderAccountId,
+        $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
+      },
+      { status: StatusMail.Received },
+      { session, sort: { _id: -1 } },
+    );
+    if (!lastStage) {
+      await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.INSCRITO }, { session });
     }
   }
 }

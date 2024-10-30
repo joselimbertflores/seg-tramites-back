@@ -16,12 +16,6 @@ class Participant extends Document {
   cuenta: Account;
 
   @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: Officer.name,
-  })
-  funcionario: Officer;
-
-  @Prop({
     type: String,
     required: true,
   })

@@ -1,20 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  InternalServerErrorException,
-  Param,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Controller, Get, InternalServerErrorException, Param, Post, Put } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
-import {
-  ObservationService,
-  ExternalService,
-  InternalService,
-  OutboxService,
-} from '../services';
+import { ObservationService, ExternalService, InternalService } from '../services';
 import { ValidProcedureService, groupProcedure } from '../interfaces';
 import { CreateObservationDto, GetProcedureParamsDto } from '../dto';
 import { IsMongoidPipe } from 'src/common/pipes';
@@ -53,9 +40,7 @@ export class ProcedureController {
       case groupProcedure.INTERNAL:
         return this.moduleRef.get(InternalService);
       default:
-        throw new InternalServerErrorException(
-          'Group procedure is not defined',
-        );
+        throw new InternalServerErrorException('Group procedure is not defined');
     }
   }
 

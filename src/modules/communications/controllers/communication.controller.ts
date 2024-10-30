@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { InstitutionService, DependencieService } from 'src/modules/administration/services';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
-import { InboxService, OutboxService } from '../../procedures/services';
+import { CommunicationService } from '../../procedures/services';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { CancelMailsDto, GetInboxParamsDto, UpdateCommunicationDto } from '../../procedures/dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
@@ -13,7 +13,7 @@ import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
 import { CreateCommunicationDto } from '../dtos/communication.dto';
-import { CancelCommunicationDto, RejectCommunicationDto } from '../dtos';
+import { CancelCommunicationDto, FilterInboxDto, FilterOutboxDto, RejectCommunicationDto } from '../dtos';
 
 @Controller('communication')
 @onlyAssignedAccount()
@@ -23,8 +23,7 @@ export class CommunicationController {
     private readonly institutionService: InstitutionService,
     private readonly dependencieService: DependencieService,
     private readonly groupwareGateway: GroupwareGateway,
-    private readonly inboxService: InboxService,
-    private readonly outboxService: OutboxService,
+    private readonly inboxService: CommunicationService,
   ) {}
 
   @Get('institutions')
@@ -50,17 +49,17 @@ export class CommunicationController {
   }
 
   @Get('inbox')
-  getInbox(@GetAccountRequest('_id') id_account: string, @Query() params: GetInboxParamsDto) {
-    return this.inboxService.findAll(id_account, params);
+  getInbox(@GetAccountRequest('_id') accountId: string, @Query() queryParams: FilterInboxDto) {
+    return this.inboxService.getInbox(accountId, queryParams);
   }
 
   @Get('outbox')
-  getOutbox(@GetAccountRequest('_id') id_account: string, @Query() paginationParams: PaginationDto) {
-    return this.outboxService.findAll(id_account, paginationParams);
+  getOutbox(@GetAccountRequest('_id') accountId: string, @Query() queryParams: FilterOutboxDto) {
+    return this.inboxService.getOutbox(accountId, queryParams);
   }
 
   @Put('accept/:id')
-  acept(@Param('id', IsMongoidPipe) communicationId: string) {
+  accept(@Param('id', IsMongoidPipe) communicationId: string) {
     return this.inboxService.accept(communicationId);
   }
 
@@ -75,7 +74,7 @@ export class CommunicationController {
 
   @Delete('outbox')
   async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: CancelCommunicationDto) {
-    const { message, communications } = await this.outboxService.cancel(account, communicationDto);
+    const { message, communications } = await this.inboxService.cancel(account, communicationDto);
     // this.groupwareGateway.cancelMails(mails);
     return { message };
   }
@@ -83,23 +82,5 @@ export class CommunicationController {
   @Get('/:id')
   getMailDetails(@Param('id', IsMongoidPipe) id_mail: string, @GetAccountRequest() account: Account) {
     return this.inboxService.getMailDetails(id_mail, account);
-  }
-
-  @Get('inbox/search/:text')
-  searchInbox(
-    @GetAccountRequest('_id') id_account: string,
-    @Param('text') text: string,
-    @Query() params: GetInboxParamsDto,
-  ) {
-    return this.inboxService.search(id_account, text, params);
-  }
-
-  @Get('outbox/search/:text')
-  searchOutbox(
-    @GetAccountRequest('_id') id_account: string,
-    @Param('text') text: string,
-    @Query() PaginationDto: PaginationDto,
-  ) {
-    return this.outboxService.search(id_account, text, PaginationDto);
   }
 }
