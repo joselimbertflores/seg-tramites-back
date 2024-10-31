@@ -13,7 +13,7 @@ import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
 import { CreateCommunicationDto } from '../dtos/communication.dto';
-import { CancelCommunicationDto, FilterInboxDto, FilterOutboxDto, RejectCommunicationDto } from '../dtos';
+import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 @Controller('communication')
 @onlyAssignedAccount()
@@ -58,22 +58,18 @@ export class CommunicationController {
     return this.inboxService.getOutbox(accountId, queryParams);
   }
 
-  @Put('accept/:id')
-  accept(@Param('id', IsMongoidPipe) communicationId: string) {
-    return this.inboxService.accept(communicationId);
+  @Put('accept')
+  accept(@Body() data: SelectedCommunicationsDto) {
+    return this.inboxService.accept(data);
   }
 
-  @Put('reject/:id')
-  reject(
-    @Param('id', IsMongoidPipe) id: string,
-    @Body() data: RejectCommunicationDto,
-    @GetAccountRequest() account: Account,
-  ) {
-    return this.inboxService.reject(id, account, data);
+  @Put('reject')
+  reject(@Body() data: RejectCommunicationDto, @GetAccountRequest() account: Account) {
+    return this.inboxService.reject(account, data);
   }
 
   @Delete('outbox')
-  async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: CancelCommunicationDto) {
+  async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: SelectedCommunicationsDto) {
     const { message, communications } = await this.inboxService.cancel(account, communicationDto);
     // this.groupwareGateway.cancelMails(mails);
     return { message };

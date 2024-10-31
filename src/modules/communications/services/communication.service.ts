@@ -13,7 +13,7 @@ import { stateProcedure, StatusMail } from '../../procedures/interfaces';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication } from '../schemas/communication.schema';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
-import { CancelCommunicationDto, FilterInboxDto, FilterOutboxDto, RejectCommunicationDto } from '../dtos';
+import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 interface setProcessStateProps {
   mailId: string | undefined;
@@ -129,63 +129,87 @@ export class CommunicationService {
     }
   }
 
-  async accept(id: string): Promise<{ message: string }> {
-    const communicationDb = await this.communicationModel.findById(id);
-    if (!communicationDb) throw new NotFoundException('El envio del tramite ha sido cancelado');
-    if (communicationDb.status !== StatusMail.Pending) throw new BadRequestException('El tramite ya ha sido aceptado');
-    await this.communicationModel.updateOne({ _id: id }, { status: StatusMail.Received, receivedDate: new Date() });
-    return { message: 'Tramite aceptado' };
-  }
-
-  async reject(id: string, account: Account, { description }: RejectCommunicationDto): Promise<{ message: string }> {
-    const communicationDb = await this.communicationModel.findById(id);
-    if (!communicationDb) throw new NotFoundException('El envio del tramite ha sido cancelado');
-    if (communicationDb.status !== StatusMail.Pending) throw new BadRequestException('El tramite ya fue rechazado');
-    const currentDate = new Date();
-    await this.communicationModel.updateOne(
-      { _id: id },
-      {
-        status: StatusMail.Rejected,
-        receivedDate: currentDate,
-        actionLog: { manager: account.officer.fullName, date: currentDate, description },
-      },
-    );
-    return { message: 'Tramite rechazado' };
-  }
-
-  async cancel(account: Account, { selected }: CancelCommunicationDto) {
+  async accept({ communicationIds }: SelectedCommunicationsDto): Promise<{ message: string }> {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const communicationsDB = await this.communicationModel.find({
-        _id: { $in: selected },
-      });
-      if (communicationsDB.length !== selected.length) {
-        throw new BadRequestException(`Algunos de los envios seleccionados no existen`);
+      const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
+      const isInvalid = documents.find(({ status }) => status !== StatusMail.Pending);
+      if (isInvalid) {
+        throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
       }
-      const recivedBy = communicationsDB.find(({ status }) => status !== StatusMail.Pending);
+      await this.communicationModel.updateMany(
+        { _id: { $in: communicationIds } },
+        { status: StatusMail.Received, receivedDate: new Date() },
+        { session },
+      );
+      await session.commitTransaction();
+      return { message: 'Tramite aceptado' };
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async reject(account: Account, { description, communicationIds }: RejectCommunicationDto) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
+      const isInvalid = documents.find(({ status }) => status !== StatusMail.Pending);
+      if (isInvalid) {
+        throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
+      }
+      const currentDate = new Date();
+      await this.communicationModel.updateMany(
+        { _id: { $in: communicationIds } },
+        {
+          receivedDate: currentDate,
+          status: StatusMail.Rejected,
+          actionLog: { manager: account.officer.fullName, date: currentDate, description },
+        },
+        { session },
+      );
+      await session.commitTransaction();
+      return { message: 'Tramite rechazado' };
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async cancel(account: Account, { communicationIds }: SelectedCommunicationsDto) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
+      const recivedBy = documents.find(({ status }) => status !== StatusMail.Pending);
       if (recivedBy) {
         throw new BadRequestException(`${recivedBy.recipient.fullname} ya ha recibido el tramite`);
       }
-      await this.communicationModel.deleteMany({ _id: { $in: selected } }, { session });
-      for (const communication of communicationsDB) {
+      await this.communicationModel.deleteMany({ _id: { $in: communicationIds } }, { session });
+      for (const communication of documents) {
         if (communication.isOriginal) {
           await this._restoreStage(communication.procedure._id, account._id, session);
         }
       }
       await session.commitTransaction();
       return {
-        message: `Se cancelaron ${communicationsDB.length} envios`,
-        communications: communicationsDB.map(({ _id, recipient }) => ({
+        message: `Se cancelaron ${documents.length} envios`,
+        communications: documents.map(({ _id, recipient }) => ({
           communicationId: _id,
-          recipientId: recipient.cuenta,
+          recipientId: recipient.cuenta._id,
         })),
       };
     } catch (error) {
       await session.abortTransaction();
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException('Ha ocurrido un error al cancelar');
     } finally {
       await session.endSession();

@@ -1,15 +1,15 @@
-import { Transform, Type } from 'class-transformer';
 import { ArrayMinSize, IsBoolean, IsEnum, IsIn, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { PaginationDto } from 'src/common';
 import { StatusMail } from 'src/modules/procedures/interfaces';
 
-export class CancelCommunicationDto {
-  @ArrayMinSize(1)
+export class SelectedCommunicationsDto {
+  @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
   @IsMongoId({ each: true })
-  selected: string[];
+  communicationIds: string[];
 }
 
-export class RejectCommunicationDto {
+export class RejectCommunicationDto extends SelectedCommunicationsDto {
   @IsString()
   @IsNotEmpty()
   description: string;
