@@ -29,17 +29,6 @@ export class CommunicationService {
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
-  async getMailDetails(id_mail: string, { _id }: Account) {
-    // const mailDB = await this.commModel.findById(id_mail).populate('procedure');
-    // if (!mailDB)
-    //   throw new BadRequestException(
-    //     'El envio de este tramite ha sido cancelado',
-    //   );
-    // if (String(_id) !== String(mailDB.receiver.cuenta._id))
-    //   throw new ForbiddenException();
-    // return mailDB;
-  }
-
   async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
     const regex = new RegExp(term, 'i');
     const extraFilterQuery: FilterQuery<Communication> = {
@@ -214,6 +203,17 @@ export class CommunicationService {
     } finally {
       await session.endSession();
     }
+  }
+
+  async getMailDetails(id_mail: string, { _id }: Account) {
+    // const mailDB = await this.commModel.findById(id_mail).populate('procedure');
+    // if (!mailDB)
+    //   throw new BadRequestException(
+    //     'El envio de este tramite ha sido cancelado',
+    //   );
+    // if (String(_id) !== String(mailDB.receiver.cuenta._id))
+    //   throw new ForbiddenException();
+    // return mailDB;
   }
 
   private async _checkDuplicate(

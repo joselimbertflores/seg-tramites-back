@@ -6,7 +6,7 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 import { SystemResource } from 'src/modules/auth/constants';
 import { CreateArchiveDto } from '../../procedures/dto';
-import { IsMongoidPipe } from 'src/common/pipes';
+import { IsMongoidPipe } from 'src/common';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';

@@ -1,8 +1,8 @@
 import {
+  Injectable,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
-  Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -14,6 +14,7 @@ import { SystemResource } from '../constants';
 @Injectable()
 export class ResourceGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
     const validResource: SystemResource | undefined = this.reflector.get(META_RESOURCE, context.getClass());
     if (!validResource) return true;

@@ -1,31 +1,13 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { TypeProcedureService } from 'src/modules/administration/services/type-procedure.service';
-import {
-  CreateExternalDetailDto,
-  CreateProcedureDto,
-  UpdateExternalDto,
-  UpdateProcedureDto,
-} from '../dto';
 import { ExternalService } from '../services';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { SystemResource } from 'src/modules/auth/constants';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../decorators/get-account-request.decorator';
 import { ResourceProtected } from 'src/modules/auth/decorators';
-import {
-  CreateExternalProcedureDto,
-  UpdateExternalProcedureDto,
-} from '../dtos';
+import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
+import { IsMongoidPipe, PaginationDto } from 'src/common';
 
 @Controller('external')
 @ResourceProtected(SystemResource.EXTERNAL)
@@ -42,43 +24,27 @@ export class ExternalController {
   }
 
   @Get('types-procedures/:segment')
-  async getTypesProceduresBySegment(@Param('segment') segment: string) {
-    return await this.typeProcedure.getEnabledTypesBySegment(
-      segment,
-      'EXTERNO',
-    );
-  }
-
-  @Get('search/:text')
-  async search(
-    @GetAccountRequest('_id') id_account: string,
-    @Query() PaginationDto: PaginationDto,
-    @Param('text') text: string,
-  ) {
-    return await this.externalService.search(PaginationDto, id_account, text);
+  getTypesProceduresBySegment(@Param('segment') segment: string) {
+    return this.typeProcedure.getEnabledTypesBySegment(segment, 'EXTERNO');
   }
 
   @Get()
-  findAll(
-    @GetAccountRequest('_id') id_account: string,
-    @Query() PaginationDto: PaginationDto,
-  ) {
-    return this.externalService.findAll(PaginationDto, id_account);
+  findAll(@GetAccountRequest('_id') id_account: string, @Query() paginationDto: PaginationDto) {
+    return this.externalService.findAll(paginationDto, id_account);
   }
 
   @Post()
-  create(
-    @GetAccountRequest() account: Account,
-    @Body() procedureDto: CreateExternalProcedureDto,
-  ) {
+  create(@GetAccountRequest() account: Account, @Body() procedureDto: CreateExternalProcedureDto) {
     return this.externalService.create(procedureDto, account);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') procedureId: string,
-    @Body() procedureDto: UpdateExternalProcedureDto,
-  ) {
+  update(@Param('id') procedureId: string, @Body() procedureDto: UpdateExternalProcedureDto) {
     return this.externalService.update(procedureId, procedureDto);
+  }
+
+  @Get(':id')
+  getOne(@Param('id', IsMongoidPipe) id: string) {
+    return this.externalService.getOne(id);
   }
 }

@@ -16,10 +16,10 @@ import {
 } from 'src/modules/administration/services';
 import { Public, ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
-import { IsMongoidPipe } from 'src/common/pipes';
 import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
 
 import { CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
+import { IsMongoidPipe } from 'src/common';
 
 @Controller('accounts')
 @ResourceProtected(SystemResource.ACCOUNTS)

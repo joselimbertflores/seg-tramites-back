@@ -2,12 +2,8 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/
 import { InstitutionService, DependencieService } from 'src/modules/administration/services';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 import { CommunicationService } from '../../procedures/services';
-import { ResourceProtected } from 'src/modules/auth/decorators';
-import { CancelMailsDto, GetInboxParamsDto, UpdateCommunicationDto } from '../../procedures/dto';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
-import { SystemResource } from 'src/modules/auth/constants';
-import { IsMongoidPipe } from 'src/common/pipes';
+import { IsMongoidPipe } from 'src/common';
 import { AccountService } from 'src/modules/administration/services/account.service';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
@@ -19,11 +15,11 @@ import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommun
 @onlyAssignedAccount()
 export class CommunicationController {
   constructor(
-    private readonly accountService: AccountService,
-    private readonly institutionService: InstitutionService,
-    private readonly dependencieService: DependencieService,
-    private readonly groupwareGateway: GroupwareGateway,
-    private readonly inboxService: CommunicationService,
+    private institutionService: InstitutionService,
+    private dependencieService: DependencieService,
+    private groupwareGateway: GroupwareGateway,
+    private inboxService: CommunicationService,
+    private accountService: AccountService,
   ) {}
 
   @Get('institutions')
@@ -31,9 +27,9 @@ export class CommunicationController {
     return this.institutionService.getActiveInstitutions();
   }
 
-  @Get('dependencies/:id_institution')
-  async getDependencies(@Param('id_institution', IsMongoidPipe) id_institution: string) {
-    return await this.dependencieService.getActiveDependenciesOfInstitution(id_institution);
+  @Get('dependencies/:institutionId')
+  getDependencies(@Param('institutionId', IsMongoidPipe) institutionId: string) {
+    return this.dependencieService.getActiveDependenciesOfInstitution(institutionId);
   }
 
   @Get('recipients/:term')
@@ -76,7 +72,7 @@ export class CommunicationController {
   }
 
   @Get('/:id')
-  getMailDetails(@Param('id', IsMongoidPipe) id_mail: string, @GetAccountRequest() account: Account) {
+  getCommunication(@Param('id', IsMongoidPipe) id_mail: string, @GetAccountRequest() account: Account) {
     return this.inboxService.getMailDetails(id_mail, account);
   }
 }

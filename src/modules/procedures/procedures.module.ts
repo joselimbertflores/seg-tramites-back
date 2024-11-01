@@ -1,18 +1,10 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AdministrationModule } from 'src/modules/administration/administration.module';
 
-import {
-  InternalController,
-  ExternalController,
-  ProcedureController,
-} from './controllers';
-import {
-  ExternalService,
-  InternalService,
-  ObservationService,
-} from './services';
+import { InternalController, ExternalController, ProcedureController } from './controllers';
+import { ExternalService, InternalService, ObservationService } from './services';
 import {
   ExternalDetail,
   ExternalDetailSchema,
@@ -29,8 +21,6 @@ import {
   ExternalProcedure,
   ExternalProcedureSchema,
 } from './schemas/index';
-import { GroupwareModule } from 'src/modules/groupware/groupware.module';
-import { UsersModule } from 'src/modules/users/users.module';
 
 @Module({
   imports: [
@@ -39,7 +29,6 @@ import { UsersModule } from 'src/modules/users/users.module';
       { name: Procedure.name, schema: ProcedureSchema },
       { name: InternalDetail.name, schema: InternalDetailSchema },
       { name: ExternalDetail.name, schema: ExternalDetailSchema },
-      // { name: Communication.name, schema: CommunicationSchema },
       { name: Observation.name, schema: ObservationSchema },
       {
         name: ProcedureBase.name,
@@ -50,9 +39,7 @@ import { UsersModule } from 'src/modules/users/users.module';
         ],
       },
     ]),
-    UsersModule,
     AdministrationModule,
-    GroupwareModule,
   ],
   controllers: [InternalController, ExternalController, ProcedureController],
   providers: [ExternalService, InternalService, ObservationService],

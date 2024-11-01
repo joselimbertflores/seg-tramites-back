@@ -4,10 +4,10 @@ import { ModuleRef } from '@nestjs/core';
 import { ObservationService, ExternalService, InternalService } from '../services';
 import { ValidProcedureService, groupProcedure } from '../interfaces';
 import { CreateObservationDto, GetProcedureParamsDto } from '../dto';
-import { IsMongoidPipe } from 'src/common/pipes';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../decorators/get-account-request.decorator';
+import { IsMongoidPipe } from 'src/common';
 
 @Controller('procedure')
 @onlyAssignedAccount()
