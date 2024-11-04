@@ -20,7 +20,7 @@ export class ExternalService {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<ExternalProcedure> = {
       account: accountId,
-      ...(term && { $or: [{ code: regex, reference: regex }] }),
+      ...(term && { $or: [{ code: regex }, { reference: regex }] }),
     };
     const [procedures, length] = await Promise.all([
       this.procedureModel.find(query).populate('account').sort({ _id: -1 }).limit(limit).skip(offset),

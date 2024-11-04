@@ -67,12 +67,13 @@ export class CommunicationController {
   @Delete('outbox')
   async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: SelectedCommunicationsDto) {
     const { message, communications } = await this.inboxService.cancel(account, communicationDto);
-    // this.groupwareGateway.cancelMails(mails);
+    this.groupwareGateway.cancelCommunications(communications);
     return { message };
   }
 
   @Get('/:id')
-  getCommunication(@Param('id', IsMongoidPipe) id_mail: string, @GetAccountRequest() account: Account) {
-    return this.inboxService.getMailDetails(id_mail, account);
+  getOne(@Param('id', IsMongoidPipe) communicationId: string, @GetAccountRequest() account: Account) {
+    console.log('GET A COMMUNICATION');
+    return this.inboxService.getOne(communicationId, account);
   }
 }

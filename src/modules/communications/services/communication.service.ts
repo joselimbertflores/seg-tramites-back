@@ -1,17 +1,17 @@
 import {
-  BadRequestException,
-  HttpException,
   Injectable,
+  HttpException,
+  ForbiddenException,
+  BadRequestException,
   InternalServerErrorException,
-  NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
-import { Procedure, ProcedureBase } from '../../procedures/schemas';
-import { stateProcedure, StatusMail } from '../../procedures/interfaces';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication } from '../schemas/communication.schema';
+import { stateProcedure, StatusMail } from '../../procedures/interfaces';
+import { ProcedureBase } from '../../procedures/schemas';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
 import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
@@ -50,6 +50,7 @@ export class CommunicationService {
       })
       .unwind('$procedure')
       .match(extraFilterQuery)
+      .sort({ _id: -1 })
       .facet({
         results: [{ $skip: offset }, { $limit: limit }],
         total: [
@@ -67,9 +68,15 @@ export class CommunicationService {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<Communication> = {
       'sender.cuenta': accountId,
-      ...(status ? { status } : { $or: [{ status: StatusMail.Rejected }, { status: StatusMail.Pending }] }),
       ...(isOriginal !== undefined && { isOriginal }),
-      ...(term && { $or: [{ reference: regex }, { 'recipient.fullname': regex }] }),
+      $and: [
+        {
+          ...(status ? { status } : { $or: [{ status: StatusMail.Rejected }, { status: StatusMail.Pending }] }),
+        },
+        {
+          ...(term && { $or: [{ reference: regex }, { 'recipient.fullname': regex }] }),
+        },
+      ],
     };
     const [communications, length] = await Promise.all([
       this.communicationModel.find(query).skip(offset).limit(limit).populate('procedure').sort({ sentDate: -1 }),
@@ -177,7 +184,9 @@ export class CommunicationService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
+      const documents = await this.communicationModel
+        .find({ _id: { $in: communicationIds } }, null, { session })
+        .populate('recipient.cuenta');
       const recivedBy = documents.find(({ status }) => status !== StatusMail.Pending);
       if (recivedBy) {
         throw new BadRequestException(`${recivedBy.recipient.fullname} ya ha recibido el tramite`);
@@ -191,10 +200,7 @@ export class CommunicationService {
       await session.commitTransaction();
       return {
         message: `Se cancelaron ${documents.length} envios`,
-        communications: documents.map(({ _id, recipient }) => ({
-          communicationId: _id,
-          recipientId: recipient.cuenta._id,
-        })),
+        communications: documents,
       };
     } catch (error) {
       await session.abortTransaction();
@@ -205,15 +211,13 @@ export class CommunicationService {
     }
   }
 
-  async getMailDetails(id_mail: string, { _id }: Account) {
-    // const mailDB = await this.commModel.findById(id_mail).populate('procedure');
-    // if (!mailDB)
-    //   throw new BadRequestException(
-    //     'El envio de este tramite ha sido cancelado',
-    //   );
-    // if (String(_id) !== String(mailDB.receiver.cuenta._id))
-    //   throw new ForbiddenException();
-    // return mailDB;
+  async getOne(communicationId: string, account: Account) {
+    const communicationDb = await this.communicationModel.findById(communicationId).populate('procedure');
+    if (!communicationDb) throw new BadRequestException(`Communication ${communicationId} don't exist`);
+    if (String(account._id) !== String(communicationDb.recipient.cuenta._id)) {
+      throw new ForbiddenException('Unauthorized to access this communication');
+    }
+    return communicationDb;
   }
 
   private async _checkDuplicate(

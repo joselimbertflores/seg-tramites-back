@@ -89,13 +89,13 @@ export const FRONTEND_MENU: Menu[] = [
     resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de entrada',
     icon: 'drafts',
-    routerLink: 'inbox',
+    routerLink: 'manage/inbox',
   },
   {
     resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de salida',
     icon: 'mark_as_unread',
-    routerLink: 'outbox',
+    routerLink: 'manage/outbox',
   },
 
   // {

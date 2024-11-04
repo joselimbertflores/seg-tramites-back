@@ -1,178 +1,71 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-import mongoose, { FilterQuery, Model } from 'mongoose';
-import { InternalDetail, InternalProcedure, Procedure } from '../schemas';
+import { FilterQuery, Model } from 'mongoose';
 
-import {
-  CreateInternalDetailDto,
-  CreateProcedureDto,
-  UpdateInternalDetailDto,
-  UpdateProcedureDto,
-} from '../dto';
-
-import {
-  ValidProcedureService,
-  stateProcedure,
-  groupProcedure,
-} from '../interfaces';
-
-import { PaginationDto } from 'src/common';
 import { Account } from 'src/modules/administration/schemas';
-import {
-  CreateInternalProcedureDto,
-  UpdateInternalProcedureDto,
-} from '../dtos';
+import { PaginationDto } from 'src/common';
+import { InternalProcedure } from '../schemas';
+import { stateProcedure } from '../interfaces';
+import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
 
 @Injectable()
-export class InternalService implements ValidProcedureService {
+export class InternalService {
   constructor(
-    @InjectConnection() private readonly connection: mongoose.Connection,
-    @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
-    @InjectModel(InternalDetail.name)
-    private internalDetailModel: Model<InternalDetail>,
-    private readonly configService: ConfigService,
-    @InjectModel(InternalProcedure.name)
-    private internalProcedureModel: Model<InternalProcedure>,
+    @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
+    private configService: ConfigService,
   ) {}
 
   async create(procedureDto: CreateInternalProcedureDto, account: Account) {
     const { segment, ...props } = procedureDto;
     const code = await this.generateCode(account, segment);
-    const createdProcedure = new this.internalProcedureModel({
+    const createdProcedure = new this.procedureModel({
       account: account._id,
       code: code,
       ...props,
     });
-    await createdProcedure.save();
-    return createdProcedure;
+    return await createdProcedure.save();
   }
 
   async update(id: string, procedureDto: UpdateInternalProcedureDto) {
-    const procedureDB = await this.internalProcedureModel.findById(id);
+    const procedureDB = await this.procedureModel.findById(id);
     if (!procedureDB) {
       throw new NotFoundException('El tramite no existe');
     }
     if (procedureDB.state !== stateProcedure.INSCRITO) {
       throw new BadRequestException('El tramite ya esta en curso');
     }
-    return await this.internalProcedureModel.findByIdAndUpdate(
-      id,
-      procedureDto,
-      { new: true },
-    );
+    return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<InternalProcedure> = {
       account: accountId,
-      code: regex,
-      reference: regex,
+      $or: [{ code: regex }, { reference: regex }],
     };
     const [procedures, length] = await Promise.all([
-      this.internalProcedureModel
-        .find(query)
-        .sort({ _id: -1 })
-        .limit(limit)
-        .skip(offset)
-        .lean(),
-      this.internalProcedureModel.count(query),
+      this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
+      this.procedureModel.count(query),
     ]);
     return { procedures, length };
   }
 
-  async search(
-    { limit, offset }: PaginationDto,
-    id_account: string,
-    text: string,
-  ) {
-    const regex = new RegExp(text, 'i');
-    const data = await this.procedureModel
-      .aggregate()
-      .match({
-        group: groupProcedure.INTERNAL,
-        account: new mongoose.Types.ObjectId(id_account),
-        state: { $ne: 'ANULADO' },
-      })
-      .lookup({
-        from: 'internaldetails',
-        localField: 'details',
-        foreignField: '_id',
-        as: 'details',
-      })
-      .unwind('details')
-      .match({
-        $or: [
-          { code: regex },
-          { reference: regex },
-          { cite: regex },
-          { 'details.destinatario.nombre': regex },
-        ],
-      })
-      .facet({
-        paginatedResults: [{ $skip: offset }, { $limit: limit }],
-        totalCount: [
-          {
-            $count: 'count',
-          },
-        ],
-      });
-    const procedures = data[0].paginatedResults;
-    const length = data[0].totalCount[0] ? data[0].totalCount[0].count : 0;
-    return { procedures, length };
-  }
-  async getDetail(id: string) {
-    const procedureDB = await this.procedureModel
-      .findById(id)
-      .populate('details')
-      .populate('type', 'nombre')
-      .populate({
-        path: 'account',
-        select: '_id',
-        populate: {
-          path: 'funcionario',
-          select: 'nombre paterno materno cargo',
-          populate: {
-            path: 'cargo',
-            select: 'nombre',
-          },
-        },
-      });
-    if (!procedureDB)
-      throw new BadRequestException('El tramite interno solicitado no existe');
+  async getOne(id: string) {
+    const procedureDB = await this.procedureModel.findById(id).populate('account').populate('type', 'nombre');
+    if (!procedureDB) throw new NotFoundException(`El tramite ${id} no existe.`);
     return procedureDB;
   }
 
-  private async generateCode(
-    account: Account,
-    segment: string,
-  ): Promise<string> {
+  private async generateCode(account: Account, segment: string): Promise<string> {
     const { dependencia } = await account.populate({
       path: 'dependencia.institucion',
     });
-    const code = `${segment}-${
-      dependencia.institucion.sigla
-    }-${this.configService.get('YEAR')}`.toUpperCase();
-    const correlative = await this.internalProcedureModel.count({
+    const code = `${segment}-${dependencia.institucion.sigla}-${this.configService.get('YEAR')}`.toUpperCase();
+    const correlative = await this.procedureModel.count({
+      group: InternalProcedure.name,
       code: new RegExp(code, 'i'),
     });
     return `${code}-${String(correlative + 1).padStart(5, '0')}`;
-  }
-
-  private async checkIsEditable(id_procedure: string): Promise<Procedure> {
-    const procedureDB = await this.procedureModel.findById(id_procedure);
-    if (!procedureDB)
-      throw new BadRequestException('El tramite solicitado no existe');
-    if (procedureDB.state !== stateProcedure.INSCRITO)
-      throw new BadRequestException(
-        'El tramite ya esta en proceso de evaluacion',
-      );
-    return procedureDB;
   }
 }

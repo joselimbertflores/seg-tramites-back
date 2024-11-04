@@ -51,15 +51,12 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
   }
 
-  cancelMails(data: Communication[]) {
-    // data.forEach(({ _id, receiver }) => {
-    //   const user = this.groupwareService.getUser(String(receiver.cuenta._id));
-    //   if (user) {
-    //     user.socketIds.forEach((socketId) => {
-    //       this.server.to(socketId).emit('cancel-mail', _id);
-    //     });
-    //   }
-    // });
+  cancelCommunications(communications: Communication[]): void {
+    for (const communication of communications) {
+      const user = this.groupwareService.getUser(String(communication.recipient.cuenta.user._id));
+      if (!user) return;
+      this.server.to(user.socketIds).emit('cancel-communication', communication._id);
+    }
   }
 
   notifyUnarchive(id_dependency: string, id_mail: string) {

@@ -29,8 +29,8 @@ export class ExternalController {
   }
 
   @Get()
-  findAll(@GetAccountRequest('_id') id_account: string, @Query() paginationDto: PaginationDto) {
-    return this.externalService.findAll(paginationDto, id_account);
+  findAll(@GetAccountRequest('_id') accountId: string, @Query() paginationDto: PaginationDto) {
+    return this.externalService.findAll(paginationDto, accountId);
   }
 
   @Post()

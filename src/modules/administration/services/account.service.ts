@@ -200,7 +200,7 @@ export class AccountService {
         },
       })
       .match({ fullname: regex, activo: true })
-      .limit(-1)
+      .limit(limit)
       .project({ fullname: 0 });
   }
 
