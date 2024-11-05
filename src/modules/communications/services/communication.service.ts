@@ -220,6 +220,10 @@ export class CommunicationService {
     return communicationDb;
   }
 
+  async getWorkflow(procedureId: string) {
+    return await this.communicationModel.find({ procedure: procedureId });
+  }
+
   private async _checkDuplicate(
     procedureId: string,
     recipients: RecipientDto[],

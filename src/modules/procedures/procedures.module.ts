@@ -21,6 +21,7 @@ import {
   ExternalProcedure,
   ExternalProcedureSchema,
 } from './schemas/index';
+import { ProcedureService } from './services/procedure.service';
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import {
     AdministrationModule,
   ],
   controllers: [InternalController, ExternalController, ProcedureController],
-  providers: [ExternalService, InternalService, ObservationService],
-  exports: [MongooseModule],
+  providers: [ExternalService, InternalService, ObservationService, ProcedureService],
+  exports: [MongooseModule, ProcedureService],
 })
 export class ProceduresModule {}

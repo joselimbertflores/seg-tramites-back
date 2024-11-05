@@ -43,10 +43,5 @@ export class InternalController {
   @Patch(':id')
   update(@Param('id') procedureId: string, @Body() procedureDto: UpdateInternalProcedureDto) {
     return this.internalService.update(procedureId, procedureDto);
-  }
-
-  @Get(':id')
-  getOne(@Param('id', IsMongoidPipe) procedureId: string) {
-    return this.internalService.getOne(procedureId);
-  }
+  }u
 }

@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { InstitutionService, DependencieService } from 'src/modules/administration/services';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
-import { CommunicationService } from '../../procedures/services';
 
 import { IsMongoidPipe } from 'src/common';
 import { AccountService } from 'src/modules/administration/services/account.service';
@@ -10,6 +9,7 @@ import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-a
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
 import { CreateCommunicationDto } from '../dtos/communication.dto';
 import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import { CommunicationService } from '../services';
 
 @Controller('communication')
 @onlyAssignedAccount()
@@ -73,7 +73,6 @@ export class CommunicationController {
 
   @Get('/:id')
   getOne(@Param('id', IsMongoidPipe) communicationId: string, @GetAccountRequest() account: Account) {
-    console.log('GET A COMMUNICATION');
     return this.inboxService.getOne(communicationId, account);
   }
 }

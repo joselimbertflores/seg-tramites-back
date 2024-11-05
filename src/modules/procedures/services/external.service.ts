@@ -52,12 +52,6 @@ export class ExternalService {
     return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
-  async getOne(id: string) {
-    const procedureDB = await this.procedureModel.findById(id).populate('account').populate('type', 'nombre');
-    if (!procedureDB) throw new NotFoundException(`El tramite ${id} no existe.`);
-    return procedureDB;
-  }
-
   private async _generateCode(account: Account, segment: string): Promise<string> {
     const { dependencia } = await account.populate({
       path: 'dependencia.institucion',

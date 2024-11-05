@@ -51,12 +51,6 @@ export class InternalService {
     return { procedures, length };
   }
 
-  async getOne(id: string) {
-    const procedureDB = await this.procedureModel.findById(id).populate('account').populate('type', 'nombre');
-    if (!procedureDB) throw new NotFoundException(`El tramite ${id} no existe.`);
-    return procedureDB;
-  }
-
   private async generateCode(account: Account, segment: string): Promise<string> {
     const { dependencia } = await account.populate({
       path: 'dependencia.institucion',

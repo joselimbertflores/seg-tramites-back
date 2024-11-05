@@ -6,6 +6,7 @@ import { CommunicationService } from './services';
 import { AdministrationModule } from '../administration/administration.module';
 import { ProceduresModule } from '../procedures/procedures.module';
 import { GroupwareModule } from '../groupware/groupware.module';
+import { ProcessController } from './controllers/process.controller';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { GroupwareModule } from '../groupware/groupware.module';
     GroupwareModule,
     ProceduresModule,
   ],
-  controllers: [CommunicationController],
+  controllers: [CommunicationController, ProcessController],
   providers: [CommunicationService],
   exports: [MongooseModule],
 })

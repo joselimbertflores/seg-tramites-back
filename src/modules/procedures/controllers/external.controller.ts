@@ -42,9 +42,4 @@ export class ExternalController {
   update(@Param('id') procedureId: string, @Body() procedureDto: UpdateExternalProcedureDto) {
     return this.externalService.update(procedureId, procedureDto);
   }
-
-  @Get(':id')
-  getOne(@Param('id', IsMongoidPipe) id: string) {
-    return this.externalService.getOne(id);
-  }
 }
