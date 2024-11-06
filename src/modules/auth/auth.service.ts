@@ -32,10 +32,7 @@ export class AuthService {
       throw new BadRequestException('La cuenta ha sido deshabilidata');
     }
     logger.info(`Ingreso de usuario (${login}) ${user.fullname} / IP: ${ip}`);
-    return {
-      token: this._generateToken(user),
-      url: user.updatedPassword ? '/home/main' : '/home/settings',
-    };
+    return { token: this._generateToken(user) };
   }
 
   async checkAuthStatus(user: UserDocument) {
@@ -43,7 +40,6 @@ export class AuthService {
       token: this._generateToken(user),
       menu: this._getFrontMenu(user.role),
       permissions: this._getPermissions(user.role),
-      code: '',
       updatedPassword: user.updatedPassword,
     };
   }
@@ -72,10 +68,7 @@ export class AuthService {
     const { password } = data;
     const salt = bcrypt.genSaltSync();
     const encryptedPassword = bcrypt.hashSync(password.toString(), salt);
-    await this.userModel.updateOne(
-      { _id: id_account },
-      { password: encryptedPassword, updatedPassword: true },
-    );
+    await this.userModel.updateOne({ _id: id_account }, { password: encryptedPassword, updatedPassword: true });
     return { message: 'Contraseña actualizada' };
   }
 
@@ -88,18 +81,13 @@ export class AuthService {
   }
 
   private _getPermissions({ permissions }: Role) {
-    return permissions.reduce(
-      (result, { actions, resource }) => ({ [resource]: actions, ...result }),
-      {},
-    );
+    return permissions.reduce((result, { actions, resource }) => ({ [resource]: actions, ...result }), {});
   }
 
   private _getFrontMenu({ permissions }: Role) {
     return structuredClone(FRONTEND_MENU).filter((menu) => {
       if (!menu.children) {
-        return permissions.some(({ resource }) =>
-          menu.resource.includes(resource),
-        );
+        return permissions.some(({ resource }) => menu.resource.includes(resource));
       }
       menu.children = menu.children.filter((submenu) =>
         permissions.some(({ resource }) => submenu.resource.includes(resource)),

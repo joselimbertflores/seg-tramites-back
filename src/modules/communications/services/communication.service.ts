@@ -187,14 +187,31 @@ export class CommunicationService {
       const documents = await this.communicationModel
         .find({ _id: { $in: communicationIds } }, null, { session })
         .populate('recipient.cuenta');
-      const recivedBy = documents.find(({ status }) => status !== StatusMail.Pending);
-      if (recivedBy) {
-        throw new BadRequestException(`${recivedBy.recipient.fullname} ya ha recibido el tramite`);
+      const isReceived = documents.find(({ status }) => status !== StatusMail.Pending);
+      if (isReceived) {
+        throw new BadRequestException(`${isReceived.recipient.fullname} ya ha recibido el tramite`);
       }
       await this.communicationModel.deleteMany({ _id: { $in: communicationIds } }, { session });
-      for (const communication of documents) {
-        if (communication.isOriginal) {
-          await this._restoreStage(communication.procedure._id, account._id, session);
+      for (const { procedure, isOriginal } of documents) {
+        const lastStage = await this.communicationModel.findOne(
+          {
+            procedure: procedure._id,
+            'recipient.cuenta': account._id,
+            $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
+          },
+          null,
+          { session, sort: { _id: -1 } },
+        );
+        if (lastStage) {
+          if (lastStage.isOriginal === isOriginal) {
+            await this.communicationModel.updateOne(
+              { _id: lastStage._id },
+              { status: StatusMail.Received },
+              { session },
+            );
+          }
+        } else {
+          await this.procedureModel.updateOne({ _id: procedure._id }, { state: stateProcedure.INSCRITO }, { session });
         }
       }
       await session.commitTransaction();
@@ -292,18 +309,18 @@ export class CommunicationService {
     }
   }
 
-  private async _restoreStage(procedureId: string, senderAccountId: string, session: ClientSession): Promise<void> {
-    const lastStage = await this.communicationModel.findOneAndUpdate(
-      {
-        procedure: procedureId,
-        'recipient.cuenta': senderAccountId,
-        $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
-      },
-      { status: StatusMail.Received },
-      { session, sort: { _id: -1 } },
-    );
-    if (!lastStage) {
-      await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.INSCRITO }, { session });
-    }
-  }
+  // private async _restoreStage(procedureId: string, senderAccountId: string, session: ClientSession): Promise<void> {
+  //   const lastStage = await this.communicationModel.findOneAndUpdate(
+  //     {
+  //       procedure: procedureId,
+  //       'recipient.cuenta': senderAccountId,
+  //       $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
+  //     },
+  //     { status: StatusMail.Received },
+  //     { session, sort: { _id: -1 } },
+  //   );
+  //   if (!lastStage) {
+  //     await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.INSCRITO }, { session });
+  //   }
+  // }
 }
