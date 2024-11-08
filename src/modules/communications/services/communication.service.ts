@@ -187,32 +187,15 @@ export class CommunicationService {
       const documents = await this.communicationModel
         .find({ _id: { $in: communicationIds } }, null, { session })
         .populate('recipient.cuenta');
+
       const isReceived = documents.find(({ status }) => status !== StatusMail.Pending);
       if (isReceived) {
         throw new BadRequestException(`${isReceived.recipient.fullname} ya ha recibido el tramite`);
       }
+
       await this.communicationModel.deleteMany({ _id: { $in: communicationIds } }, { session });
-      for (const { procedure, isOriginal } of documents) {
-        const lastStage = await this.communicationModel.findOne(
-          {
-            procedure: procedure._id,
-            'recipient.cuenta': account._id,
-            $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
-          },
-          null,
-          { session, sort: { _id: -1 } },
-        );
-        if (lastStage) {
-          if (lastStage.isOriginal === isOriginal) {
-            await this.communicationModel.updateOne(
-              { _id: lastStage._id },
-              { status: StatusMail.Received },
-              { session },
-            );
-          }
-        } else {
-          await this.procedureModel.updateOne({ _id: procedure._id }, { state: stateProcedure.INSCRITO }, { session });
-        }
+      for (const communication of documents) {
+        await this._restoreStage(communication, account, session);
       }
       await session.commitTransaction();
       return {
@@ -323,4 +306,30 @@ export class CommunicationService {
   //     await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.INSCRITO }, { session });
   //   }
   // }
+
+  private async _restoreStage(
+    { procedure, isOriginal }: Communication,
+    currentEmitter: Account,
+    session: ClientSession,
+  ): Promise<void> {
+    const lastStage = await this.communicationModel.findOne(
+      {
+        procedure: procedure._id,
+        'recipient.cuenta': currentEmitter._id,
+        $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
+      },
+      {},
+      { sort: { _id: -1 }, session },
+    );
+    if (lastStage) {
+      // if process is send
+      if (lastStage.isOriginal && !isOriginal) return;
+      await this.communicationModel.updateOne({ _id: lastStage._id }, { status: StatusMail.Received }, { session });
+    } else {
+      // First second
+      if (isOriginal) {
+        await this.procedureModel.updateOne({ _id: procedure._id }, { state: stateProcedure.INSCRITO }, { session });
+      }
+    }
+  }
 }
