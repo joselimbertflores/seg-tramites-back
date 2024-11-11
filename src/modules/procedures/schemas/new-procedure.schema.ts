@@ -13,6 +13,12 @@ export class ProcedureBase extends Document {
   })
   code: string;
 
+  @Prop({ type: String, required: true })
+  prefix: string;
+
+  @Prop({ type: Number, required: true })
+  correlative: number;
+
   @Prop({ type: String, default: 'S/C' })
   cite: string;
 

@@ -18,7 +18,7 @@ export class InternalService {
 
   async create(procedureDto: CreateInternalProcedureDto, account: Account) {
     const { segment, ...props } = procedureDto;
-    const code = await this.generateCode(account, segment);
+    const code = await this._generateCode(account, segment);
     const createdProcedure = new this.procedureModel({
       account: account._id,
       code: code,
@@ -51,15 +51,20 @@ export class InternalService {
     return { procedures, length };
   }
 
-  private async generateCode(account: Account, segment: string): Promise<string> {
+  private async _generateCode(
+    account: Account,
+    segment: string,
+  ): Promise<{ code: string; prefix: string; correlative: number }> {
     const { dependencia } = await account.populate({
       path: 'dependencia.institucion',
     });
-    const code = `${segment}-${dependencia.institucion.sigla}-${this.configService.get('YEAR')}`.toUpperCase();
-    const correlative = await this.procedureModel.count({
-      group: InternalProcedure.name,
-      code: new RegExp(code, 'i'),
-    });
-    return `${code}-${String(correlative + 1).padStart(5, '0')}`;
+    const prefix = `${segment}-${dependencia.institucion.sigla}-${this.configService.get('YEAR')}`.toUpperCase();
+    const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
+    const correlative = last ? last.correlative + 1 : 1;
+    return {
+      prefix,
+      correlative,
+      code: `${prefix}-${correlative.toString().padStart(5, '0')}`,
+    };
   }
 }

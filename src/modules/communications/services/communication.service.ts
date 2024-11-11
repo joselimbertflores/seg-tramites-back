@@ -11,9 +11,9 @@ import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication } from '../schemas/communication.schema';
 import { stateProcedure, StatusMail } from '../../procedures/interfaces';
-import { ProcedureBase } from '../../procedures/schemas';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
 import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import { ProcedureBase } from '../../procedures/schemas';
 
 interface setProcessStateProps {
   mailId: string | undefined;
@@ -26,7 +26,7 @@ export class CommunicationService {
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
     @InjectModel(ProcedureBase.name) private procedureModel: Model<ProcedureBase>,
-    @InjectConnection() private readonly connection: Connection,
+    @InjectConnection() private connection: Connection,
   ) {}
 
   async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
@@ -291,21 +291,6 @@ export class CommunicationService {
       await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.EN_REVISION }, { session });
     }
   }
-
-  // private async _restoreStage(procedureId: string, senderAccountId: string, session: ClientSession): Promise<void> {
-  //   const lastStage = await this.communicationModel.findOneAndUpdate(
-  //     {
-  //       procedure: procedureId,
-  //       'recipient.cuenta': senderAccountId,
-  //       $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
-  //     },
-  //     { status: StatusMail.Received },
-  //     { session, sort: { _id: -1 } },
-  //   );
-  //   if (!lastStage) {
-  //     await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.INSCRITO }, { session });
-  //   }
-  // }
 
   private async _restoreStage(
     { procedure, isOriginal }: Communication,

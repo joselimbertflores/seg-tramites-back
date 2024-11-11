@@ -36,6 +36,8 @@ const RepresentativeSchema = SchemaFactory.createForClass(Representative);
 @Schema()
 export class ExternalProcedure {
   code: string;
+  prefix: string;
+  correlative: number;
   cite: string;
   type: TypeProcedure;
   account: Account;
@@ -65,5 +67,4 @@ export class ExternalProcedure {
   })
   pin: number;
 }
-export const ExternalProcedureSchema =
-  SchemaFactory.createForClass(ExternalProcedure);
+export const ExternalProcedureSchema = SchemaFactory.createForClass(ExternalProcedure);

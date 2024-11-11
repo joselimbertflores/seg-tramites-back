@@ -13,4 +13,7 @@ export class ProcedureService {
     if (!procedureDB) throw new NotFoundException(`El tramite ${id} no existe.`);
     return procedureDB;
   }
+
+  
+
 }

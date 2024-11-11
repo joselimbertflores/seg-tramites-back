@@ -23,6 +23,8 @@ const WorkerSchema = SchemaFactory.createForClass(Worker);
 @Schema()
 export class InternalProcedure {
   code: string;
+  prefix: string;
+  correlative: number;
   cite: string;
   type: TypeProcedure;
   account: Account;
@@ -44,5 +46,4 @@ export class InternalProcedure {
   receiver: Worker;
 }
 
-export const InternalProcedureSchema =
-  SchemaFactory.createForClass(InternalProcedure);
+export const InternalProcedureSchema = SchemaFactory.createForClass(InternalProcedure);

@@ -1,4 +1,3 @@
-import { ApplicantModule } from './applicant/applicant.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
@@ -37,7 +36,6 @@ import { CommunicationsModule } from './modules/communications/communications.mo
     GroupwareModule,
     ReportsModule,
     FilesModule,
-    ApplicantModule,
     PublicationsModule,
     CommunicationsModule,
   ],
