@@ -5,7 +5,7 @@ import { Dependency } from './dependencie.schema';
 import { Officer } from './officer.schema';
 
 export type AccountDocument = HydratedDocument<Account>;
-@Schema()
+@Schema({ collection: 'cuentas' })
 export class Account extends Document {
   @Prop({
     type: String,
