@@ -1,17 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
-import { Procedure } from './procedure.schema';
 import { Account } from 'src/modules/administration/schemas';
 
 
 @Schema()
 export class Observation extends Document {
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    refPath: Procedure.name,
-    required: true,
-  })
-  procedure: Procedure;
+  // @Prop({
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   refPath: Procedure.name,
+  //   required: true,
+  // })
+  // procedure: Procedure;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

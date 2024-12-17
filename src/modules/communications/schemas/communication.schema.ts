@@ -1,94 +1,81 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 
-import { Account } from 'src/modules/administration/schemas';
-import { ProcedureBase } from 'src/modules/procedures/schemas';
-import { StatusMail } from '../../procedures/interfaces/status.enum';
+import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
+import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
+import { StatusMail } from 'src/modules/procedures/interfaces';
 
 @Schema({ _id: false })
-class Participant extends Document {
+class Participant {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: Account.name,
-    required: true,
-    index: true,
   })
-  cuenta: Account;
+  account: Account;
 
   @Prop({
-    type: String,
-    required: true,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Institution.name,
   })
+  institution: Institution;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Dependency.name,
+  })
+  dependency: Dependency;
+
+  @Prop()
   fullname: string;
 
-  @Prop({
-    type: String,
-  })
-  jobtitle?: string;
+  @Prop()
+  jobtitle: string;
 }
 const ParticipantSchema = SchemaFactory.createForClass(Participant);
 
 @Schema({ _id: false })
 class ActionLog {
-  @Prop({ type: String, required: true })
-  manager: string;
+  @Prop()
+  fullname: string;
 
-  @Prop({ type: String, required: true })
+  @Prop()
   description: string;
 
-  @Prop({ type: Date, required: true })
+  @Prop()
   date: Date;
 }
 const ActionLogSchema = SchemaFactory.createForClass(ActionLog);
 
-@Schema()
-export class Communication extends Document {
-  @Prop({
-    type: ParticipantSchema,
-    required: true,
-  })
-  sender: Participant;
-
-  @Prop({
-    type: ParticipantSchema,
-    required: true,
-  })
-  recipient: Participant;
-
+@Schema({ _id: false })
+class ProcedureProps {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: ProcedureBase.name,
-    required: true,
+    ref: Procedure.name,
   })
-  procedure: ProcedureBase;
+  ref: ProcedureDocument;
 
-  @Prop({
-    type: String,
-    required: true,
-  })
+  @Prop()
+  code: string;
+
+  @Prop()
+  group: string;
+
+  @Prop()
   reference: string;
+}
 
-  @Prop({
-    type: String,
-    required: true,
-  })
-  attachmentsCount: string;
+const ProcedurePropsSchema = SchemaFactory.createForClass(ProcedureProps);
 
-  @Prop({
-    type: String,
-  })
-  internalNumber: string;
+@Schema({ collection: 'newcommunications' })
+export class Communication {
+  @Prop({ type: ParticipantSchema })
+  sender: Participant;
 
-  @Prop({
-    type: Date,
-    required: true,
-  })
-  sentDate: Date;
+  @Prop({ type: ParticipantSchema })
+  recipient: Participant;
 
-  @Prop({
-    type: Date,
-  })
-  receivedDate?: Date;
+  @Prop({ type: ProcedurePropsSchema })
+  procedure: ProcedureProps;
 
   @Prop({
     type: String,
@@ -98,13 +85,28 @@ export class Communication extends Document {
   })
   status: StatusMail;
 
-  @Prop({
-    type: ActionLogSchema,
-  })
+  @Prop(ActionLogSchema)
   actionLog: ActionLog;
+
+  @Prop()
+  reference: string;
+
+  @Prop()
+  attachmentsCount: string;
+
+  @Prop()
+  internalNumber: string;
+
+  @Prop({ type: Date, default: Date.now })
+  sentDate: Date;
+
+  @Prop()
+  receivedDate?: Date;
 
   @Prop({ type: Boolean, default: false })
   isOriginal: boolean;
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);
+
+export type CommunicationDocument = HydratedDocument<Communication>;

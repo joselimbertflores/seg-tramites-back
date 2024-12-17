@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Account, TypeProcedure } from 'src/modules/administration/schemas';
+import mongoose from 'mongoose';
+
+import { Account, Dependency, Institution, Officer, TypeProcedure } from 'src/modules/administration/schemas';
 import { stateProcedure } from '../interfaces';
 
 abstract class Person {
@@ -39,12 +41,23 @@ export class ExternalProcedure {
   prefix: string;
   correlative: number;
   cite: string;
-  type: TypeProcedure;
   account: Account;
   state: stateProcedure;
   reference: string;
   numberOfDocuments: string;
   group: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date;
+  institution: Institution;
+  dependency: Dependency;
+  officer: Officer;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: TypeProcedure.name,
+  })
+  type: TypeProcedure;
 
   @Prop({
     type: ApplicantSchema,

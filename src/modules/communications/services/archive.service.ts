@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, Model } from 'mongoose';
-import { Procedure } from '../../procedures/schemas';
 import { CreateArchiveDto } from '../../procedures/dto';
 import { stateProcedure, StatusMail } from '../../procedures/interfaces';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
@@ -17,7 +16,7 @@ export class ArchiveService {
   constructor(
     @InjectConnection() private connection: mongoose.Connection,
     @InjectModel(Account.name) private accountModel: Model<Account>,
-    @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
+    // @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Communication.name)
     private communicationModel: Model<Communication>,
   ) {}
@@ -175,19 +174,19 @@ export class ArchiveService {
   }
 
   async checkIfProcedureCanBeCompleted(id_procedure: string): Promise<void> {
-    const procedureDB = await this.procedureModel.findById(id_procedure);
-    if (procedureDB.state === stateProcedure.CONCLUIDO) {
-      throw new BadRequestException(
-        `El tramite ${procedureDB.code} ya fue concluido.`,
-      );
-    }
-    const isProcessStarted = await this.communicationModel.findOne({
-      procedure: id_procedure,
-    });
-    if (isProcessStarted)
-      throw new BadRequestException(
-        'Solo puede concluir tramites que no hayan sido remitidos',
-      );
+    // const procedureDB = await this.procedureModel.findById(id_procedure);
+    // if (procedureDB.state === stateProcedure.CONCLUIDO) {
+    //   throw new BadRequestException(
+    //     `El tramite ${procedureDB.code} ya fue concluido.`,
+    //   );
+    // }
+    // const isProcessStarted = await this.communicationModel.findOne({
+    //   procedure: id_procedure,
+    // });
+    // if (isProcessStarted)
+    //   throw new BadRequestException(
+    //     'Solo puede concluir tramites que no hayan sido remitidos',
+    //   );
   }
 
   async insertPartipantInWokflow(
@@ -227,19 +226,19 @@ export class ArchiveService {
     state: stateProcedure.SUSPENDIDO | stateProcedure.CONCLUIDO,
     session: mongoose.mongo.ClientSession,
   ): Promise<void> {
-    const isProcessActive = await this.communicationModel.findOne(
-      {
-        procedure: id,
-        status: { $in: [StatusMail.Received, StatusMail.Pending] },
-      },
-      undefined,
-      { session },
-    );
-    if (isProcessActive) return;
-    await this.procedureModel.updateOne(
-      { _id: id },
-      { state: state, endDate: new Date() },
-      { session },
-    );
+    // const isProcessActive = await this.communicationModel.findOne(
+    //   {
+    //     procedure: id,
+    //     status: { $in: [StatusMail.Received, StatusMail.Pending] },
+    //   },
+    //   undefined,
+    //   { session },
+    // );
+    // if (isProcessActive) return;
+    // await this.procedureModel.updateOne(
+    //   { _id: id },
+    //   { state: state, endDate: new Date() },
+    //   { session },
+    // );
   }
 }

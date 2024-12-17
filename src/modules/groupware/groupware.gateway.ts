@@ -11,7 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { GroupwareService } from './groupware.service';
 import { JwtPayload } from 'src/modules/auth/interfaces/jwt.interface';
-import { Communication } from '../communications/schemas/communication.schema';
+import { Communication, CommunicationDocument } from '../communications/schemas/communication.schema';
 
 interface expelClientProps {
   id_account: string;
@@ -43,17 +43,17 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     client.broadcast.emit('listar', this.groupwareService.getClients());
   }
 
-  sentCommunications(communications: Communication[]): void {
+  sentCommunications(communications: CommunicationDocument[]): void {
     for (const communication of communications) {
-      const user = this.groupwareService.getUser(String(communication.recipient.cuenta.user._id));
+      const user = this.groupwareService.getUser(String(communication.recipient.account));
       if (!user) return;
       this.server.to(user.socketIds).emit('new-communication', communication);
     }
   }
 
-  cancelCommunications(communications: Communication[]): void {
+  cancelCommunications(communications: CommunicationDocument[]): void {
     for (const communication of communications) {
-      const user = this.groupwareService.getUser(String(communication.recipient.cuenta.user._id));
+      const user = this.groupwareService.getUser(String(communication.recipient));
       if (!user) return;
       this.server.to(user.socketIds).emit('cancel-communication', communication._id);
     }

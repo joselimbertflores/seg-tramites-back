@@ -1,37 +1,53 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
-import { TypeProcedure } from 'src/modules/administration/schemas/type-procedure.schema';
-import { ExternalDetail } from './external-detail.schema';
-import { InternalDetail } from './internal-detail.schema';
+import mongoose, { HydratedDocument } from 'mongoose';
+
+import { Account, Dependency, Institution, Officer } from 'src/modules/administration/schemas';
 import { stateProcedure } from '../interfaces';
-import { Account } from 'src/modules/administration/schemas';
 
-
-
-@Schema()
-export class Procedure extends Document {
+export enum groupProcedure {
+  EXTERNAL = 'ExternalProcedure',
+  INTERNAL = 'InternalProcedure',
+}
+@Schema({ discriminatorKey: 'group', timestamps: true, collection: 'procedurebases' })
+export class Procedure {
   @Prop({
     type: String,
     required: true,
-    unique: true,
-    uppercase: true,
   })
   code: string;
 
-  @Prop({ type: String, default: '' })
-  cite: string;
+  @Prop({ type: String, required: true })
+  prefix: string;
 
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: TypeProcedure.name,
-  })
-  type: TypeProcedure;
+  @Prop({ type: Number, required: true })
+  correlative: number;
+
+  @Prop({ type: String, default: 'S/C' })
+  cite: string;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: Account.name,
   })
   account: Account;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Institution.name,
+  })
+  institution: Institution;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Dependency.name,
+  })
+  dependency: Dependency;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Officer.name,
+  })
+  officer?: Officer;
 
   @Prop({
     type: String,
@@ -50,35 +66,25 @@ export class Procedure extends Document {
     type: String,
     required: true,
   })
-  amount: string;
+  numberOfDocuments: string;
 
-  @Prop({ type: Boolean, default: false })
-  send: boolean;
+  @Prop({
+    type: String,
+    required: true,
+    enum: groupProcedure,
+  })
+  group: groupProcedure;
 
-  @Prop({ type: Date, default: Date.now })
-  startDate: Date;
+  @Prop()
+  createdAt: Date;
+
+  @Prop()
+  updatedAt: Date;
 
   @Prop({ type: Date })
-  endDate?: Date;
-
-  @Prop({
-    type: String,
-    required: true,
-    enum: [ExternalDetail.name, InternalDetail.name],
-  })
-  group: string;
-
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    refPath: 'group',
-  })
-  details: ExternalDetail | InternalDetail;
-
-  @Prop({
-    type: String,
-  })
-  tramite: string;
+  completedAt: Date;
 }
-
 export const ProcedureSchema = SchemaFactory.createForClass(Procedure);
+ProcedureSchema.index({ code: 1, group: 1 }, { unique: true });
+
+export type ProcedureDocument = HydratedDocument<Procedure>;

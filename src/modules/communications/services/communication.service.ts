@@ -9,11 +9,11 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
-import { Communication } from '../schemas/communication.schema';
+import { Communication, CommunicationDocument } from '../schemas/communication.schema';
 import { stateProcedure, StatusMail } from '../../procedures/interfaces';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
 import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { ProcedureBase } from '../../procedures/schemas';
+import { Procedure } from 'src/modules/procedures/schemas';
 
 interface setProcessStateProps {
   mailId: string | undefined;
@@ -24,43 +24,25 @@ interface setProcessStateProps {
 @Injectable()
 export class CommunicationService {
   constructor(
-    @InjectModel(Communication.name) private communicationModel: Model<Communication>,
-    @InjectModel(ProcedureBase.name) private procedureModel: Model<ProcedureBase>,
+    @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
+    @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectConnection() private connection: Connection,
   ) {}
 
   async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
+    console.log(status);
     const regex = new RegExp(term, 'i');
-    const extraFilterQuery: FilterQuery<Communication> = {
+    const filterQuery: FilterQuery<Communication> = {
+      'recipient.account': accountId,
+      ...(status ? { status } : { $or: [{ status: StatusMail.Received }, { status: StatusMail.Pending }] }),
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
       ...(group && { 'procedure.group': group }),
+      ...(from && { 'sender.fullname': new RegExp(from, 'i') }),
     };
-    const [data] = await this.communicationModel
-      .aggregate()
-      .match({
-        'recipient.cuenta': accountId,
-        ...(status ? { status } : { $or: [{ status: StatusMail.Received }, { status: StatusMail.Pending }] }),
-        ...(from && { 'sender.fullname': new RegExp(from, 'i') }),
-      })
-      .lookup({
-        from: 'procedurebases',
-        localField: 'procedure',
-        foreignField: '_id',
-        as: 'procedure',
-      })
-      .unwind('$procedure')
-      .match(extraFilterQuery)
-      .sort({ _id: -1 })
-      .facet({
-        results: [{ $skip: offset }, { $limit: limit }],
-        total: [
-          {
-            $count: 'count',
-          },
-        ],
-      });
-    const communications = data.results;
-    const length = data.total[0] ? data.total[0].count : 0;
+    const [communications, length] = await Promise.all([
+      this.communicationModel.find(filterQuery).limit(limit).skip(offset),
+      this.communicationModel.count(filterQuery),
+    ]);
     return { communications, length };
   }
 
@@ -214,7 +196,7 @@ export class CommunicationService {
   async getOne(communicationId: string, account: Account) {
     const communicationDb = await this.communicationModel.findById(communicationId).populate('procedure');
     if (!communicationDb) throw new BadRequestException(`Communication ${communicationId} don't exist`);
-    if (String(account._id) !== String(communicationDb.recipient.cuenta._id)) {
+    if (String(account._id) !== String(communicationDb.recipient.account._id)) {
       throw new ForbiddenException('Unauthorized to access this communication');
     }
     return communicationDb;
@@ -240,7 +222,7 @@ export class CommunicationService {
     );
 
     if (duplicate) {
-      const fullName = recipients.find(({ accountId }) => accountId == duplicate.recipient.cuenta._id).fullname;
+      const fullName = recipients.find(({ accountId }) => accountId == duplicate.recipient.account._id).fullname;
       throw new BadRequestException(`${fullName} ya tiene el tramite en su bandeja`);
     }
   }
@@ -299,7 +281,7 @@ export class CommunicationService {
   ): Promise<void> {
     const lastStage = await this.communicationModel.findOne(
       {
-        procedure: procedure._id,
+        procedure: procedure.ref._id,
         'recipient.cuenta': currentEmitter._id,
         $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
       },
@@ -313,7 +295,11 @@ export class CommunicationService {
     } else {
       // First second
       if (isOriginal) {
-        await this.procedureModel.updateOne({ _id: procedure._id }, { state: stateProcedure.INSCRITO }, { session });
+        await this.procedureModel.updateOne(
+          { _id: procedure.ref._id },
+          { state: stateProcedure.INSCRITO },
+          { session },
+        );
       }
     }
   }

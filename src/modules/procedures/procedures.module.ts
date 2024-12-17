@@ -6,20 +6,14 @@ import { AdministrationModule } from 'src/modules/administration/administration.
 import { InternalController, ExternalController, ProcedureController } from './controllers';
 import { ExternalService, InternalService, ObservationService } from './services';
 import {
-  ExternalDetail,
-  ExternalDetailSchema,
-  Procedure,
-  ProcedureSchema,
-  InternalDetail,
-  InternalDetailSchema,
   Observation,
   ObservationSchema,
-  ProcedureBase,
-  ProcedureBaseSchema,
   InternalProcedure,
   InternalProcedureSchema,
   ExternalProcedure,
   ExternalProcedureSchema,
+  Procedure,
+  ProcedureSchema,
 } from './schemas/index';
 import { ProcedureService } from './services/procedure.service';
 
@@ -27,13 +21,10 @@ import { ProcedureService } from './services/procedure.service';
   imports: [
     ConfigModule,
     MongooseModule.forFeature([
-      { name: Procedure.name, schema: ProcedureSchema },
-      { name: InternalDetail.name, schema: InternalDetailSchema },
-      { name: ExternalDetail.name, schema: ExternalDetailSchema },
       { name: Observation.name, schema: ObservationSchema },
       {
-        name: ProcedureBase.name,
-        schema: ProcedureBaseSchema,
+        name: Procedure.name,
+        schema: ProcedureSchema,
         discriminators: [
           { name: InternalProcedure.name, schema: InternalProcedureSchema },
           { name: ExternalProcedure.name, schema: ExternalProcedureSchema },
