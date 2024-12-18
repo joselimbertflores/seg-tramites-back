@@ -37,7 +37,7 @@ export class ExternalService {
     const createdProcedure = new this.procedureModel({
       account: account._id,
       dependency: account.dependencia,
-      institution: account.dependencia.institucion,
+      institution: account.institution,
       pin: Math.floor(100000 + Math.random() * 900000),
       correlative,
       prefix,
@@ -62,10 +62,7 @@ export class ExternalService {
     account: Account,
     segment: string,
   ): Promise<{ code: string; prefix: string; correlative: number }> {
-    const { dependencia } = await account.populate({
-      path: 'dependencia.institucion',
-    });
-    const prefix = `${segment}-${dependencia.institucion.sigla}`.toUpperCase();
+    const prefix = `${segment}-${account.institution.sigla}`.toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {

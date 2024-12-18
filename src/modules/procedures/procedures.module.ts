@@ -1,25 +1,25 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AdministrationModule } from 'src/modules/administration/administration.module';
 
+import { AdministrationModule } from 'src/modules/administration/administration.module';
 import { InternalController, ExternalController, ProcedureController } from './controllers';
-import { ExternalService, InternalService, ObservationService } from './services';
+import { ExternalService, InternalService, ObservationService, ProcedureService } from './services';
 import {
-  Observation,
-  ObservationSchema,
-  InternalProcedure,
-  InternalProcedureSchema,
-  ExternalProcedure,
-  ExternalProcedureSchema,
   Procedure,
   ProcedureSchema,
-} from './schemas/index';
-import { ProcedureService } from './services/procedure.service';
+  ExternalProcedure,
+  ExternalProcedureSchema,
+  InternalProcedure,
+  InternalProcedureSchema,
+  Observation,
+  ObservationSchema,
+} from './schemas';
 
 @Module({
   imports: [
     ConfigModule,
+    AdministrationModule,
     MongooseModule.forFeature([
       { name: Observation.name, schema: ObservationSchema },
       {
@@ -31,7 +31,6 @@ import { ProcedureService } from './services/procedure.service';
         ],
       },
     ]),
-    AdministrationModule,
   ],
   controllers: [InternalController, ExternalController, ProcedureController],
   providers: [ExternalService, InternalService, ObservationService, ProcedureService],

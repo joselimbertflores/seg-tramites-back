@@ -68,6 +68,12 @@ export const FRONTEND_MENU: Menu[] = [
     ],
   },
   {
+    resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
+    text: 'Documentos',
+    icon: 'width_normal',
+    routerLink: 'manage/documents',
+  },
+  {
     text: 'Administracion',
     children: [
       {

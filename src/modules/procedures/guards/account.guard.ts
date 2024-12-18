@@ -21,7 +21,9 @@ export class AccountGuard implements CanActivate {
     if (!user) {
       throw new InternalServerErrorException('User is not authenticated');
     }
-    const account = await this.accountModel.findOne({ user: user._id }).populate(['officer', 'dependencia']);
+    const account = await this.accountModel
+      .findOne({ user: user._id })
+      .populate(['officer', 'dependencia', 'institution']);
 
     if (!account) {
       throw new ForbiddenException(`No esta vinculado a ninguna cuenta`);

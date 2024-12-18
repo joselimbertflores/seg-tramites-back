@@ -5,7 +5,7 @@ import { FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/common';
-import { InternalProcedure } from '../schemas';
+import { InternalProcedure, procedureStatus } from '../schemas';
 import { stateProcedure } from '../interfaces';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
 
@@ -17,12 +17,15 @@ export class InternalService {
   ) {}
 
   async create(procedureDto: CreateInternalProcedureDto, account: Account) {
-    const { segment, ...props } = procedureDto;
-    const code = await this._generateCode(account, segment);
+    const { correlative, code, prefix } = await this._generateCode(account);
     const createdProcedure = new this.procedureModel({
       account: account._id,
+      institution: account.institution,
+      dependency: account.dependencia,
       code: code,
-      ...props,
+      prefix,
+      correlative,
+      ...procedureDto,
     });
     return await createdProcedure.save();
   }
@@ -42,7 +45,8 @@ export class InternalService {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<InternalProcedure> = {
       account: accountId,
-      $or: [{ code: regex }, { reference: regex }],
+      status: procedureStatus.PENDING,
+      // $or: [{ code: regex }, { reference: regex }],
     };
     const [procedures, length] = await Promise.all([
       this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
@@ -51,20 +55,14 @@ export class InternalService {
     return { procedures, length };
   }
 
-  private async _generateCode(
-    account: Account,
-    segment: string,
-  ): Promise<{ code: string; prefix: string; correlative: number }> {
-    const { dependencia } = await account.populate({
-      path: 'dependencia.institucion',
-    });
-    const prefix = `${segment}-${dependencia.institucion.sigla}-${this.configService.get('YEAR')}`.toUpperCase();
+  private async _generateCode(account: Account): Promise<{ code: string; prefix: string; correlative: number }> {
+    const prefix = `HR-${account.institution.sigla}`.toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {
       prefix,
       correlative,
-      code: `${prefix}-${correlative.toString().padStart(5, '0')}`,
+      code: `${prefix}-${this.configService.get('YEAR')}-${correlative.toString().padStart(5, '0')}`,
     };
   }
 }

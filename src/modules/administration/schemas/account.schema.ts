@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, HydratedDocument } from 'mongoose';
 import { Role, User } from 'src/modules/users/schemas';
+import { Institution } from './institution.schema';
 import { Dependency } from './dependencie.schema';
 import { Officer } from './officer.schema';
 
@@ -40,6 +41,12 @@ export class Account extends Document {
     ref: Dependency.name,
   })
   dependencia: Dependency;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Institution.name,
+  })
+  institution: Institution;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

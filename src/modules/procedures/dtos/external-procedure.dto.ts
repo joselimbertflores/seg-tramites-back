@@ -8,6 +8,7 @@ import {
   IsObject,
   ValidateNested,
   IsArray,
+  IsMongoId,
 } from 'class-validator';
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { ProcedureDto } from './procedure.dto';
@@ -44,6 +45,13 @@ class ApplicantDto extends Person {
 class RepresentativeDto extends Person {}
 
 export class CreateExternalProcedureDto extends ProcedureDto {
+  @IsMongoId()
+  type: string;
+
+  @IsString()
+  @IsNotEmpty()
+  segment: string;
+
   @IsOptional()
   @IsDefined()
   @IsNotEmptyObject()
@@ -65,9 +73,5 @@ export class CreateExternalProcedureDto extends ProcedureDto {
 }
 
 export class UpdateExternalProcedureDto extends PartialType(
-  OmitType(CreateExternalProcedureDto, [
-    'segment',
-    'type',
-    'requirements',
-  ] as const),
+  OmitType(CreateExternalProcedureDto, ['segment', 'type', 'requirements'] as const),
 ) {}

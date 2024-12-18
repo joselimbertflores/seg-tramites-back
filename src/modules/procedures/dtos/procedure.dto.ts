@@ -1,11 +1,8 @@
-import { IsString, IsMongoId, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 export class ProcedureDto {
   @IsString()
   cite: string;
-
-  @IsMongoId()
-  type: string;
 
   @IsString()
   @IsNotEmpty()
@@ -14,8 +11,4 @@ export class ProcedureDto {
   @IsString()
   @IsNotEmpty()
   numberOfDocuments: string;
-
-  @IsString()
-  @IsNotEmpty()
-  segment: string;
 }
