@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { FilterQuery, Model } from 'mongoose';
 
-import { ExternalProcedure } from '../schemas';
+import { ExternalProcedure, procedureStatus } from '../schemas';
 
 import { stateProcedure } from '../interfaces';
 import { PaginationDto } from 'src/common';
@@ -20,8 +20,8 @@ export class ExternalService {
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<ExternalProcedure> = {
-      state: { $or: [stateProcedure.INSCRITO] },
       account: accountId,
+      status: procedureStatus.PENDING,
       ...(term && { $or: [{ code: regex }, { reference: regex }] }),
     };
     const [procedures, length] = await Promise.all([
@@ -36,10 +36,12 @@ export class ExternalService {
     const { code, correlative, prefix } = await this._generateCode(account, segment);
     const createdProcedure = new this.procedureModel({
       account: account._id,
-      code,
+      dependency: account.dependencia,
+      institution: account.dependencia.institucion,
+      pin: Math.floor(100000 + Math.random() * 900000),
       correlative,
       prefix,
-      pin: Math.floor(100000 + Math.random() * 900000),
+      code,
       ...props,
     });
     return await createdProcedure.save();
@@ -63,13 +65,13 @@ export class ExternalService {
     const { dependencia } = await account.populate({
       path: 'dependencia.institucion',
     });
-    const prefix = `${segment}-${dependencia.institucion.sigla}-${this.configService.get('YEAR')}`.toUpperCase();
+    const prefix = `${segment}-${dependencia.institucion.sigla}`.toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {
       prefix,
       correlative,
-      code: `${prefix}-${correlative.toString().padStart(6, '0')}`,
+      code: `${prefix}-${this.configService.get('YEAR')}-${correlative.toString().padStart(6, '0')}`,
     };
   }
 }

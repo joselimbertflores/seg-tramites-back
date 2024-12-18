@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 
 import { Account, Dependency, Institution, Officer, TypeProcedure } from 'src/modules/administration/schemas';
 import { stateProcedure } from '../interfaces';
+import { procedureStatus } from './procedure.schema';
 
 abstract class Person {
   @Prop()
@@ -46,6 +47,7 @@ export class ExternalProcedure {
   reference: string;
   numberOfDocuments: string;
   group: string;
+  status: procedureStatus;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date;

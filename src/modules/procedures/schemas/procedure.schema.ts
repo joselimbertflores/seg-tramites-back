@@ -38,7 +38,7 @@ export class Procedure {
   @Prop({ type: Number, required: true })
   correlative: number;
 
-  @Prop({ type: String, default: 'S/C' })
+  @Prop({ type: String, default: '' })
   cite: string;
 
   @Prop({
@@ -66,7 +66,6 @@ export class Procedure {
   officer?: Officer;
 
   @Prop({
-    type: String,
     enum: Object.values(procedureState),
     default: procedureState.INSCRITO,
   })
@@ -91,8 +90,8 @@ export class Procedure {
   group: procedureGroup;
 
   @Prop({
-    required: true,
     enum: procedureStatus,
+    default: procedureStatus.PENDING,
   })
   status: procedureStatus;
 
