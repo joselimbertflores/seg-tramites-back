@@ -5,4 +5,6 @@ export enum stateProcedure {
   CONCLUIDO = 'CONCLUIDO',
   ANULADO = 'ANULADO',
   SUSPENDIDO = 'SUSPENDIDO',
+  RETIRADO = 'RETIRADO',
+  ABANDONO = 'ABANDONO',
 }

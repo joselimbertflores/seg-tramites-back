@@ -20,6 +20,7 @@ export class ExternalService {
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<ExternalProcedure> = {
+      state: { $or: [stateProcedure.INSCRITO] },
       account: accountId,
       ...(term && { $or: [{ code: regex }, { reference: regex }] }),
     };
