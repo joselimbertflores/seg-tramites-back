@@ -2,12 +2,28 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 
 import { Account, Dependency, Institution, Officer } from 'src/modules/administration/schemas';
-import { stateProcedure } from '../interfaces';
 
-export enum groupProcedure {
+export enum procedureGroup {
   EXTERNAL = 'ExternalProcedure',
   INTERNAL = 'InternalProcedure',
 }
+
+export enum procedureStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+}
+
+export enum procedureState {
+  INSCRITO = 'INSCRITO',
+  EN_REVISION = 'EN REVISION',
+  OBSERVADO = 'OBSERVADO',
+  CONCLUIDO = 'CONCLUIDO',
+  ANULADO = 'ANULADO',
+  SUSPENDIDO = 'SUSPENDIDO',
+  RETIRADO = 'RETIRADO',
+  ABANDONO = 'ABANDONO',
+}
+
 @Schema({ discriminatorKey: 'group', timestamps: true, collection: 'procedurebases' })
 export class Procedure {
   @Prop({
@@ -51,10 +67,10 @@ export class Procedure {
 
   @Prop({
     type: String,
-    enum: Object.values(stateProcedure),
-    default: stateProcedure.INSCRITO,
+    enum: Object.values(procedureState),
+    default: procedureState.INSCRITO,
   })
-  state: stateProcedure;
+  state: procedureState;
 
   @Prop({
     type: String,
@@ -69,11 +85,16 @@ export class Procedure {
   numberOfDocuments: string;
 
   @Prop({
-    type: String,
     required: true,
-    enum: groupProcedure,
+    enum: procedureGroup,
   })
-  group: groupProcedure;
+  group: procedureGroup;
+
+  @Prop({
+    required: true,
+    enum: procedureStatus,
+  })
+  status: procedureStatus;
 
   @Prop()
   createdAt: Date;
