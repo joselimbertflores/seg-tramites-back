@@ -30,7 +30,6 @@ export class CommunicationService {
   ) {}
 
   async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
-    console.log(status);
     const regex = new RegExp(term, 'i');
     const filterQuery: FilterQuery<Communication> = {
       'recipient.account': accountId,

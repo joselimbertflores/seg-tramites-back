@@ -1,6 +1,7 @@
 import { IsString, IsNotEmpty, IsObject, ValidateNested, IsEnum, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 import { docType } from '../schemas';
+import { OmitType } from '@nestjs/mapped-types';
 
 class OfficerProps {
   @IsString()
@@ -35,3 +36,5 @@ export class CreateDocDto {
   @Type(() => OfficerProps)
   via?: OfficerProps;
 }
+
+export class UpdateDocDto extends OmitType(CreateDocDto, ['type']) {}
