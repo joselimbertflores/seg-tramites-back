@@ -6,7 +6,7 @@ import { AccountService } from 'src/modules/administration/services';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/common';
 
-import { DocumentService } from '../services/document.service';
+import { DocumentService } from '../../procedures/services/document.service';
 import { CreateDocDto, UpdateDocDto } from '../dtos';
 
 @Controller('documents')

@@ -1,6 +1,14 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNotEmptyObject, IsObject, IsString, ValidateNested } from 'class-validator';
-import { PartialType } from '@nestjs/mapped-types';
+import {
+  IsMongoId,
+  IsNotEmpty,
+  IsNotEmptyObject,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { ProcedureDto } from './procedure.dto';
 
 export class Worker {
@@ -18,12 +26,16 @@ export class CreateInternalProcedureDto extends ProcedureDto {
   @IsObject()
   @ValidateNested()
   @Type(() => Worker)
-  emitter: Worker;
+  sender: Worker;
 
   @IsNotEmptyObject()
   @IsObject()
   @ValidateNested()
   @Type(() => Worker)
-  receiver: Worker;
+  recipient: Worker;
+
+  @IsOptional()
+  @IsMongoId()
+  docId?: string;
 }
-export class UpdateInternalProcedureDto extends PartialType(CreateInternalProcedureDto) {}
+export class UpdateInternalProcedureDto extends PartialType(OmitType(CreateInternalProcedureDto, ['docId', 'cite'])) {}

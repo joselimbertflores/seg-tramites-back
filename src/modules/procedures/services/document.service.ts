@@ -1,15 +1,29 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { ClientSession, FilterQuery, Model } from 'mongoose';
 
 import { Account, Dependency } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/common';
-import { CreateDocDto, UpdateDocDto } from '../dtos';
 import { Doc, DocDocument, docType } from '../schemas';
+import { CreateDocDto, UpdateDocDto } from '../dtos';
+import { PaginationDto } from 'src/common';
+
+interface procedureProps {
+  code: string;
+  group: string;
+}
 
 @Injectable()
 export class DocumentService {
   constructor(@InjectModel(Doc.name) private docModel: Model<DocDocument>) {}
+
+  public async attachProcedure(docId: string, procedure: procedureProps, session?: ClientSession) {
+    const doc = await this.docModel.findById(docId, null, { session });
+    if (!doc) throw new BadRequestException(`Document ${docId} not found`);
+    if (doc.procedure) {
+      throw new BadRequestException(`${doc.cite} ya se adjunto a la hoja de ruta ${doc.procedure.code}`);
+    }
+    await this.docModel.updateOne({ _id: docId }, { procedure }, { session });
+  }
 
   async findAll(account: Account, { limit, offset }: PaginationDto) {
     const { startOfYear, endOfYear } = this._getYearRange();

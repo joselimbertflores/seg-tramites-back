@@ -1,33 +1,50 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-import { FilterQuery, Model } from 'mongoose';
+
+import { Connection, FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/common';
 import { InternalProcedure, procedureStatus } from '../schemas';
 import { stateProcedure } from '../interfaces';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
+import { DocumentService } from './document.service';
 
 @Injectable()
 export class InternalService {
   constructor(
     @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
+    @InjectConnection() private connection: Connection,
     private configService: ConfigService,
+    private docService: DocumentService,
   ) {}
 
-  async create(procedureDto: CreateInternalProcedureDto, account: Account) {
-    const { correlative, code, prefix } = await this._generateCode(account);
-    const createdProcedure = new this.procedureModel({
-      account: account._id,
-      institution: account.institution,
-      dependency: account.dependencia,
-      code: code,
-      prefix,
-      correlative,
-      ...procedureDto,
-    });
-    return await createdProcedure.save();
+  async create({ docId, ...procedureDto }: CreateInternalProcedureDto, account: Account) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const { correlative, code, prefix } = await this._generateCode(account);
+      const createdProcedure = new this.procedureModel({
+        account: account._id,
+        institution: account.institution,
+        dependency: account.dependencia,
+        code: code,
+        prefix,
+        correlative,
+        ...procedureDto,
+      });
+      const procedure = await createdProcedure.save({ session });
+      await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
+      await session.commitTransaction();
+      return procedure;
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      await session.abortTransaction();
+      throw new InternalServerErrorException();
+    } finally {
+      session.endSession();
+    }
   }
 
   async update(id: string, procedureDto: UpdateInternalProcedureDto) {

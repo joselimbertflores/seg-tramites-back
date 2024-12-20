@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty, IsObject, ValidateNested, IsEnum, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
-import { docType } from '../schemas';
 import { OmitType } from '@nestjs/mapped-types';
+import { docType } from '../schemas';
 
 class OfficerProps {
   @IsString()

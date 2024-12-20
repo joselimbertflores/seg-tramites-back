@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { AdministrationModule } from 'src/modules/administration/administration.module';
 import { InternalController, ExternalController, ProcedureController } from './controllers';
-import { ExternalService, InternalService, ObservationService, ProcedureService } from './services';
+import { DocumentService, ExternalService, InternalService, ObservationService, ProcedureService } from './services';
 import {
   Procedure,
   ProcedureSchema,
@@ -14,6 +14,8 @@ import {
   InternalProcedureSchema,
   Observation,
   ObservationSchema,
+  Doc,
+  DocSchema,
 } from './schemas';
 
 @Module({
@@ -30,10 +32,11 @@ import {
           { name: ExternalProcedure.name, schema: ExternalProcedureSchema },
         ],
       },
+      { name: Doc.name, schema: DocSchema },
     ]),
   ],
   controllers: [InternalController, ExternalController, ProcedureController],
-  providers: [ExternalService, InternalService, ObservationService, ProcedureService],
-  exports: [MongooseModule, ProcedureService],
+  providers: [ExternalService, InternalService, ObservationService, ProcedureService, DocumentService],
+  exports: [MongooseModule, ProcedureService, DocumentService],
 })
 export class ProceduresModule {}

@@ -85,7 +85,6 @@ export class Doc {
 export const DocSchema = SchemaFactory.createForClass(Doc);
 
 type DocDocumentOverride = {
-  procedure: Types.Subdocument<Types.ObjectId & ProcedureProps>;
   sender: Types.Subdocument<Types.ObjectId & OfficerProps>;
   recipient: Types.Subdocument<Types.ObjectId & OfficerProps>;
   via?: Types.Subdocument<Types.ObjectId & OfficerProps>;
