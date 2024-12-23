@@ -6,6 +6,7 @@ import { Account, Dependency } from 'src/modules/administration/schemas';
 import { Doc, DocDocument, docType } from '../schemas';
 import { CreateDocDto, UpdateDocDto } from '../dtos';
 import { PaginationDto } from 'src/common';
+import { group } from 'console';
 
 interface procedureProps {
   code: string;
