@@ -14,14 +14,6 @@ export class RecipientDto {
   @IsMongoId()
   accountId: string;
 
-  @IsString()
-  @IsNotEmpty()
-  fullname: string;
-
-  @IsString()
-  @IsOptional()
-  jobtitle?: string;
-
   @IsBoolean()
   isOriginal: boolean;
 }
@@ -52,4 +44,3 @@ export class CreateCommunicationDto {
   @Type(() => RecipientDto)
   recipients: RecipientDto[];
 }
-

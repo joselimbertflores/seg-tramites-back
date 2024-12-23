@@ -15,17 +15,12 @@ import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto'
 import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Procedure } from 'src/modules/procedures/schemas';
 
-interface setProcessStateProps {
-  mailId: string | undefined;
-  recipients: RecipientDto[];
-  procedureId: string;
-  session: ClientSession;
-}
 @Injectable()
 export class CommunicationService {
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
+    @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectConnection() private connection: Connection,
   ) {}
 
@@ -48,7 +43,7 @@ export class CommunicationService {
   async getOutbox(accountId: string, { term, limit, offset, status, isOriginal }: FilterOutboxDto) {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<Communication> = {
-      'sender.cuenta': accountId,
+      'sender.account': accountId,
       ...(isOriginal !== undefined && { isOriginal }),
       $and: [
         {
@@ -70,33 +65,51 @@ export class CommunicationService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const { procedureId, recipients, mailId, ...props } = communicationDto;
+      const { procedureId, recipients, ...props } = communicationDto;
       await this._checkDuplicate(procedureId, recipients, session);
-      await this._setProcessState({ mailId, procedureId, recipients, session });
+      await this._setProcessState(communicationDto, account, session);
+
+      const procedure = await this.procedureModel.findById(procedureId, { code: 1, group: 1, reference:1 }, { session });
+      if (!procedure) throw new BadRequestException(`Procedure ${procedureId} don't exist`);
+
       const sentDate = new Date();
-      const models: Communication[] = recipients.map(
-        (receiver) =>
-          new this.communicationModel({
-            sender: {
-              cuenta: account._id,
-              fullname: account.officer.fullName,
-              jobtitle: account.jobtitle,
-            },
-            recipient: {
-              cuenta: receiver.accountId,
-              fullname: receiver.fullname,
-              jobtitle: receiver.jobtitle,
-            },
-            procedure: procedureId,
-            isOriginal: receiver.isOriginal,
-            sentDate,
-            ...props,
-          }),
+      const recipientAccounts = await this.accountModel
+        .find({ _id: { $in: recipients.map(({ accountId }) => accountId) } }, null, { session })
+        .populate('officer');
+      const communications: { toUser: string; data: Communication }[] = recipientAccounts.map((el) => ({
+        toUser: el.user._id,
+        data: new this.communicationModel({
+          sender: {
+            account: account._id,
+            dependency: account.dependencia,
+            institution: account.institution,
+            fullname: account.officer.fullName,
+            jobtitle: account.jobtitle,
+          },
+          recipient: {
+            account: el._id,
+            dependency: el.dependencia,
+            institution: el.institution,
+            fullname: el.officer.fullName,
+            jobtitle: el.jobtitle,
+          },
+          procedure: {
+            ref: procedure._id,
+            code: procedure.code,
+            group: procedure.group,
+            reference:procedure.reference
+          },
+          isOriginal: recipients.find(({ accountId }) => accountId === String(el._id)).isOriginal,
+          sentDate,
+          ...props,
+        }),
+      }));
+      await this.communicationModel.insertMany(
+        communications.map(({ data }) => data),
+        { session },
       );
-      const results = await this.communicationModel.insertMany(models, { session });
-      await this.communicationModel.populate(results, [{ path: 'procedure' }, { path: 'recipient.cuenta' }]);
       await session.commitTransaction();
-      return results;
+      return communications;
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
@@ -205,70 +218,50 @@ export class CommunicationService {
     return await this.communicationModel.find({ procedure: procedureId });
   }
 
-  private async _checkDuplicate(
-    procedureId: string,
-    recipients: RecipientDto[],
+  private async _setProcessState(
+    { mailId, recipients, procedureId }: CreateCommunicationDto,
+    account: Account,
     session: ClientSession,
-  ): Promise<void> {
-    const duplicate = await this.communicationModel.findOne(
-      {
-        procedure: procedureId,
-        $or: [{ status: StatusMail.Pending }, { status: StatusMail.Received }],
-        'recipient.cuenta': { $in: recipients.map(({ accountId }) => accountId) },
-      },
-      null,
-      { session },
-    );
-
-    if (duplicate) {
-      const fullName = recipients.find(({ accountId }) => accountId == duplicate.recipient.account._id).fullname;
-      throw new BadRequestException(`${fullName} ya tiene el tramite en su bandeja`);
-    }
-  }
-
-  private async _setProcessState({ mailId, session, recipients, procedureId }: setProcessStateProps): Promise<void> {
+  ) {
     if (mailId) {
-      // Para envios desde bandeja de entrada y salida
       const communicationDB = await this.communicationModel.findById(mailId, null, { session });
       if (!communicationDB) throw new BadRequestException(`El envio ${mailId} no existe`);
-      const validStatus = [StatusMail.Pending, StatusMail.Received, StatusMail.Rejected];
-      if (!validStatus.includes(communicationDB.status)) {
-        throw new BadRequestException(`El envio ${mailId} no puede remitirse`);
+      // * Envio desde bandeja de entrada
+      if (communicationDB.recipient.account._id === account._id) {
+        if (communicationDB.status !== StatusMail.Received) {
+          throw new BadRequestException('El envio actual no esta recibido');
+        }
+        this._checkRecipients(recipients, communicationDB.isOriginal);
+        // * Marcar el envio actual como completado para ya no mostrar en bandeja de entrada
+        await this.communicationModel.updateOne({ _id: mailId }, { status: StatusMail.Completed }, { session });
       }
-      if (communicationDB.status !== StatusMail.Pending) {
-        // Envios desde la bandeja de entrada
-        // Completar el envio actual para siguiente etapa
-        if (communicationDB.isOriginal) {
-          const hasOriginal = recipients.some(({ isOriginal }) => isOriginal);
-          if (!hasOriginal) {
-            throw new BadRequestException('Debe enviar el orininal');
-          }
-        } else {
-          if (recipients.length > 1) {
-            throw new BadRequestException('Solo se puede enviar una copia');
-          }
+      // * Envio desde bandeja de salida
+      if (communicationDB.sender.account._id === account._id) {
+        switch (communicationDB.status) {
+          case StatusMail.Pending:
+            // * Si quiere realizar mas envios desde salida, debe ser el original
+            if (!communicationDB.isOriginal) {
+              throw new BadRequestException('No puede realizar mas envios de una copia');
+            }
+            // * Si es el original, esta en curso por lo que  no pueden haber mas originales
+            if (recipients.some(({ isOriginal }) => isOriginal)) {
+              throw new BadRequestException('Envio de original duplicado');
+            }
+            break;
+          case StatusMail.Rejected:
+            this._checkRecipients(recipients, communicationDB.isOriginal);
+            await this.communicationModel.updateOne({ _id: mailId }, { status: StatusMail.Forwarding }, { session });
+            break;
+          default:
+            throw new BadRequestException('El envio actual es invalido');
         }
-        await this.communicationModel.updateOne(
-          { _id: mailId },
-          { status: communicationDB.status === StatusMail.Rejected ? StatusMail.Forwarding : StatusMail.Completed },
-          { session },
-        );
       } else {
-        // Para realizar mas envios desde la bandeja de salida
-        if (!communicationDB.isOriginal) {
-          throw new BadRequestException('No puede realizar mas envios con una copia');
-        }
-        const hasOriginal = recipients.some(({ isOriginal }) => isOriginal);
-        if (hasOriginal) {
-          throw new BadRequestException('Envio de original duplicado');
-        }
+        // * El ennvio no pertenece al usuario
+        throw new BadRequestException('El envio actual no esta asociado a su cuenta');
       }
     } else {
-      // Primer envio
-      const hasOriginal = recipients.some(({ isOriginal }) => isOriginal);
-      if (!hasOriginal) {
-        throw new BadRequestException('Debe enviar el original');
-      }
+      // * Primer envio
+      this._checkRecipients(recipients, true);
       await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.EN_REVISION }, { session });
     }
   }
@@ -299,6 +292,31 @@ export class CommunicationService {
           { state: stateProcedure.INSCRITO },
           { session },
         );
+      }
+    }
+  }
+
+  private async _checkDuplicate(procedureId: string, recipients: RecipientDto[], session: ClientSession) {
+    const query: FilterQuery<Communication> = {
+      status: { $in: [StatusMail.Pending, StatusMail.Received] },
+      'procedure.ref': procedureId,
+      'recipient.cuenta': { $in: recipients.map(({ accountId }) => accountId) },
+    };
+    const duplicate = await this.communicationModel.findOne(query, { recipient: 1 }, { session });
+    if (duplicate) {
+      throw new BadRequestException(`${duplicate.recipient.fullname} ya tiene el tramite en su bandeja`);
+    }
+  }
+
+  private _checkRecipients(recipients: RecipientDto[], isOriginal: boolean): void {
+    const originals = recipients.filter(({ isOriginal }) => isOriginal);
+    if (isOriginal) {
+      if (originals.length !== 1) {
+        throw new BadRequestException('Los envíos deben contener 1 trámite original');
+      }
+    } else {
+      if (recipients.length > 1 || originals.length >= 1) {
+        throw new BadRequestException('Solo se puede enviar una copia de otra copia');
       }
     }
   }
