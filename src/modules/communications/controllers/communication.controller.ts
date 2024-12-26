@@ -40,7 +40,7 @@ export class CommunicationController {
   @Post()
   async create(@GetAccountRequest() account: Account, @Body() communication: CreateCommunicationDto) {
     const communications = await this.inboxService.create(communication, account);
-    // this.groupwareGateway.sentCommunications(communications);
+    this.groupwareGateway.sentCommunications(communications);
     return communications;
   }
 

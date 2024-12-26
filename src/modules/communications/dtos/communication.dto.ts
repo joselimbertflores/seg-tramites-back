@@ -21,7 +21,11 @@ export class RecipientDto {
 export class CreateCommunicationDto {
   @IsMongoId()
   @IsOptional()
-  mailId?: string;
+  communicationId?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  documentId?: string;
 
   @IsMongoId()
   procedureId: string;

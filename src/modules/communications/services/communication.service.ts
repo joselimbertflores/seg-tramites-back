@@ -14,6 +14,7 @@ import { stateProcedure, StatusMail } from '../../procedures/interfaces';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
 import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Procedure } from 'src/modules/procedures/schemas';
+import { DocumentService } from 'src/modules/procedures/services';
 
 @Injectable()
 export class CommunicationService {
@@ -22,6 +23,7 @@ export class CommunicationService {
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectConnection() private connection: Connection,
+    private docService: DocumentService,
   ) {}
 
   async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
@@ -65,19 +67,27 @@ export class CommunicationService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const { procedureId, recipients, ...props } = communicationDto;
+      const { procedureId, documentId, recipients, ...props } = communicationDto;
       await this._checkDuplicate(procedureId, recipients, session);
       await this._setProcessState(communicationDto, account, session);
 
-      const procedure = await this.procedureModel.findById(procedureId, { code: 1, group: 1, reference:1 }, { session });
+      const procedure = await this.procedureModel.findById(
+        procedureId,
+        { code: 1, group: 1, reference: 1 },
+        { session },
+      );
       if (!procedure) throw new BadRequestException(`Procedure ${procedureId} don't exist`);
+
+      if (documentId) {
+        await this.docService.attachProcedure(documentId, { code: procedure.code, group: procedure.group }, session);
+      }
 
       const sentDate = new Date();
       const recipientAccounts = await this.accountModel
         .find({ _id: { $in: recipients.map(({ accountId }) => accountId) } }, null, { session })
         .populate('officer');
       const communications: { toUser: string; data: Communication }[] = recipientAccounts.map((el) => ({
-        toUser: el.user._id,
+        toUser: String(el.user._id),
         data: new this.communicationModel({
           sender: {
             account: account._id,
@@ -97,7 +107,7 @@ export class CommunicationService {
             ref: procedure._id,
             code: procedure.code,
             group: procedure.group,
-            reference:procedure.reference
+            reference: procedure.reference,
           },
           isOriginal: recipients.find(({ accountId }) => accountId === String(el._id)).isOriginal,
           sentDate,
@@ -219,24 +229,28 @@ export class CommunicationService {
   }
 
   private async _setProcessState(
-    { mailId, recipients, procedureId }: CreateCommunicationDto,
+    { communicationId, recipients, procedureId }: CreateCommunicationDto,
     account: Account,
     session: ClientSession,
   ) {
-    if (mailId) {
-      const communicationDB = await this.communicationModel.findById(mailId, null, { session });
-      if (!communicationDB) throw new BadRequestException(`El envio ${mailId} no existe`);
+    if (communicationId) {
+      const communicationDB = await this.communicationModel.findById(communicationId, null, { session });
+      if (!communicationDB) throw new BadRequestException(`El envio ${communicationId} no existe`);
       // * Envio desde bandeja de entrada
-      if (communicationDB.recipient.account._id === account._id) {
+      if (String(communicationDB.recipient.account._id) === String(account._id)) {
         if (communicationDB.status !== StatusMail.Received) {
           throw new BadRequestException('El envio actual no esta recibido');
         }
         this._checkRecipients(recipients, communicationDB.isOriginal);
         // * Marcar el envio actual como completado para ya no mostrar en bandeja de entrada
-        await this.communicationModel.updateOne({ _id: mailId }, { status: StatusMail.Completed }, { session });
+        await this.communicationModel.updateOne(
+          { _id: communicationId },
+          { status: StatusMail.Completed },
+          { session },
+        );
       }
       // * Envio desde bandeja de salida
-      if (communicationDB.sender.account._id === account._id) {
+      if (String(communicationDB.sender.account._id) === String(account._id)) {
         switch (communicationDB.status) {
           case StatusMail.Pending:
             // * Si quiere realizar mas envios desde salida, debe ser el original
@@ -250,7 +264,11 @@ export class CommunicationService {
             break;
           case StatusMail.Rejected:
             this._checkRecipients(recipients, communicationDB.isOriginal);
-            await this.communicationModel.updateOne({ _id: mailId }, { status: StatusMail.Forwarding }, { session });
+            await this.communicationModel.updateOne(
+              { _id: communicationId },
+              { status: StatusMail.Forwarding },
+              { session },
+            );
             break;
           default:
             throw new BadRequestException('El envio actual es invalido');
