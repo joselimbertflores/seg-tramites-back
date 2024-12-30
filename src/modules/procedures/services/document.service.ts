@@ -6,7 +6,6 @@ import { Account, Dependency } from 'src/modules/administration/schemas';
 import { Doc, DocDocument, docType } from '../schemas';
 import { CreateDocDto, UpdateDocDto } from '../dtos';
 import { PaginationDto } from 'src/common';
-import { group } from 'console';
 
 interface procedureProps {
   code: string;
@@ -72,11 +71,11 @@ export class DocumentService {
       .limit(5);
   }
 
-  private async _generateCode({ _id, codigo, sigla }: Dependency, type: docType) {
+  private async _generateCode({ _id, codigo }: Dependency, type: docType) {
     const year = new Date().getFullYear();
     const lastDoc = await this.docModel.findOne({ dependecy: _id, segment: codigo, type }).sort({ _id: -1 });
     const correlative = lastDoc ? lastDoc.correlative + 1 : 1;
-    const cite = `${type}/${codigo}/${sigla}/${correlative}/${year}`;
+    const cite = `${type}/${codigo}/${correlative}/${year}`;
     return { cite, correlative };
   }
 

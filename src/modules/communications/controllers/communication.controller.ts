@@ -66,9 +66,9 @@ export class CommunicationController {
 
   @Delete('outbox')
   async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: SelectedCommunicationsDto) {
-    const { message, communications } = await this.inboxService.cancel(account, communicationDto);
-    this.groupwareGateway.cancelCommunications(communications);
-    return { message };
+    const result = await this.inboxService.cancel(account, communicationDto);
+    this.groupwareGateway.cancelCommunications(result);
+    return { message: `Envios cancelados: ${result.length}` };
   }
 
   @Get('/:id')
