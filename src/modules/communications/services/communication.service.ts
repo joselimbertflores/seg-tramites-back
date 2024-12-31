@@ -36,7 +36,7 @@ export class CommunicationService {
       ...(from && { 'sender.fullname': new RegExp(from, 'i') }),
     };
     const [communications, length] = await Promise.all([
-      this.communicationModel.find(filterQuery).limit(limit).skip(offset),
+      this.communicationModel.find(filterQuery).sort({ sentDate: -1 }).limit(limit).skip(offset),
       this.communicationModel.count(filterQuery),
     ]);
     return { communications, length };
@@ -194,7 +194,7 @@ export class CommunicationService {
 
       const isReceived = documents.find(({ status }) => status !== StatusMail.Pending);
       if (isReceived) {
-        throw new BadRequestException(`${isReceived.recipient.fullname} ya ha recibido el tramite`);
+        throw new BadRequestException(`${isReceived.recipient.fullname} ya ha evaluado el tramite`);
       }
       await this.communicationModel.deleteMany({ _id: { $in: communicationIds } }, { session });
       const originalDocuments = documents.filter(({ isOriginal }) => isOriginal);

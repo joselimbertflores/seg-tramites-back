@@ -103,6 +103,12 @@ export const FRONTEND_MENU: Menu[] = [
     icon: 'mark_as_unread',
     routerLink: 'manage/outbox',
   },
+  {
+    resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
+    text: 'Archivos',
+    icon: 'mark_as_unread',
+    routerLink: 'manage/archives',
+  },
 
   // {
   //   resource: 'archived',
