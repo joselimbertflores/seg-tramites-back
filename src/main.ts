@@ -15,6 +15,6 @@ async function bootstrap() {
     }),
   );
   app.enableCors();
-  await app.listen(process.env.PORT);
+  await app.listen(process.env.PORT, "192.168.1.9");
 }
 bootstrap();

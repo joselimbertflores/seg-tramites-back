@@ -36,7 +36,7 @@ export class CommunicationService {
       ...(from && { 'sender.fullname': new RegExp(from, 'i') }),
     };
     const [communications, length] = await Promise.all([
-      this.communicationModel.find(filterQuery).sort({ sentDate: -1 }).limit(limit).skip(offset),
+      this.communicationModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
       this.communicationModel.count(filterQuery),
     ]);
     return { communications, length };
@@ -57,7 +57,7 @@ export class CommunicationService {
       ],
     };
     const [communications, length] = await Promise.all([
-      this.communicationModel.find(query).skip(offset).limit(limit).populate('procedure').sort({ sentDate: -1 }),
+      this.communicationModel.find(query).skip(offset).limit(limit).sort({ sentDate: -1 }),
       this.communicationModel.count(query),
     ]);
     return { communications, length };

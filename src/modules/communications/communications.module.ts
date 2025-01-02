@@ -1,22 +1,25 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CommunicationController, DocumentController } from './controllers';
-import { CommunicationService } from './services';
+import { CommunicationController, DocumentController, FolderController } from './controllers';
+import { CommunicationService, FolderService } from './services';
 import { AdministrationModule } from '../administration/administration.module';
 import { ProceduresModule } from '../procedures/procedures.module';
 import { GroupwareModule } from '../groupware/groupware.module';
 import { ProcessController } from './controllers/process.controller';
-import { Communication, CommunicationSchema } from './schemas';
+import { Communication, CommunicationSchema, Folder, FolderSchema } from './schemas';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Communication.name, schema: CommunicationSchema }]),
+    MongooseModule.forFeature([
+      { name: Communication.name, schema: CommunicationSchema },
+      { name: Folder.name, schema: FolderSchema },
+    ]),
     AdministrationModule,
     GroupwareModule,
     ProceduresModule,
   ],
-  controllers: [CommunicationController, ProcessController, DocumentController],
-  providers: [CommunicationService],
+  controllers: [CommunicationController, ProcessController, DocumentController, FolderController],
+  providers: [CommunicationService, FolderService],
   exports: [MongooseModule],
 })
 export class CommunicationsModule {}

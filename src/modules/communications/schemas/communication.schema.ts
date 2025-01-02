@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument, Types } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 
 import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
 import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
