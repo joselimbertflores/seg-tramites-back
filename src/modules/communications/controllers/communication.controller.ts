@@ -2,13 +2,13 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/
 import { InstitutionService, DependencieService } from 'src/modules/administration/services';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 
-import { IsMongoidPipe } from 'src/common';
+import { IsMongoidPipe, PaginationDto } from 'src/common';
 import { AccountService } from 'src/modules/administration/services/account.service';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
 import { CreateCommunicationDto } from '../dtos/communication.dto';
-import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { CommunicationService } from '../services';
 
 @Controller('communication')
@@ -50,7 +50,7 @@ export class CommunicationController {
   }
 
   @Get('outbox')
-  getOutbox(@GetAccountRequest('_id') accountId: string, @Query() queryParams: FilterOutboxDto) {
+  getOutbox(@GetAccountRequest('_id') accountId: string, @Query() queryParams: PaginationDto) {
     return this.inboxService.getOutbox(accountId, queryParams);
   }
 

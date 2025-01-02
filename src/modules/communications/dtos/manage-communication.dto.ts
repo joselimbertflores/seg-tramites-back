@@ -35,23 +35,3 @@ export class FilterInboxDto extends PaginationDto {
   @IsOptional()
   from?: string;
 }
-
-export class FilterOutboxDto extends PaginationDto {
-  @IsString()
-  @IsNotEmpty()
-  @IsOptional()
-  term?: string;
-
-  @IsEnum([StatusMail.Pending, StatusMail.Rejected])
-  @IsOptional()
-  status?: StatusMail.Pending | StatusMail.Rejected;
-
-  @IsBoolean()
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
-  isOriginal?: boolean;
-}

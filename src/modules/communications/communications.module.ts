@@ -6,13 +6,14 @@ import { AdministrationModule } from '../administration/administration.module';
 import { ProceduresModule } from '../procedures/procedures.module';
 import { GroupwareModule } from '../groupware/groupware.module';
 import { ProcessController } from './controllers/process.controller';
-import { Communication, CommunicationSchema, Folder, FolderSchema } from './schemas';
+import { Archive, ArchiveSchema, Communication, CommunicationSchema, Folder, FolderSchema } from './schemas';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Communication.name, schema: CommunicationSchema },
       { name: Folder.name, schema: FolderSchema },
+      { name: Archive.name, schema: ArchiveSchema },
     ]),
     AdministrationModule,
     GroupwareModule,

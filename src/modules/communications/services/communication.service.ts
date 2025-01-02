@@ -12,9 +12,10 @@ import { Account } from 'src/modules/administration/schemas';
 import { Communication, CommunicationDocument } from '../schemas/communication.schema';
 import { stateProcedure, StatusMail } from '../../procedures/interfaces';
 import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
-import { FilterInboxDto, FilterOutboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Procedure } from 'src/modules/procedures/schemas';
 import { DocumentService } from 'src/modules/procedures/services';
+import { PaginationDto } from 'src/common';
 
 @Injectable()
 export class CommunicationService {
@@ -42,18 +43,13 @@ export class CommunicationService {
     return { communications, length };
   }
 
-  async getOutbox(accountId: string, { term, limit, offset, status, isOriginal }: FilterOutboxDto) {
+  async getOutbox(accountId: string, { limit, offset, term }: PaginationDto) {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<Communication> = {
       'sender.account': accountId,
-      ...(isOriginal !== undefined && { isOriginal }),
       $and: [
-        {
-          ...(status ? { status } : { $or: [{ status: StatusMail.Rejected }, { status: StatusMail.Pending }] }),
-        },
-        {
-          ...(term && { $or: [{ reference: regex }, { 'recipient.fullname': regex }] }),
-        },
+        { $or: [{ status: StatusMail.Pending }, { status: StatusMail.Rejected }] },
+        { ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }) },
       ],
     };
     const [communications, length] = await Promise.all([
@@ -250,7 +246,7 @@ export class CommunicationService {
         );
       }
       // * Envio desde bandeja de salida
-      if (String(communicationDB.sender.account._id) === String(account._id)) {
+      else if (String(communicationDB.sender.account._id) === String(account._id)) {
         switch (communicationDB.status) {
           case StatusMail.Pending:
             // * Si quiere realizar mas envios desde salida, debe ser el original
