@@ -46,6 +46,7 @@ export class CommunicationController {
 
   @Get('inbox')
   getInbox(@GetAccountRequest('_id') accountId: string, @Query() queryParams: FilterInboxDto) {
+    console.log(queryParams);
     return this.inboxService.getInbox(accountId, queryParams);
   }
 

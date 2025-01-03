@@ -1,5 +1,4 @@
 import { ArrayMinSize, IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { StatusMail } from 'src/modules/procedures/interfaces';
 
 export class UpdateCommunicationDto {
   @IsString()
@@ -7,8 +6,7 @@ export class UpdateCommunicationDto {
   description: string;
 
   @IsOptional()
-  @IsEnum(StatusMail, { message: 'State procedure is not valid' })
-  state: StatusMail;
+  state: any;
 }
 
 export class CancelMailsDto {

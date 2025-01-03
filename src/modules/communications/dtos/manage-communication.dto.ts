@@ -1,7 +1,8 @@
 import { ArrayMinSize, IsBoolean, IsEnum, IsIn, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { procedureGroup } from 'src/modules/procedures/schemas';
 import { PaginationDto } from 'src/common';
-import { StatusMail } from 'src/modules/procedures/interfaces';
+import { communicationStatus } from '../schemas';
+import { Transform } from 'class-transformer';
 
 export class SelectedCommunicationsDto {
   @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
@@ -15,23 +16,25 @@ export class RejectCommunicationDto extends SelectedCommunicationsDto {
   description: string;
 }
 
-type procedureGroup = 'ExternalProcedure' | 'InternalProcedure';
-
 export class FilterInboxDto extends PaginationDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
   term?: string;
 
-  @IsEnum([StatusMail.Pending, StatusMail.Received])
+  @IsIn([communicationStatus.Pending, communicationStatus.Received])
   @IsOptional()
-  status?: StatusMail.Pending | StatusMail.Received;
+  status?: communicationStatus.Pending | communicationStatus.Received;
 
-  @IsIn(['ExternalProcedure', 'InternalProcedure'])
+  @IsEnum(procedureGroup)
   @IsOptional()
-  group: procedureGroup;
+  group?: procedureGroup;
 
-  @IsString()
+  @IsBoolean()
   @IsOptional()
-  from?: string;
+  @Transform(({ value }) => {
+    console.log(value);
+    return value === 'true' || value === true
+  })
+  isOriginal?: boolean;
 }

@@ -1,10 +1,9 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
-import { StatusMail } from '../../procedures/interfaces';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { Account } from 'src/modules/administration/schemas';
-import { Communication } from '../schemas/communication.schema';
+import { Communication, communicationStatus } from '../schemas/communication.schema';
 import { Archive, ArchiveDocument } from '../schemas';
 import { CreateArchiveDto } from '../dtos';
 import { Procedure, procedureStatus } from 'src/modules/procedures/schemas';
@@ -60,7 +59,7 @@ export class ArchiveService {
 
   async unarchiveMail(id_mail: string, account: Account): Promise<{ message: string }> {
     const mailDB = await this.communicationModel.findById(id_mail);
-    if (mailDB.status !== StatusMail.Archived) throw new BadRequestException('El tramite ya fue desarchivado');
+    if (mailDB.status !== communicationStatus.Archived) throw new BadRequestException('El tramite ya fue desarchivado');
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -94,7 +93,7 @@ export class ArchiveService {
   async findAll({ limit, offset }: PaginationDto, account: Account) {
     const unit = await this.accountModel.find({ dependencia: account.dependencia._id }).select('_id');
     const query: FilterQuery<Communication> = {
-      status: StatusMail.Archived,
+      status: communicationStatus.Archived,
       'receiver.cuenta': { $in: unit.map((acount) => acount._id) },
     };
     const [archives, length] = await Promise.all([
@@ -121,7 +120,7 @@ export class ArchiveService {
     const data = await this.communicationModel.aggregate([
       {
         $match: {
-          status: StatusMail.Archived,
+          status: communicationStatus.Archived,
           'receiver.cuenta': { $in: ids_officers },
         },
       },
@@ -210,13 +209,13 @@ export class ArchiveService {
     if (!communication) {
       throw new BadRequestException(`Communication ${id} don't exist`);
     }
-    if (communication.status !== StatusMail.Received) {
+    if (communication.status !== communicationStatus.Received) {
       throw new BadRequestException(`La comunicacion actual es invalida`);
     }
     await this.communicationModel.updateOne(
       { _id: id },
       {
-        status: StatusMail.Archived,
+        status: communicationStatus.Archived,
         actionLog: { fullname: account.officer.fullName, date: new Date(), description },
       },
       { session },

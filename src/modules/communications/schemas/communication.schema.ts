@@ -3,7 +3,15 @@ import mongoose, { HydratedDocument } from 'mongoose';
 
 import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
 import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
-import { StatusMail } from 'src/modules/procedures/interfaces';
+
+export enum communicationStatus {
+  Received = 'received',
+  Pending = 'pending',
+  Rejected = 'rejected',
+  Forwarding = 'forwarding',
+  Completed = 'completed',
+  Archived = 'archived',
+}
 
 @Schema({ _id: false })
 class Participant {
@@ -78,12 +86,11 @@ export class Communication {
   procedure: ProcedureProps;
 
   @Prop({
-    type: String,
+    enum: communicationStatus,
+    default: communicationStatus.Pending,
     required: true,
-    enum: Object.values(StatusMail),
-    default: StatusMail.Pending,
   })
-  status: StatusMail;
+  status: communicationStatus;
 
   @Prop(ActionLogSchema)
   actionLog: ActionLog;

@@ -5,7 +5,7 @@ import mongoose, { FilterQuery, Model } from 'mongoose';
 import { Account, Dependency } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { SearchProcedureByApplicantDto, SearchProcedureByPropertiesDto } from './dto';
-import { groupProcedure, StatusMail } from 'src/modules/procedures/interfaces';
+import { groupProcedure } from 'src/modules/procedures/interfaces';
 
 @Injectable()
 export class ReportsService {

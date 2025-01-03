@@ -8,14 +8,13 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
-import { Account } from 'src/modules/administration/schemas';
-import { Communication, CommunicationDocument } from '../schemas/communication.schema';
-import { stateProcedure, StatusMail } from '../../procedures/interfaces';
-import { CreateCommunicationDto, RecipientDto } from '../dtos/communication.dto';
-import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { Procedure } from 'src/modules/procedures/schemas';
+import { Procedure, procedureState } from 'src/modules/procedures/schemas';
 import { DocumentService } from 'src/modules/procedures/services';
+import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/common';
+import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
+import { CreateCommunicationDto, RecipientDto } from '../dtos';
 
 @Injectable()
 export class CommunicationService {
@@ -27,14 +26,16 @@ export class CommunicationService {
     private docService: DocumentService,
   ) {}
 
-  async getInbox(accountId: string, { limit, offset, status, term, group, from }: FilterInboxDto) {
+  async getInbox(accountId: string, { limit, offset, status, term, group, isOriginal }: FilterInboxDto) {
     const regex = new RegExp(term, 'i');
     const filterQuery: FilterQuery<Communication> = {
       'recipient.account': accountId,
-      ...(status ? { status } : { $or: [{ status: StatusMail.Received }, { status: StatusMail.Pending }] }),
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
-      ...(group && { 'procedure.group': group }),
-      ...(from && { 'sender.fullname': new RegExp(from, 'i') }),
+      $and: [
+        { ...(status ? { status } : { status: { $in: [communicationStatus.Received, communicationStatus.Pending] } }) },
+        { ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }) },
+        { ...(group && { 'procedure.group': group }) },
+        { ...(isOriginal !== undefined && { isOriginal }) },
+      ],
     };
     const [communications, length] = await Promise.all([
       this.communicationModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
@@ -48,7 +49,7 @@ export class CommunicationService {
     const query: FilterQuery<Communication> = {
       'sender.account': accountId,
       $and: [
-        { $or: [{ status: StatusMail.Pending }, { status: StatusMail.Rejected }] },
+        { $or: [{ status: communicationStatus.Pending }, { status: communicationStatus.Rejected }] },
         { ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }) },
       ],
     };
@@ -130,13 +131,13 @@ export class CommunicationService {
     try {
       session.startTransaction();
       const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
-      const isInvalid = documents.find(({ status }) => status !== StatusMail.Pending);
+      const isInvalid = documents.find(({ status }) => status !== communicationStatus.Pending);
       if (isInvalid) {
         throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
       }
       await this.communicationModel.updateMany(
         { _id: { $in: communicationIds } },
-        { status: StatusMail.Received, receivedDate: new Date() },
+        { status: communicationStatus.Received, receivedDate: new Date() },
         { session },
       );
       await session.commitTransaction();
@@ -155,7 +156,7 @@ export class CommunicationService {
     try {
       session.startTransaction();
       const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
-      const isInvalid = documents.find(({ status }) => status !== StatusMail.Pending);
+      const isInvalid = documents.find(({ status }) => status !== communicationStatus.Pending);
       if (isInvalid) {
         throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
       }
@@ -164,7 +165,7 @@ export class CommunicationService {
         { _id: { $in: communicationIds } },
         {
           receivedDate: currentDate,
-          status: StatusMail.Rejected,
+          status: communicationStatus.Rejected,
           actionLog: { fullname: account.officer.fullName, date: currentDate, description },
         },
         { session },
@@ -188,7 +189,7 @@ export class CommunicationService {
         .find({ _id: { $in: communicationIds } }, null, { session })
         .populate('recipient.account');
 
-      const isReceived = documents.find(({ status }) => status !== StatusMail.Pending);
+      const isReceived = documents.find(({ status }) => status !== communicationStatus.Pending);
       if (isReceived) {
         throw new BadRequestException(`${isReceived.recipient.fullname} ya ha evaluado el tramite`);
       }
@@ -234,21 +235,21 @@ export class CommunicationService {
       if (!communicationDB) throw new BadRequestException(`El envio ${communicationId} no existe`);
       // * Envio desde bandeja de entrada
       if (String(communicationDB.recipient.account._id) === String(account._id)) {
-        if (communicationDB.status !== StatusMail.Received) {
+        if (communicationDB.status !== communicationStatus.Received) {
           throw new BadRequestException('El envio actual no esta recibido');
         }
         this._checkRecipients(recipients, communicationDB.isOriginal);
         // * Marcar el envio actual como completado para ya no mostrar en bandeja de entrada
         await this.communicationModel.updateOne(
           { _id: communicationId },
-          { status: StatusMail.Completed },
+          { status: communicationStatus.Completed },
           { session },
         );
       }
       // * Envio desde bandeja de salida
       else if (String(communicationDB.sender.account._id) === String(account._id)) {
         switch (communicationDB.status) {
-          case StatusMail.Pending:
+          case communicationStatus.Pending:
             // * Si quiere realizar mas envios desde salida, debe ser el original
             if (!communicationDB.isOriginal) {
               throw new BadRequestException('No puede realizar mas envios de una copia');
@@ -258,11 +259,11 @@ export class CommunicationService {
               throw new BadRequestException('Envio de original duplicado');
             }
             break;
-          case StatusMail.Rejected:
+          case communicationStatus.Rejected:
             this._checkRecipients(recipients, communicationDB.isOriginal);
             await this.communicationModel.updateOne(
               { _id: communicationId },
-              { status: StatusMail.Forwarding },
+              { status: communicationStatus.Forwarding },
               { session },
             );
             break;
@@ -276,7 +277,7 @@ export class CommunicationService {
     } else {
       // * Primer envio
       this._checkRecipients(recipients, true);
-      await this.procedureModel.updateOne({ _id: procedureId }, { state: stateProcedure.EN_REVISION }, { session });
+      await this.procedureModel.updateOne({ _id: procedureId }, { state: procedureState.EN_REVISION }, { session });
     }
   }
 
@@ -290,21 +291,25 @@ export class CommunicationService {
       {
         procedure: procedure.ref._id,
         'recipient.cuenta': currentEmitter._id,
-        $or: [{ status: StatusMail.Completed }, { status: StatusMail.Received }],
+        status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
       },
       null,
       { sort: { _id: -1 }, session },
     );
     if (lastStage) {
-      await this.communicationModel.updateOne({ _id: lastStage._id }, { status: StatusMail.Received }, { session });
+      await this.communicationModel.updateOne(
+        { _id: lastStage._id },
+        { status: communicationStatus.Received },
+        { session },
+      );
     } else {
-      await this.procedureModel.updateOne({ _id: procedure.ref._id }, { state: stateProcedure.INSCRITO }, { session });
+      await this.procedureModel.updateOne({ _id: procedure.ref._id }, { state: procedureState.INSCRITO }, { session });
     }
   }
 
   private async _checkDuplicate(procedureId: string, recipients: RecipientDto[], session: ClientSession) {
     const query: FilterQuery<Communication> = {
-      status: { $in: [StatusMail.Pending, StatusMail.Received] },
+      status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
       'procedure.ref': procedureId,
       'recipient.cuenta': { $in: recipients.map(({ accountId }) => accountId) },
     };
