@@ -53,7 +53,7 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   cancelCommunications(communications: { toUser: string; communicationId: string }[]): void {
     for (const { toUser, communicationId } of communications) {
-      const user = this.groupwareService.getUser(String(toUser));
+      const user = this.groupwareService.getUser(toUser);
       if (!user) return;
       this.server.to(user.socketIds).emit('cancel-communication', communicationId);
     }

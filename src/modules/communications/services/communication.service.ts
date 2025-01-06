@@ -26,16 +26,15 @@ export class CommunicationService {
     private docService: DocumentService,
   ) {}
 
-  async getInbox(accountId: string, { limit, offset, status, term, group, isOriginal }: FilterInboxDto) {
-    const regex = new RegExp(term, 'i');
+  async getInbox(accountId: string, filterDto: FilterInboxDto) {
+    const { limit, offset, isOriginal, status, term, group } = filterDto;
+    const regex = new RegExp(filterDto.term, 'i');
     const filterQuery: FilterQuery<Communication> = {
       'recipient.account': accountId,
-      $and: [
-        { ...(status ? { status } : { status: { $in: [communicationStatus.Received, communicationStatus.Pending] } }) },
-        { ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }) },
-        { ...(group && { 'procedure.group': group }) },
-        { ...(isOriginal !== undefined && { isOriginal }) },
-      ],
+      ...(status ? { status } : { status: { $in: [communicationStatus.Received, communicationStatus.Pending] } }),
+      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
+      ...(isOriginal !== undefined && { isOriginal: isOriginal }),
+      ...(group && { 'procedure.group': filterDto.group }),
     };
     const [communications, length] = await Promise.all([
       this.communicationModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
@@ -131,6 +130,9 @@ export class CommunicationService {
     try {
       session.startTransaction();
       const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
+      if (documents.length !== communicationIds.length) {
+        throw new BadRequestException(`Algunos de los elementos seleccionados no son validos`);
+      }
       const isInvalid = documents.find(({ status }) => status !== communicationStatus.Pending);
       if (isInvalid) {
         throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
