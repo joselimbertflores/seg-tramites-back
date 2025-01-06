@@ -1,4 +1,5 @@
-import { IsIn, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import { ArrayMinSize, IsIn, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { PaginationDto } from 'src/common';
 import { procedureState } from 'src/modules/procedures/schemas';
 
 export class CreateArchiveDto {
@@ -9,9 +10,16 @@ export class CreateArchiveDto {
   @IsMongoId()
   folderId: string;
 
-  @IsMongoId()
-  communicationId: string;
+  @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
+  @IsMongoId({ each: true })
+  communicationIds: string[];
 
   @IsIn([procedureState.CONCLUIDO, procedureState.SUSPENDIDO, procedureState.ANULADO])
   state: string;
+}
+
+export class FilterArchiveDto extends PaginationDto {
+  @IsMongoId()
+  @IsOptional()
+  folder?: string;
 }

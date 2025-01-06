@@ -62,6 +62,7 @@ export class Archive {
     type: mongoose.Schema.Types.ObjectId,
     ref: Communication.name,
     required: true,
+    unique: true,
   })
   communication: Communication;
 
