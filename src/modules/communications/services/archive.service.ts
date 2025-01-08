@@ -40,7 +40,7 @@ export class ArchiveService {
           { session },
         );
       }
-      const models = communications.map(({ _id, procedure: { ref } }) => {
+      const models = communications.map(({ _id, procedure: { ref }, isOriginal }) => {
         return new this.archiveModel({
           communication: _id,
           dependency: account.dependencia,
@@ -54,6 +54,7 @@ export class ArchiveService {
             group: ref.group,
             reference: ref.reference,
           },
+          isOriginal,
           description,
         });
       });

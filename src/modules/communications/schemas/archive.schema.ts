@@ -82,13 +82,13 @@ export class Archive {
   description: string;
 
   @Prop()
+  isOriginal: boolean;
+
+  @Prop()
   createdAt: Date;
 
   @Prop()
   updatedAt: Date;
-
-  @Prop()
-  isOriginal: boolean;
 }
 
 export const ArchiveSchema = SchemaFactory.createForClass(Archive);
