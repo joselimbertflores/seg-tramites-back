@@ -5,7 +5,7 @@ import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication, communicationStatus } from '../schemas/communication.schema';
-import { Archive, ArchiveDocument } from '../schemas';
+import { Archive, ArchiveDocument, Folder, FolderDocument } from '../schemas';
 import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { Procedure, procedureStatus } from 'src/modules/procedures/schemas';
 
@@ -22,6 +22,7 @@ export class ArchiveService {
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
+    @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
   ) {}
 
@@ -105,17 +106,18 @@ export class ArchiveService {
 
   async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
     const regex = new RegExp(term);
+    const folderDB = await this.folderModel.findById(folder, { name: 1 });
+    if (!folderDB) throw new BadRequestException(`Folder ${folder} don't existt`);
     const query: FilterQuery<Archive> = {
       dependency: account.dependencia,
       folder: folder,
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
     };
-    console.log(query);
     const [archives, length] = await Promise.all([
       this.archiveModel.find(query).limit(limit).skip(offset).sort({ createdAt: -1 }),
       this.archiveModel.count(query),
     ]);
-    return { archives, length };
+    return { archives, length, folderName: folderDB.name };
   }
 
   async checkIfProcedureCanBeCompleted(id_procedure: string): Promise<void> {
