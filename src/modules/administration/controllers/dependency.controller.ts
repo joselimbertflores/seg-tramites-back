@@ -34,11 +34,11 @@ export class DependencyController {
 
   @Patch('/:id')
   edit(@Param('id') id: string, @Body() dependency: UpdateDependencyDto) {
-    return this.dependencyService.edit(id, dependency);
+    return this.dependencyService.update(id, dependency);
   }
 
   @Post()
   add(@Body() dependency: CreateDependencyDto) {
-    return this.dependencyService.add(dependency);
+    return this.dependencyService.create(dependency);
   }
 }
