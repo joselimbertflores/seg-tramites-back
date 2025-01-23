@@ -1,14 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import mongoose, { FilterQuery, Model } from 'mongoose';
 
-import { Dependency } from '../schemas/dependencie.schema';
-import { CreateDependencyDto, UpdateDependencyDto } from '../dtos';
+import { AssignDependencyAreasDto, CreateDependencyDto, UpdateDependencyDto } from '../dtos';
+import { Account, Dependency } from '../schemas';
 import { PaginationDto } from 'src/common';
 
 @Injectable()
 export class DependencieService {
-  constructor(@InjectModel(Dependency.name) private dependencyModel: Model<Dependency>) {}
+  constructor(
+    @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
+    @InjectModel(Account.name) private accountModel: Model<Account>,
+    @InjectConnection() private connection: mongoose.Connection,
+  ) {}
 
   async findAll({ limit, offset, term }: PaginationDto) {
     const query: FilterQuery<Dependency> = {
@@ -27,8 +31,60 @@ export class DependencieService {
     return await createdDependency.populate('institucion');
   }
 
-  async update(id: string, dependency: UpdateDependencyDto) {
-    return await this.dependencyModel.findByIdAndUpdate(id, dependency, { new: true }).populate('institucion');
+  async update(id: string, dependencyDto: UpdateDependencyDto) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const dependency = await this.dependencyModel.findById(id, null, { session });
+      if (!dependency) throw new BadRequestException(`Dependency ${id} dont exist`);
+      const newCodes = dependencyDto.areas.map((area) => area.code);
+      for (const { code } of dependency.areas) {
+        if (!newCodes.includes(code)) {
+          await this.accountModel.updateMany(
+            { dependencia: dependency._id, area: code },
+            { $unset: { area: '' } },
+            { session },
+          );
+        }
+      }
+      const updated = await this.dependencyModel
+        .findByIdAndUpdate(id, dependencyDto, { new: true, session })
+        .populate('institucion');
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async getAccountsInDependency(dependencyId: string) {
+    return await this.accountModel.find({ dependencia: dependencyId }).populate('officer');
+  }
+
+  async assignDependencyAreas({ personnel }: AssignDependencyAreasDto) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      for (const { accountId, area } of personnel) {
+        if (area === null) {
+          await this.accountModel.updateOne({ _id: accountId }, { $unset: { area: '' } }, { session });
+        } else {
+          await this.accountModel.updateOne({ _id: accountId }, { area }, { session });
+        }
+      }
+      await session.commitTransaction();
+      return { message: 'Assignment completed' };
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      session.endSession();
+    }
   }
 
   public async getActiveDependenciesOfInstitution(institutionId: string) {

@@ -1,15 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 
 import { InstitutionService, DependencieService } from '../services';
-import { UpdateDependencyDto, CreateDependencyDto } from '../dtos';
+import { UpdateDependencyDto, CreateDependencyDto, AssignDependencyAreasDto } from '../dtos';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { PaginationDto } from 'src/common';
@@ -25,6 +17,16 @@ export class DependencyController {
   @Get('institutions')
   getInstitutions() {
     return this.institutionService.getActiveInstitutions();
+  }
+
+  @Get(':id/accounts')
+  getAccountsInDependency(@Param('id') id: string) {
+    return this.dependencyService.getAccountsInDependency(id);
+  }
+
+  @Put('assign-area')
+  assingDependencyArea(@Body() data: AssignDependencyAreasDto) {
+    return this.dependencyService.assignDependencyAreas(data);
   }
 
   @Get()

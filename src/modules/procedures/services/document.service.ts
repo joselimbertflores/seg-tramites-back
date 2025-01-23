@@ -2,9 +2,9 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, FilterQuery, Model } from 'mongoose';
 
-import { Account, Dependency } from 'src/modules/administration/schemas';
-import { Doc, DocDocument, docType } from '../schemas';
+import { Account } from 'src/modules/administration/schemas';
 import { CreateDocDto, UpdateDocDto } from '../dtos';
+import { Doc, DocDocument } from '../schemas';
 import { PaginationDto } from 'src/common';
 
 interface procedureProps {
@@ -40,11 +40,12 @@ export class DocumentService {
   }
 
   async create(account: Account, docDto: CreateDocDto) {
-    const { cite, correlative } = await this._generateCode(account.dependencia, docDto.type);
+    console.log(docDto);
+    const { cite, correlative, segment } = await this._generateCode(account, docDto);
     const newDoc = new this.docModel({
-      segment: account.dependencia.codigo,
-      account: account,
       dependecy: account.dependencia,
+      account,
+      segment,
       correlative,
       cite,
       ...docDto,
@@ -71,12 +72,18 @@ export class DocumentService {
       .limit(5);
   }
 
-  private async _generateCode({ _id, codigo }: Dependency, type: docType) {
-    const year = new Date().getFullYear();
-    const lastDoc = await this.docModel.findOne({ dependecy: _id, segment: codigo, type }).sort({ _id: -1 });
-    const correlative = lastDoc ? lastDoc.correlative + 1 : 1;
-    const cite = `${type}/${codigo}/${correlative}/${year}`;
-    return { cite, correlative };
+  private async _generateCode({ dependencia, area }: Account, { isGeneralCode, type }: CreateDocDto) {
+    const baseSegment = dependencia.codigo;
+    const segment = isGeneralCode || !area ? baseSegment : `${baseSegment}-${area}`;
+
+    const currentYear = new Date().getFullYear();
+    const lastDoc = await this.docModel.findOne({ dependecy: dependencia, segment, type }).sort({ _id: -1 });
+
+    const correlative = lastDoc?.correlative ? lastDoc.correlative + 1 : 1;
+
+    const cite = `${type}/${segment}/${correlative}/${currentYear}`.trim();
+
+    return { cite, correlative, segment };
   }
 
   private _getYearRange(year: number = new Date().getFullYear()) {

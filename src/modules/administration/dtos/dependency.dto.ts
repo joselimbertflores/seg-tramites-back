@@ -1,8 +1,8 @@
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
-  IsBoolean,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
@@ -24,7 +24,7 @@ class AreaDto {
 }
 
 @ValidatorConstraint({ name: 'uniqueAreaCodes', async: false })
-export class UniqueAreaCodes implements ValidatorConstraintInterface {
+class UniqueAreaCodes implements ValidatorConstraintInterface {
   validate(areas: AreaDto[]): boolean {
     if (!Array.isArray(areas)) return false;
     const codes = areas.map((area) => area.code);
@@ -32,7 +32,7 @@ export class UniqueAreaCodes implements ValidatorConstraintInterface {
     return uniqueCodes.size === codes.length;
   }
   defaultMessage(): string {
-    return 'Codes must be unique';
+    return 'Los codigos de area deben ser unicos';
   }
 }
 export class CreateDependencyDto {
@@ -42,24 +42,33 @@ export class CreateDependencyDto {
 
   @IsNotEmpty()
   @IsString()
-  sigla: string;
-
-  @IsNotEmpty()
-  @IsString()
   codigo: string;
 
   @IsMongoId()
   institucion: string;
 
-  @IsBoolean()
-  @IsOptional()
-  activo?: boolean;
-
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AreaDto)
   @Validate(UniqueAreaCodes)
+  @ArrayMaxSize(6)
   areas: AreaDto[];
 }
 
 export class UpdateDependencyDto extends PartialType(OmitType(CreateDependencyDto, ['institucion'] as const)) {}
+
+class PersonnelDto {
+  @IsMongoId()
+  accountId: string;
+
+  @IsNotEmpty()
+  @Type(() => Number)
+  @IsOptional()
+  area?: number;
+}
+export class AssignDependencyAreasDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PersonnelDto)
+  personnel: PersonnelDto[];
+}

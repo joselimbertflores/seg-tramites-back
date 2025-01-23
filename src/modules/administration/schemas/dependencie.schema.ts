@@ -23,20 +23,8 @@ export class Dependency extends Document {
 
   @Prop({
     type: String,
-    uppercase: true,
-  })
-  sigla: string;
-
-  @Prop({
-    type: String,
   })
   codigo: string;
-
-  @Prop({
-    type: Boolean,
-    default: true,
-  })
-  activo: boolean;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
