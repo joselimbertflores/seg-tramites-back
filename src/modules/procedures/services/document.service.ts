@@ -28,7 +28,7 @@ export class DocumentService {
   async findAll(account: Account, { limit, offset }: PaginationDto) {
     const { startOfYear, endOfYear } = this._getYearRange();
     const filterQuery: FilterQuery<Doc> = {
-      account: account._id,
+      // account: account._id,
       dependecy: account.dependencia._id,
       createdAt: { $gte: startOfYear, $lt: endOfYear },
     };
@@ -40,7 +40,6 @@ export class DocumentService {
   }
 
   async create(account: Account, docDto: CreateDocDto) {
-    console.log(docDto);
     const { cite, correlative, segment } = await this._generateCode(account, docDto);
     const newDoc = new this.docModel({
       dependecy: account.dependencia,
