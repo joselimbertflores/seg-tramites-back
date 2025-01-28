@@ -28,8 +28,7 @@ export class DocumentService {
   async findAll(account: Account, { limit, offset }: PaginationDto) {
     const { startOfYear, endOfYear } = this._getYearRange();
     const filterQuery: FilterQuery<Doc> = {
-      // account: account._id,
-      dependecy: account.dependencia._id,
+      dependecy: account.dependencia,
       createdAt: { $gte: startOfYear, $lt: endOfYear },
     };
     const [documents, length] = await Promise.all([
@@ -55,6 +54,7 @@ export class DocumentService {
   async update(id: string, docDto: UpdateDocDto) {
     const doc = await this.docModel.findById(id);
     if (!doc) throw new BadRequestException(`Document ${id} not found`);
+    if (doc.procedure) throw new BadRequestException('This document is ');
     return await this.docModel.findByIdAndUpdate(id, docDto, { new: true });
   }
 

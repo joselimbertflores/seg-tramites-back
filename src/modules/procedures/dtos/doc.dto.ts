@@ -41,4 +41,4 @@ export class CreateDocDto {
   isGeneralCode = false;
 }
 
-export class UpdateDocDto extends OmitType(CreateDocDto, ['type']) {}
+export class UpdateDocDto extends OmitType(CreateDocDto, ['type', 'isGeneralCode']) {}
