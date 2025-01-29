@@ -54,7 +54,7 @@ export class DocumentService {
   async update(id: string, docDto: UpdateDocDto) {
     const doc = await this.docModel.findById(id);
     if (!doc) throw new BadRequestException(`Document ${id} not found`);
-    if (doc.procedure) throw new BadRequestException('This document is ');
+    if (doc.procedure) throw new BadRequestException('Document is already assigned');
     return await this.docModel.findByIdAndUpdate(id, docDto, { new: true });
   }
 
