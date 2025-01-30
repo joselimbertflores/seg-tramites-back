@@ -19,7 +19,7 @@ import { SystemResource } from 'src/modules/auth/constants';
 import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
 
 import { CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
-import { IsMongoidPipe } from 'src/common';
+import { IsMongoidPipe } from 'src/modules/common';
 
 @Controller('accounts')
 @ResourceProtected(SystemResource.ACCOUNTS)

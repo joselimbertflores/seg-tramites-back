@@ -3,7 +3,7 @@ import { TypeProcedureService } from '../services/type-procedure.service';
 import { CreateTypeProcedureDto, UpdateTypeProcedureDto } from '../dtos';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 @ResourceProtected(SystemResource.TYPES_PROCEDURES)
 @Controller('types-procedures')

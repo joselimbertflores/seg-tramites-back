@@ -4,7 +4,7 @@ import { InstitutionService, DependencieService } from '../services';
 import { UpdateDependencyDto, CreateDependencyDto, AssignDependencyAreasDto } from '../dtos';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 @Controller('dependencies')
 @ResourceProtected(SystemResource.DEPENDENCIES)

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Document } from 'mongoose';
 
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { CreatePublicationDto } from './dtos/post.dto';
 import { FilesService } from '../files/files.service';
 import { Publication, PublicationPriority } from './schemas/publication.schema';

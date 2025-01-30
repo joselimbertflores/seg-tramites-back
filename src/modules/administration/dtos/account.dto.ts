@@ -6,7 +6,7 @@ import {
   IsString,
 } from 'class-validator';
 import { OmitType, PartialType } from '@nestjs/mapped-types';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 export class CreateAccountDto {
   @IsString()

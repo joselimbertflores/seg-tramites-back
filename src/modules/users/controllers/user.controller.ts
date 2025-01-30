@@ -10,7 +10,7 @@ import {
 
 import { Public, ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 
 import { RoleService, UserService } from '../services';

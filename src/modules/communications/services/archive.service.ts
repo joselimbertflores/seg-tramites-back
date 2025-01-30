@@ -2,7 +2,7 @@ import { BadRequestException, HttpException, Injectable, InternalServerErrorExce
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
 
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication, communicationStatus } from '../schemas/communication.schema';
 import { Archive, ArchiveDocument, Folder, FolderDocument } from '../schemas';

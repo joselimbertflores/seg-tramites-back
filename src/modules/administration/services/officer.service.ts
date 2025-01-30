@@ -7,7 +7,7 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { ClientSession, Model } from 'mongoose';
 import { CreateOfficerDto, UpdateOfficerDto } from '../dtos';
 import { Officer } from '../schemas';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 @Injectable()
 export class OfficerService {

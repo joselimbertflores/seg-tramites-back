@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AdministrationModule } from 'src/modules/administration/administration.module';
-import { InternalController, ExternalController, ProcedureController } from './controllers';
+import { InternalController, ExternalController, ProcedureController, DocumentController } from './controllers';
 import { DocumentService, ExternalService, InternalService, ObservationService, ProcedureService } from './services';
 import {
   Procedure,
@@ -35,7 +35,7 @@ import {
       { name: Doc.name, schema: DocSchema },
     ]),
   ],
-  controllers: [InternalController, ExternalController, ProcedureController],
+  controllers: [InternalController, ExternalController, ProcedureController, DocumentController],
   providers: [ExternalService, InternalService, ObservationService, ProcedureService, DocumentService],
   exports: [MongooseModule, ProcedureService, DocumentService],
 })

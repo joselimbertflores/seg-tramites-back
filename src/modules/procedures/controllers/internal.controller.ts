@@ -8,7 +8,7 @@ import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../decorators/get-account-request.decorator';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
-import { IsMongoidPipe, PaginationDto } from 'src/common';
+import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 
 @ResourceProtected(SystemResource.INTERNAL)
 @onlyAssignedAccount()

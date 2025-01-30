@@ -1,5 +1,5 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import { IsMongoidPipe } from 'src/common';
+import { IsMongoidPipe } from 'src/modules/common';
 import { onlyAssignedAccount } from 'src/modules/procedures/decorators/only-assigned-account.decorator';
 import { CommunicationService } from '../services';
 import { ProcedureService } from 'src/modules/procedures/services/procedure.service';

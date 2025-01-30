@@ -7,7 +7,7 @@ import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorat
 import { GetAccountRequest } from '../decorators/get-account-request.decorator';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
-import { IsMongoidPipe, PaginationDto } from 'src/common';
+import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 
 @Controller('external')
 @ResourceProtected(SystemResource.EXTERNAL)

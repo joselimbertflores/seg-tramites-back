@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { TypeProcedure } from '../schemas/type-procedure.schema';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 import { CreateTypeProcedureDto, UpdateTypeProcedureDto } from '../dtos';
 
 @Injectable()

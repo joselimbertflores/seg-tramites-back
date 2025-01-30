@@ -9,12 +9,12 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
 import { Procedure, procedureState } from 'src/modules/procedures/schemas';
-import { DocumentService } from 'src/modules/procedures/services';
 import { Account } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
 import { CreateCommunicationDto, RecipientDto } from '../dtos';
+import { DocumentService } from '../../procedures/services/document.service';
 
 @Injectable()
 export class CommunicationService {

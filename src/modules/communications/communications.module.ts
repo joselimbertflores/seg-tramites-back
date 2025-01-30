@@ -1,13 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ArchiveController, CommunicationController, DocumentController, FolderController } from './controllers';
-import { ArchiveService, CommunicationService, FolderService } from './services';
+import { ArchiveController, CommunicationController, FolderController, ProcessController } from './controllers';
 import { AdministrationModule } from '../administration/administration.module';
 import { ProceduresModule } from '../procedures/procedures.module';
 import { GroupwareModule } from '../groupware/groupware.module';
-import { ProcessController } from './controllers/process.controller';
 import { Archive, ArchiveSchema, Communication, CommunicationSchema, Folder, FolderSchema } from './schemas';
-import { DocumentService } from '../procedures/services';
+import { ArchiveService, CommunicationService, FolderService } from './services';
 
 @Module({
   imports: [
@@ -20,8 +18,8 @@ import { DocumentService } from '../procedures/services';
     GroupwareModule,
     ProceduresModule,
   ],
-  controllers: [CommunicationController, ProcessController, DocumentController, FolderController, ArchiveController],
-  providers: [CommunicationService, FolderService, ArchiveService, DocumentService],
+  controllers: [CommunicationController, ProcessController, FolderController, ArchiveController],
+  providers: [CommunicationService, FolderService, ArchiveService],
   exports: [MongooseModule],
 })
 export class CommunicationsModule {}

@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Document, FilterQuery, Model, ClientSession } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { User, UserDocument } from '../schemas';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
 

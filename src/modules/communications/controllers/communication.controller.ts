@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/
 import { InstitutionService, DependencieService } from 'src/modules/administration/services';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 
-import { IsMongoidPipe, PaginationDto } from 'src/common';
+import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 import { AccountService } from 'src/modules/administration/services/account.service';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';

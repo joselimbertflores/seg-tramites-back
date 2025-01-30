@@ -10,7 +10,7 @@ import {
 
 import { SYSTEM_RESOURCES, SystemResource } from 'src/modules/auth/constants';
 import { ResourceProtected } from 'src/modules/auth/decorators';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 import { CreateRoleDto, UpdateRoleDto } from '../dtos';
 import { RoleService } from '../services';

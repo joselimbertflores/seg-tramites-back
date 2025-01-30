@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { SearchProcedureByApplicantDto, SearchProcedureByPropertiesDto } from './dto';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { DependencieService, InstitutionService, TypeProcedureService } from 'src/modules/administration/services';
 
-import { IsMongoidPipe } from 'src/common';
+import { IsMongoidPipe } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { GetAccountRequest } from 'src/modules/procedures/decorators/get-account-request.decorator';
 

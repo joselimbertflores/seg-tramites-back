@@ -2,7 +2,7 @@ import { ArrayMinSize, IsBoolean, IsEnum, IsIn, IsMongoId, IsNotEmpty, IsOptiona
 import { Transform } from 'class-transformer';
 
 import { procedureGroup } from 'src/modules/procedures/schemas';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 import { communicationStatus } from '../schemas';
 
 export class SelectedCommunicationsDto {

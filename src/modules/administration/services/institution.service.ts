@@ -8,7 +8,7 @@ import { Model } from 'mongoose';
 
 import { Institution } from '../schemas/institution.schema';
 import { CreateInstitutionDto, UpdateInstitutionDto } from '../dtos';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 @Injectable()
 export class InstitutionService {

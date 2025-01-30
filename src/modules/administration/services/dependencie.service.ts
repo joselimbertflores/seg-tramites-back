@@ -4,7 +4,7 @@ import mongoose, { FilterQuery, Model } from 'mongoose';
 
 import { AssignDependencyAreasDto, CreateDependencyDto, UpdateDependencyDto } from '../dtos';
 import { Account, Dependency } from '../schemas';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 
 @Injectable()
 export class DependencieService {

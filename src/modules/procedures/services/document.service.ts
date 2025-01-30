@@ -1,11 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, FilterQuery, Model } from 'mongoose';
+import { ClientSession, FilterQuery, Model, UpdateQuery } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
-import { CreateDocDto, UpdateDocDto } from '../dtos';
+import { CreateDocDto, FilterDocsDto, UpdateDocDto } from '../dtos';
 import { Doc, DocDocument } from '../schemas';
-import { PaginationDto } from 'src/common';
 
 interface procedureProps {
   code: string;
@@ -25,14 +24,18 @@ export class DocumentService {
     await this.docModel.updateOne({ _id: docId }, { procedure }, { session });
   }
 
-  async findAll(account: Account, { limit, offset }: PaginationDto) {
-    const { startOfYear, endOfYear } = this._getYearRange();
+  async findAll(account: Account, filterProps: FilterDocsDto) {
+    const { term, limit, offset, ownDocs, year, type } = filterProps;
+    const { startOfYear, endOfYear } = this._getYearRange(year);
     const filterQuery: FilterQuery<Doc> = {
       dependecy: account.dependencia,
       createdAt: { $gte: startOfYear, $lt: endOfYear },
+      ...(term && { reference: new RegExp(term, 'i') }),
+      ...(type && { type }),
+      ...(ownDocs && { account }),
     };
     const [documents, length] = await Promise.all([
-      this.docModel.find(filterQuery).skip(offset).limit(limit),
+      this.docModel.find(filterQuery).skip(offset).limit(limit).sort({ createdAt: -1 }),
       this.docModel.count(filterQuery),
     ]);
     return { documents, length };
@@ -54,8 +57,14 @@ export class DocumentService {
   async update(id: string, docDto: UpdateDocDto) {
     const doc = await this.docModel.findById(id);
     if (!doc) throw new BadRequestException(`Document ${id} not found`);
+
     if (doc.procedure) throw new BadRequestException('Document is already assigned');
-    return await this.docModel.findByIdAndUpdate(id, docDto, { new: true });
+    const query: UpdateQuery<Doc> = {
+      ...docDto,
+      ...(!docDto.via && { $unset: { via: '' } }),
+    };
+
+    return await this.docModel.findByIdAndUpdate(id, query, { new: true });
   }
 
   async searchPendingDocs(account: Account, term?: string) {

@@ -1,5 +1,5 @@
 import { ArrayMinSize, IsIn, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 import { procedureState } from 'src/modules/procedures/schemas';
 
 export class CreateArchiveDto {

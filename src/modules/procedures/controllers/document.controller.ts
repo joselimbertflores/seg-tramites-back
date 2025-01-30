@@ -4,10 +4,10 @@ import { onlyAssignedAccount } from 'src/modules/procedures/decorators/only-assi
 import { GetAccountRequest } from 'src/modules/procedures/decorators/get-account-request.decorator';
 import { AccountService } from 'src/modules/administration/services';
 import { Account } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/common';
+import { IsMongoidPipe } from 'src/modules/common';
 
-import { DocumentService } from '../../procedures/services/document.service';
-import { CreateDocDto, UpdateDocDto } from '../dtos';
+import { DocumentService } from '../services';
+import { CreateDocDto, FilterDocsDto, UpdateDocDto } from '../../communications/dtos';
 
 @Controller('documents')
 @onlyAssignedAccount()
@@ -20,13 +20,13 @@ export class DocumentController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: UpdateDocDto) {
+  update(@Param('id', IsMongoidPipe) id: string, @Body() body: UpdateDocDto) {
     return this.documentService.update(id, body);
   }
 
   @Get()
-  findAll(@Query() paginationDto: PaginationDto, @GetAccountRequest() account: Account) {
-    return this.documentService.findAll(account, paginationDto);
+  findAll(@GetAccountRequest() account: Account, @Query() filterDto: FilterDocsDto) {
+    return this.documentService.findAll(account, filterDto);
   }
 
   @Get('accounts')

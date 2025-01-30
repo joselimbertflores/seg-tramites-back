@@ -6,7 +6,7 @@ import { FilterQuery, Model } from 'mongoose';
 import { ExternalProcedure, procedureStatus } from '../schemas';
 
 import { stateProcedure } from '../interfaces';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
 

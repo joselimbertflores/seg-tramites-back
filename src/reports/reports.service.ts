@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, Model } from 'mongoose';
 
 import { Account, Dependency } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { SearchProcedureByApplicantDto, SearchProcedureByPropertiesDto } from './dto';
 import { groupProcedure } from 'src/modules/procedures/interfaces';
 
