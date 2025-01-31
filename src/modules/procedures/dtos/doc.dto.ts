@@ -54,8 +54,4 @@ export class FilterDocsDto extends PaginationDto {
   @IsEnum(docType)
   @IsOptional()
   type?: docType;
-
-  @IsBoolean()
-  @IsOptional()
-  ownDocs = false;
 }

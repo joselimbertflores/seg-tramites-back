@@ -72,6 +72,12 @@ export class InternalService {
     return { procedures, length };
   }
 
+  async findOne(id: string) {
+    const procedureDB = await this.procedureModel.findById(id).populate('account');
+    if (!procedureDB) throw new NotFoundException(`El tramite ${id} no existe.`);
+    return procedureDB;
+  }
+
   private async _generateCode(account: Account): Promise<{ code: string; prefix: string; correlative: number }> {
     const prefix = `HR-${account.institution.sigla}`.toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });

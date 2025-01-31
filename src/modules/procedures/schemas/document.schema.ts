@@ -6,7 +6,7 @@ export enum docType {
   CI = 'CI',
   CE = 'CE',
   CIR = 'CIR',
-  MEN = 'MEN',
+  MEM = 'MEM',
 }
 
 @Schema({ _id: false })

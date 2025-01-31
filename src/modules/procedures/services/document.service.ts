@@ -25,15 +25,17 @@ export class DocumentService {
   }
 
   async findAll(account: Account, filterProps: FilterDocsDto) {
-    const { term, limit, offset, ownDocs, year, type } = filterProps;
+    const { term, limit, offset, year, type } = filterProps;
     const { startOfYear, endOfYear } = this._getYearRange(year);
+
     const filterQuery: FilterQuery<Doc> = {
       dependecy: account.dependencia,
+      account,
       createdAt: { $gte: startOfYear, $lt: endOfYear },
       ...(term && { reference: new RegExp(term, 'i') }),
       ...(type && { type }),
-      ...(ownDocs && { account }),
     };
+
     const [documents, length] = await Promise.all([
       this.docModel.find(filterQuery).skip(offset).limit(limit).sort({ createdAt: -1 }),
       this.docModel.count(filterQuery),
@@ -63,7 +65,6 @@ export class DocumentService {
       ...docDto,
       ...(!docDto.via && { $unset: { via: '' } }),
     };
-
     return await this.docModel.findByIdAndUpdate(id, query, { new: true });
   }
 
