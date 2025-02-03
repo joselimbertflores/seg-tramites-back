@@ -43,5 +43,5 @@ export class InternalController {
   @Patch(':id')
   update(@Param('id') procedureId: string, @Body() procedureDto: UpdateInternalProcedureDto) {
     return this.internalService.update(procedureId, procedureDto);
-  }u
+  }
 }

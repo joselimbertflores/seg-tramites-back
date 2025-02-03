@@ -1,23 +1,19 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model } from 'mongoose';
-import { CreateObservationDto } from '../dto';
-import { stateProcedure } from '../interfaces';
 import { Account } from 'src/modules/administration/schemas';
 
 @Injectable()
 export class ObservationService {
-  constructor() // @InjectModel(Observation.name) private observationModel: Model<Observation>,
-  // @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
+  // @InjectModel(Procedure.name) private procedureModel: Model<Procedure>, // @InjectModel(Observation.name) private observationModel: Model<Observation>,
   // @InjectModel(Account.name) private accountModel: Model<Account>,
   // @InjectConnection() private readonly connection: Connection,
-  {}
 
   async getObservations(id_procedure: string) {
     // return await this.observationModel.find({ procedure: id_procedure }).sort({ date: -1 });
   }
 
-  async add(id_procedure: string, account: Account, { description }: CreateObservationDto) {
+  async add(id_procedure: string, account: Account, { description }: any) {
     // const state = await this.checkIfStateProcedureIsValid(id_procedure);
     // const session = await this.connection.startSession();
     // try {

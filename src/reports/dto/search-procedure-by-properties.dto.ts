@@ -1,5 +1,6 @@
 import { IsEnum, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { groupProcedure, stateProcedure } from 'src/modules/procedures/interfaces';
+import { groupProcedure } from 'src/modules/procedures/domain/interfaces';
+import { procedureState } from 'src/modules/procedures/schemas';
 
 export class SearchProcedureByPropertiesDto {
   @IsString()
@@ -12,9 +13,9 @@ export class SearchProcedureByPropertiesDto {
   @IsOptional()
   cite?: string;
 
-  @IsEnum(Object.values(stateProcedure))
+  @IsEnum(Object.values(procedureState))
   @IsOptional()
-  state?: stateProcedure;
+  state?: procedureState;
 
   @IsString()
   @IsNotEmpty()

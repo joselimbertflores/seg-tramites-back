@@ -1,10 +1,23 @@
-import { Module } from '@nestjs/common';
+import { Module, Scope } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AdministrationModule } from 'src/modules/administration/administration.module';
-import { InternalController, ExternalController, ProcedureController, DocumentController } from './controllers';
-import { DocumentService, ExternalService, InternalService, ObservationService, ProcedureService } from './services';
+import {
+  DocumentService,
+  ExternalService,
+  InternalService,
+  ObservationService,
+  ProcedureFactoryService,
+  ProcurementService,
+} from './services';
+import {
+  InternalController,
+  ExternalController,
+  ProcedureController,
+  DocumentController,
+  ProcurementController,
+} from './controllers';
 import {
   Procedure,
   ProcedureSchema,
@@ -16,7 +29,10 @@ import {
   ObservationSchema,
   Doc,
   DocSchema,
+  ProcurementProcedure,
+  ProcurementProcedureSchema,
 } from './schemas';
+import { PROCEDURE_FACTORY_TOKEN } from './domain';
 
 @Module({
   imports: [
@@ -30,13 +46,29 @@ import {
         discriminators: [
           { name: InternalProcedure.name, schema: InternalProcedureSchema },
           { name: ExternalProcedure.name, schema: ExternalProcedureSchema },
+          { name: ProcurementProcedure.name, schema: ProcurementProcedureSchema },
         ],
       },
       { name: Doc.name, schema: DocSchema },
     ]),
   ],
-  controllers: [InternalController, ExternalController, ProcedureController, DocumentController],
-  providers: [ExternalService, InternalService, ObservationService, ProcedureService, DocumentService],
-  exports: [MongooseModule, ProcedureService, DocumentService],
+  controllers: [InternalController, ExternalController, ProcedureController, DocumentController, ProcurementController],
+  providers: [
+    {
+      provide: PROCEDURE_FACTORY_TOKEN,
+      scope: Scope.REQUEST,
+      useFactory: (procedureFactoryService: ProcedureFactoryService) => {
+        return procedureFactoryService.getService();
+      },
+      inject: [ProcedureFactoryService],
+    },
+    ProcedureFactoryService,
+    ExternalService,
+    InternalService,
+    ObservationService,
+    DocumentService,
+    ProcurementService,
+  ],
+  exports: [MongooseModule, DocumentService, PROCEDURE_FACTORY_TOKEN],
 })
 export class ProceduresModule {}

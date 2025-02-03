@@ -6,6 +6,7 @@ import { Account, Dependency, Institution, Officer } from 'src/modules/administr
 export enum procedureGroup {
   EXTERNAL = 'ExternalProcedure',
   INTERNAL = 'InternalProcedure',
+  PROCUREMENT = 'ProcurementProcedure',
 }
 
 export enum procedureStatus {

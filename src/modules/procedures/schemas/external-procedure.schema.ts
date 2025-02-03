@@ -2,8 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 
 import { Account, Dependency, Institution, Officer, TypeProcedure } from 'src/modules/administration/schemas';
-import { stateProcedure } from '../interfaces';
-import { procedureStatus } from './procedure.schema';
+import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
 
 abstract class Person {
   @Prop()
@@ -43,10 +42,10 @@ export class ExternalProcedure {
   correlative: number;
   cite: string;
   account: Account;
-  state: stateProcedure;
+  state: procedureState;
   reference: string;
   numberOfDocuments: string;
-  group: string;
+  group: procedureGroup;
   status: procedureStatus;
   createdAt: Date;
   updatedAt: Date;

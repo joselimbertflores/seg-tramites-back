@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Account, Dependency, Institution, Officer } from 'src/modules/administration/schemas';
-import { stateProcedure } from '../interfaces';
-import { procedureStatus } from './procedure.schema';
+import { procedureState, procedureStatus } from './procedure.schema';
 
 @Schema({ _id: false })
 class Worker {
@@ -28,7 +27,7 @@ export class InternalProcedure {
   correlative: number;
   cite: string;
   account: Account;
-  state: stateProcedure;
+  state: procedureState;
   reference: string;
   numberOfDocuments: string;
   group: string;

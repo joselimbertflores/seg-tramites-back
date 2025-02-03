@@ -1,26 +1,25 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-
 import { Connection, FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/modules/common';
-import { InternalProcedure, procedureState, procedureStatus } from '../schemas';
-import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
 import { DocumentService } from './document.service';
-import { ProcedureService } from '../domain';
+import { procedureState, procedureStatus, ProcurementProcedure } from '../schemas';
+import { CreateProcurementProcedureDto, UpdateProcurementProcedureDto } from '../dtos';
+import { PaginationDto } from 'src/modules/common';
 
 @Injectable()
-export class InternalService implements ProcedureService {
+export class ProcurementService {
   constructor(
-    @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
+    @InjectModel(ProcurementProcedure.name) private procedureModel: Model<ProcurementProcedure>,
     @InjectConnection() private connection: Connection,
     private configService: ConfigService,
     private docService: DocumentService,
   ) {}
 
-  async create({ docId, ...procedureDto }: CreateInternalProcedureDto, account: Account) {
+  async create({ docId, ...props }: CreateProcurementProcedureDto, account: Account) {
+    console.log(props);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -32,10 +31,12 @@ export class InternalService implements ProcedureService {
         code: code,
         prefix,
         correlative,
-        ...procedureDto,
+        ...props,
       });
       const procedure = await createdProcedure.save({ session });
-      await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
+      if (docId) {
+        await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
+      }
       await session.commitTransaction();
       return procedure;
     } catch (error) {
@@ -47,7 +48,7 @@ export class InternalService implements ProcedureService {
     }
   }
 
-  async update(id: string, procedureDto: UpdateInternalProcedureDto) {
+  async update(id: string, procedureDto: UpdateProcurementProcedureDto) {
     const procedureDB = await this.procedureModel.findById(id);
     if (!procedureDB) {
       throw new NotFoundException('El tramite no existe');
@@ -60,10 +61,10 @@ export class InternalService implements ProcedureService {
 
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
     const regex = new RegExp(term, 'i');
-    const query: FilterQuery<InternalProcedure> = {
+    const query: FilterQuery<ProcurementProcedure> = {
       account: accountId,
       status: procedureStatus.PENDING,
-      // $or: [{ code: regex }, { reference: regex }],
+      $or: [{ code: regex }, { reference: regex }],
     };
     const [procedures, length] = await Promise.all([
       this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),

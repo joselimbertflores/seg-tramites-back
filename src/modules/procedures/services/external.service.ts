@@ -3,15 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { FilterQuery, Model } from 'mongoose';
 
-import { ExternalProcedure, procedureStatus } from '../schemas';
+import { ExternalProcedure, procedureState, procedureStatus } from '../schemas';
 
-import { stateProcedure } from '../interfaces';
 import { PaginationDto } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
+import { ProcedureService } from '../domain';
 
 @Injectable()
-export class ExternalService {
+export class ExternalService implements ProcedureService {
   constructor(
     @InjectModel(ExternalProcedure.name) private procedureModel: Model<ExternalProcedure>,
     private configService: ConfigService,
@@ -52,16 +52,16 @@ export class ExternalService {
     if (!procedureDB) {
       throw new NotFoundException('El tramite no existe');
     }
-    if (procedureDB.state !== stateProcedure.INSCRITO) {
+    if (procedureDB.state !== procedureState.INSCRITO) {
       throw new BadRequestException('El tramite ya esta en curso');
     }
     return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
-  async findOne(id: string) {
-    const procedureDB = await this.procedureModel.findById(id).populate('account').populate('type', 'nombre');
-    if (!procedureDB) throw new NotFoundException(`El tramite ${id} no existe.`);
-    return procedureDB;
+  async getDetail(procedureId: string) {
+    const procedure = await this.procedureModel.findById(procedureId).populate('type');
+    if (!procedure) throw new BadRequestException(`Procedure ${procedureId} dont exist`);
+    return procedure;
   }
 
   private async _generateCode(

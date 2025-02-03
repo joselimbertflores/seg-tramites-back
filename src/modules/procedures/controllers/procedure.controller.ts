@@ -2,8 +2,7 @@ import { Body, Controller, Get, InternalServerErrorException, Param, Post, Put }
 import { ModuleRef } from '@nestjs/core';
 
 import { ObservationService, ExternalService, InternalService } from '../services';
-import { ValidProcedureService, groupProcedure } from '../interfaces';
-import { CreateObservationDto, GetProcedureParamsDto } from '../dto';
+import { ValidProcedureService, groupProcedure } from '../domain/interfaces';
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../decorators/get-account-request.decorator';
@@ -24,7 +23,7 @@ export class ProcedureController {
   }
 
   @Get('detail/:group/:id')
-  async getDetail(@Param() params: GetProcedureParamsDto) {
+  async getDetail(@Param() params: any) {
     return await this.getServiceByGroup(params.group).getDetail(params.id);
   }
 
@@ -48,7 +47,7 @@ export class ProcedureController {
   addObservation(
     @GetAccountRequest() account: Account,
     @Param('id_procedure') id_procedure: string,
-    @Body() observationDto: CreateObservationDto,
+    @Body() observationDto: any,
   ) {
     return this.observationService.add(id_procedure, account, observationDto);
   }
