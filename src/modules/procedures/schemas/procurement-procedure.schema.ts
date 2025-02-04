@@ -22,35 +22,40 @@ export class ProcurementProcedure {
   officer: Officer;
 
   @Prop()
-  tipo: string;
+  mode: string;
 
   @Prop()
-  apertura: string;
+  aperturaProg: string;
 
   @Prop()
-  precio: string;
+  items: string;
 
   @Prop()
-  codigoProyecto: string;
+  type: string;
 
   @Prop()
-  plazo: string;
+  descripcionAperturaProg: string;
 
   @Prop()
-  modalidad: string;
+  metodoAdjudicacion: string;
 
   @Prop()
-  cuce: string;
+  formaAdjudicacion: string;
 
   @Prop()
-  precioAdjudicado: string;
+  price: string;
 
   @Prop()
-  tipoResolucion: string;
+  deliveryTimeframe: string;
 
   @Prop()
-  empreseAdjudicada: string;
+  deliveryLocation: string;
 
+  @Prop()
+  warranty: string;
+
+  @Prop()
+  reason: string;
 }
 
 export const ProcurementProcedureSchema = SchemaFactory.createForClass(ProcurementProcedure);

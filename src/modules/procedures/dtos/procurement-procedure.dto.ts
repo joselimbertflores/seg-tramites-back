@@ -1,53 +1,67 @@
 import { OmitType, PartialType } from '@nestjs/mapped-types';
-import { ProcedureDto } from './procedure.dto';
-import { IsOptional, IsMongoId, IsString } from 'class-validator';
 
-export class ProcurementProcedureDto extends ProcedureDto {}
+import { IsOptional, IsMongoId, IsString, IsNumber, ArrayMinSize, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+import { ProcedureDto } from './procedure.dto';
+
+class ItemDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  ff: string;
+
+  @IsString()
+  of: string;
+
+  @IsNumber()
+  @Type(() => Number)
+  amount: number;
+}
 
 export class CreateProcurementProcedureDto extends ProcedureDto {
   @IsString()
-  @IsOptional()
-  tipo: string;
+  mode: string;
 
   @IsString()
-  @IsOptional()
-  apertura: string;
+  aperturaProg: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @ArrayMinSize(1)
+  @Type(() => ItemDto)
+  items: ItemDto[];
 
   @IsString()
-  @IsOptional()
-  precio: string;
+  type: string;
 
   @IsString()
-  @IsOptional()
-  codigoProyecto: string;
+  descripcionAperturaProg: string;
 
   @IsString()
-  @IsOptional()
-  plazo: string;
+  metodoAdjudicacion: string;
 
   @IsString()
-  @IsOptional()
-  cuce: string;
+  formaAdjudicacion: string;
 
   @IsString()
-  @IsOptional()
-  modalidad: string;
+  price: string;
 
   @IsString()
-  @IsOptional()
-  precioAdjudicado: string;
+  deliveryTimeframe: string;
 
   @IsString()
-  @IsOptional()
-  tipoResolucion: string;
+  deliveryLocation: string;
 
   @IsString()
-  @IsOptional()
-  empreseAdjudicada: string;
+  warranty: string;
 
   @IsString()
-  @IsOptional()
-  representanteLegal: string;
+  reason: string;
 
   @IsOptional()
   @IsMongoId()

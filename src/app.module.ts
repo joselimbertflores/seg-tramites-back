@@ -8,7 +8,7 @@ import { AdministrationModule } from './modules/administration/administration.mo
 import { GroupwareModule } from './modules/groupware/groupware.module';
 import { ProceduresModule } from './modules/procedures/procedures.module';
 import { EnvConfiguration } from './config/env.configuration';
-import { ReportsModule } from './reports/reports.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 import { FilesModule } from './modules/files/files.module';
 import { PublicationsModule } from './modules/publications/publications.module';

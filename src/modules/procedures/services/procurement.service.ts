@@ -19,7 +19,6 @@ export class ProcurementService {
   ) {}
 
   async create({ docId, ...props }: CreateProcurementProcedureDto, account: Account) {
-    console.log(props);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
