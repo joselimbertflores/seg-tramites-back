@@ -1,6 +1,15 @@
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 
-import { IsOptional, IsMongoId, IsString, IsNumber, ArrayMinSize, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsOptional,
+  IsMongoId,
+  IsString,
+  IsNumber,
+  ArrayMinSize,
+  IsArray,
+  ValidateNested,
+  IsObject,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { ProcedureDto } from './procedure.dto';
@@ -23,6 +32,55 @@ class ItemDto {
   amount: number;
 }
 
+class OfficerProps {
+  @IsString()
+  fullname: string;
+
+  @IsString()
+  jobtitle: string;
+}
+
+export class DocumentProcurementDto {
+  @IsString()
+  reference: string;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => OfficerProps)
+  @IsOptional()
+  sender?: OfficerProps;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => OfficerProps)
+  @IsOptional()
+  recipient?: OfficerProps;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => OfficerProps)
+  @IsOptional()
+  via?: OfficerProps;
+
+  @IsString()
+  @IsOptional()
+  cite?: string;
+
+  @IsOptional()
+  date?: Date;
+}
+
+export class UpdatedDocumentProcurementDto {
+  @IsNumber()
+  @Type(() => Number)
+  index: number;
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => DocumentProcurementDto)
+  properties: DocumentProcurementDto;
+}
+
 export class CreateProcurementProcedureDto extends ProcedureDto {
   @IsString()
   mode: string;
@@ -32,7 +90,7 @@ export class CreateProcurementProcedureDto extends ProcedureDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @ArrayMinSize(1)
+  // @ArrayMinSize(1)
   @Type(() => ItemDto)
   items: ItemDto[];
 
@@ -48,7 +106,8 @@ export class CreateProcurementProcedureDto extends ProcedureDto {
   @IsString()
   formaAdjudicacion: string;
 
-  @IsString()
+  @IsNumber()
+  @Type(() => Number)
   price: string;
 
   @IsString()
@@ -63,10 +122,9 @@ export class CreateProcurementProcedureDto extends ProcedureDto {
   @IsString()
   reason: string;
 
-  @IsOptional()
-  @IsMongoId()
-  docId?: string;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DocumentProcurementDto)
+  documents: DocumentProcurementDto[];
 }
-export class UpdateProcurementProcedureDto extends PartialType(
-  OmitType(CreateProcurementProcedureDto, ['docId', 'cite']),
-) {}
+export class UpdateProcurementProcedureDto extends PartialType(OmitType(CreateProcurementProcedureDto, ['cite'])) {}

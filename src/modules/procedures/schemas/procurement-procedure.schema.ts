@@ -2,6 +2,60 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Account, Institution, Dependency, Officer } from 'src/modules/administration/schemas';
 import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
 
+@Schema({ _id: false })
+export class ItemProcurement {
+  @Prop()
+  code: string;
+
+  @Prop()
+  name: string;
+
+  @Prop()
+  ff: string;
+
+  @Prop()
+  of: string;
+
+  @Prop()
+  amount: number;
+}
+const ItemsProcurementSchema = SchemaFactory.createForClass(ItemProcurement);
+
+@Schema({ _id: false })
+class OfficerProps {
+  @Prop({
+    type: String,
+    uppercase: true,
+  })
+  fullname: string;
+
+  @Prop({
+    type: String,
+    uppercase: true,
+  })
+  jobtitle: string;
+}
+const OfficerPropsSchema = SchemaFactory.createForClass(OfficerProps);
+
+@Schema({ _id: false })
+export class DocumentsProcurement {
+  @Prop(OfficerPropsSchema)
+  sender: OfficerProps;
+
+  @Prop(OfficerPropsSchema)
+  recipient: OfficerProps;
+
+  @Prop()
+  cite: string;
+
+  @Prop()
+  reference: string;
+
+  @Prop()
+  date: Date;
+}
+const DocumentsProcurementSchema = SchemaFactory.createForClass(DocumentsProcurement);
+
 @Schema()
 export class ProcurementProcedure {
   code: string;
@@ -27,8 +81,8 @@ export class ProcurementProcedure {
   @Prop()
   aperturaProg: string;
 
-  @Prop()
-  items: string;
+  @Prop({ type: [ItemsProcurementSchema], default: [] })
+  items: ItemProcurement[];
 
   @Prop()
   type: string;
@@ -56,6 +110,9 @@ export class ProcurementProcedure {
 
   @Prop()
   reason: string;
+
+  @Prop({ type: [DocumentsProcurementSchema], default: [] })
+  documents: DocumentsProcurement[];
 }
 
 export const ProcurementProcedureSchema = SchemaFactory.createForClass(ProcurementProcedure);

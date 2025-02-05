@@ -6,7 +6,7 @@ import { Connection, FilterQuery, Model } from 'mongoose';
 import { Account } from 'src/modules/administration/schemas';
 import { DocumentService } from './document.service';
 import { procedureState, procedureStatus, ProcurementProcedure } from '../schemas';
-import { CreateProcurementProcedureDto, UpdateProcurementProcedureDto } from '../dtos';
+import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
 import { PaginationDto } from 'src/modules/common';
 
 @Injectable()
@@ -18,7 +18,21 @@ export class ProcurementService {
     private docService: DocumentService,
   ) {}
 
-  async create({ docId, ...props }: CreateProcurementProcedureDto, account: Account) {
+  async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
+    const regex = new RegExp(term, 'i');
+    const query: FilterQuery<ProcurementProcedure> = {
+      account: accountId,
+      status: procedureStatus.PENDING,
+      $or: [{ code: regex }, { reference: regex }],
+    };
+    const [procedures, length] = await Promise.all([
+      this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
+      this.procedureModel.count(query),
+    ]);
+    return { procedures, length };
+  }
+
+  async create({ ...props }: CreateProcurementProcedureDto, account: Account) {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -33,12 +47,10 @@ export class ProcurementService {
         ...props,
       });
       const procedure = await createdProcedure.save({ session });
-      if (docId) {
-        await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
-      }
       await session.commitTransaction();
       return procedure;
     } catch (error) {
+      console.log(error);
       if (error instanceof BadRequestException) throw error;
       await session.abortTransaction();
       throw new InternalServerErrorException();
@@ -58,18 +70,15 @@ export class ProcurementService {
     return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
-  async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
-    const regex = new RegExp(term, 'i');
-    const query: FilterQuery<ProcurementProcedure> = {
-      account: accountId,
-      status: procedureStatus.PENDING,
-      $or: [{ code: regex }, { reference: regex }],
-    };
-    const [procedures, length] = await Promise.all([
-      this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
-      this.procedureModel.count(query),
-    ]);
-    return { procedures, length };
+  async updateDocuments(id: string, { index, properties }: UpdatedDocumentProcurementDto) {
+    const procedure = await this.procedureModel.findByIdAndUpdate(
+      id,
+      {
+        $set: { [`documents.${index}`]: properties },
+      },
+      { new: true },
+    );
+    return procedure.documents[index];
   }
 
   async getDetail(procedureId: string): Promise<any> {

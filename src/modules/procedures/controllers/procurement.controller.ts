@@ -4,7 +4,7 @@ import { GetAccountRequest } from '../decorators/get-account-request.decorator';
 import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
 import { PaginationDto } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
-import { CreateProcurementProcedureDto, UpdateProcurementProcedureDto } from '../dtos';
+import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
 
 @onlyAssignedAccount()
 @Controller('procurement')
@@ -24,6 +24,11 @@ export class ProcurementController {
   @Patch(':id')
   update(@Param('id') procedureId: string, @Body() procedureDto: UpdateProcurementProcedureDto) {
     return this.procurementService.update(procedureId, procedureDto);
+  }
+
+  @Patch('documents/:id')
+  updateDocuments(@Param('id') procedureId: string, @Body() documentDto: UpdatedDocumentProcurementDto) {
+    return this.procurementService.updateDocuments(procedureId, documentDto);
   }
 
   @Get(':id')
