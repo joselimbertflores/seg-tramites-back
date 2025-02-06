@@ -4,18 +4,17 @@ import { ConfigService } from '@nestjs/config';
 import { Connection, FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
-import { DocumentService } from './document.service';
 import { procedureState, procedureStatus, ProcurementProcedure } from '../schemas';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
 import { PaginationDto } from 'src/modules/common';
+import { ProcedureService } from '../domain';
 
 @Injectable()
-export class ProcurementService {
+export class ProcurementService implements ProcedureService {
   constructor(
     @InjectModel(ProcurementProcedure.name) private procedureModel: Model<ProcurementProcedure>,
     @InjectConnection() private connection: Connection,
     private configService: ConfigService,
-    private docService: DocumentService,
   ) {}
 
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
@@ -50,7 +49,6 @@ export class ProcurementService {
       await session.commitTransaction();
       return procedure;
     } catch (error) {
-      console.log(error);
       if (error instanceof BadRequestException) throw error;
       await session.abortTransaction();
       throw new InternalServerErrorException();
@@ -61,12 +59,7 @@ export class ProcurementService {
 
   async update(id: string, procedureDto: UpdateProcurementProcedureDto) {
     const procedureDB = await this.procedureModel.findById(id);
-    if (!procedureDB) {
-      throw new NotFoundException('El tramite no existe');
-    }
-    if (procedureDB.state !== procedureState.INSCRITO) {
-      throw new BadRequestException('El tramite ya esta en curso');
-    }
+    if (!procedureDB) throw new NotFoundException(`Procedure ${id} dont exist`);
     return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
@@ -81,7 +74,7 @@ export class ProcurementService {
     return procedure.documents[index];
   }
 
-  async getDetail(procedureId: string): Promise<any> {
+  async getDetail(procedureId: string) {
     const procedureDB = await this.procedureModel.findById(procedureId).populate('account');
     if (!procedureDB) throw new NotFoundException(`El tramite ${procedureId} no existe.`);
     return procedureDB;

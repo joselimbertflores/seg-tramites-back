@@ -9,8 +9,6 @@ import {
 } from './controllers';
 
 import {
-  Job,
-  JobSchema,
   Officer,
   OfficerSchema,
   Dependency,
@@ -40,17 +38,10 @@ import { UsersModule } from '../users/users.module';
     OfficerController,
     AccountController,
   ],
-  providers: [
-    DependencieService,
-    InstitutionService,
-    TypeProcedureService,
-    OfficerService,
-    AccountService,
-  ],
+  providers: [DependencieService, InstitutionService, TypeProcedureService, OfficerService, AccountService],
   imports: [
     UsersModule,
     MongooseModule.forFeature([
-      // { name: Job.name, schema: JobSchema },
       { name: Account.name, schema: AccountSchema },
       { name: Officer.name, schema: OfficerSchema },
       { name: Dependency.name, schema: DependencySchema },

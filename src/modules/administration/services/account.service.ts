@@ -150,7 +150,6 @@ export class AccountService {
   }
 
   async create(userDto: CreateUserDto, accountDto: CreateAccountDto) {
-    console.log(userDto, accountDto);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -167,7 +166,6 @@ export class AccountService {
         { path: 'user', select: 'login role isActive' },
       ]);
     } catch (error) {
-      console.log(error);
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException('Error al crear cuenta');

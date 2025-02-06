@@ -13,8 +13,8 @@ import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
-import { CreateCommunicationDto, RecipientDto } from '../dtos';
 import { DocumentService } from '../../procedures/services/document.service';
+import { CreateCommunicationDto, RecipientDto } from '../dtos';
 
 @Injectable()
 export class CommunicationService {

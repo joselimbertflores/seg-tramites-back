@@ -3,7 +3,6 @@ import { IsMongoidPipe } from 'src/modules/common';
 import { onlyAssignedAccount } from 'src/modules/procedures/decorators/only-assigned-account.decorator';
 import { CommunicationService } from '../services';
 import { PROCEDURE_FACTORY_TOKEN, ProcedureService } from 'src/modules/procedures/domain';
-// import { ProcedureService } from 'src/modules/procedures/services/procedure.service';
 
 @onlyAssignedAccount()
 @Controller('process')

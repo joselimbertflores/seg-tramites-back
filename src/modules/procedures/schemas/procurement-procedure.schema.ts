@@ -113,6 +113,28 @@ export class ProcurementProcedure {
 
   @Prop({ type: [DocumentsProcurementSchema], default: [] })
   documents: DocumentsProcurement[];
+
+  // TODO confirm properties?
+  @Prop()
+  cuce: string;
+
+  @Prop()
+  precioAdjudicado: string;
+
+  @Prop()
+  fechaApertura: string;
+
+  @Prop()
+  tipoResolucion: string;
+
+  @Prop()
+  empreseAdjudicada: string;
+
+  @Prop()
+  representanteLegal: string;
+
+  @Prop()
+  codigoProyecto: string;
 }
 
 export const ProcurementProcedureSchema = SchemaFactory.createForClass(ProcurementProcedure);

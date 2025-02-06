@@ -6,6 +6,7 @@ import { procedureGroup } from '../schemas';
 import { InternalService } from './internal.service';
 import { ExternalService } from './external.service';
 import { ProcurementService } from './procurement.service';
+import { ProcedureService } from '../domain';
 
 @Injectable({ scope: Scope.REQUEST })
 export class ProcedureFactoryService {
@@ -16,7 +17,7 @@ export class ProcedureFactoryService {
     private procurementService: ProcurementService,
   ) {}
 
-  getService() {
+  getService(): ProcedureService {
     const group = this.request.params.group as procedureGroup;
     switch (group) {
       case procedureGroup.EXTERNAL:

@@ -65,9 +65,9 @@ import { PROCEDURE_FACTORY_TOKEN } from './domain';
     ProcedureFactoryService,
     ExternalService,
     InternalService,
+    ProcurementService,
     ObservationService,
     DocumentService,
-    ProcurementService,
   ],
   exports: [MongooseModule, DocumentService, PROCEDURE_FACTORY_TOKEN],
 })
