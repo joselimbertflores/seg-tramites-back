@@ -45,6 +45,9 @@ export class DocumentsProcurement {
   @Prop(OfficerPropsSchema)
   recipient: OfficerProps;
 
+  @Prop(OfficerPropsSchema)
+  via?: OfficerProps;
+
   @Prop()
   cite: string;
 
