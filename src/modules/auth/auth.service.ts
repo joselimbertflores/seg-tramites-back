@@ -44,26 +44,6 @@ export class AuthService {
     };
   }
 
-  async getMyAuthDetails(id_account: string) {
-    return await this.userModel
-      .findById(id_account)
-      .populate({
-        path: 'funcionario',
-        populate: {
-          path: 'cargo',
-        },
-      })
-      .populate({
-        path: 'dependencia',
-        select: 'nombre codigo',
-        populate: {
-          path: 'institucion',
-          select: 'nombre',
-        },
-      })
-      .select('-password -rol');
-  }
-
   async updateMyAccount(id_account: string, data: UpdateMyAccountDto) {
     const { password } = data;
     const salt = bcrypt.genSaltSync();

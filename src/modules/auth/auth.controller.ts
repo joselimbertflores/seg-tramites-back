@@ -19,16 +19,8 @@ export class AuthController {
     return this.authService.checkAuthStatus(user);
   }
 
-  @Get('detail')
-  getAuthDetails(@GetUserRequest('_id') id: string) {
-    return this.authService.getMyAuthDetails(id);
-  }
-
   @Put()
-  updateMyAccount(
-    @GetUserRequest('_id') id: string,
-    @Body() data: UpdateMyAccountDto,
-  ) {
+  updateMyAccount(@GetUserRequest('_id') id: string, @Body() data: UpdateMyAccountDto) {
     return this.authService.updateMyAccount(id, data);
   }
 }
