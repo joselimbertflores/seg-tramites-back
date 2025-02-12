@@ -9,6 +9,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards';
 import { UsersModule } from 'src/modules/users/users.module';
+import { EnvVars } from 'src/config';
 
 @Module({
   controllers: [AuthController],
@@ -26,8 +27,8 @@ import { UsersModule } from 'src/modules/users/users.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow('jwt_key'),
+      useFactory: (configService: ConfigService<EnvVars>) => ({
+        secret: configService.get('JWT_KEY'),
         signOptions: { expiresIn: '8h' },
       }),
       inject: [ConfigService],

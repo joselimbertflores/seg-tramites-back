@@ -6,17 +6,18 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
 import { AuthDto, UpdateMyAccountDto } from './dto';
-import { EnvConfig, JwtPayload } from './interfaces';
 
 import { logger } from 'src/config/logger';
 import { User, UserDocument, Role } from 'src/modules/users/schemas';
 import { FRONTEND_MENU } from './constants';
+import { EnvVars } from 'src/config';
+import { JwtPayload } from './interfaces';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
-    private configService: ConfigService<EnvConfig>,
+    private configService: ConfigService<EnvVars>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 

@@ -7,24 +7,19 @@ import { Model } from 'mongoose';
 
 import { EnvConfig, JwtPayload } from '../interfaces';
 import { User } from 'src/modules/users/schemas';
+import { EnvVars } from 'src/config';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(
-    private configService: ConfigService<EnvConfig>,
-    @InjectModel(User.name) private userModel: Model<User>,
-  ) {
+  constructor(private configService: ConfigService<EnvVars>, @InjectModel(User.name) private userModel: Model<User>) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow('jwt_key'),
+      secretOrKey: configService.get('JWT_KEY'),
     });
   }
   async validate(payload: JwtPayload): Promise<User> {
-    const user = await this.userModel
-      .findById(payload.userId)
-      .select('-password')
-      .populate('role');
+    const user = await this.userModel.findById(payload.userId).select('-password').populate('role');
     if (!user) throw new UnauthorizedException();
     return user;
   }

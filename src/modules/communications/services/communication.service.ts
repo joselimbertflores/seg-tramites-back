@@ -47,10 +47,8 @@ export class CommunicationService {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<Communication> = {
       'sender.account': accountId,
-      $and: [
-        { $or: [{ status: communicationStatus.Pending }, { status: communicationStatus.Rejected }] },
-        { ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }) },
-      ],
+      status: { $in: [communicationStatus.Pending, communicationStatus.Rejected, communicationStatus.AutoRejected] },
+      ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }),
     };
     const [communications, length] = await Promise.all([
       this.communicationModel.find(query).skip(offset).limit(limit).sort({ sentDate: -1 }),

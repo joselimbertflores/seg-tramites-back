@@ -11,6 +11,7 @@ export enum communicationStatus {
   Forwarding = 'forwarding',
   Completed = 'completed',
   Archived = 'archived',
+  AutoRejected = 'auto-rejected',
 }
 
 @Schema({ _id: false })
