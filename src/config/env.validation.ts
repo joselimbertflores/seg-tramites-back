@@ -24,7 +24,6 @@ export function validate(config: Record<string, unknown>): EnvVars {
   const errors = validateSync(validatedConfig, { skipMissingProperties: false });
 
   if (errors.length > 0) {
-    console.log(errors.toString());
     throw new Error(errors.toString());
   }
   return validatedConfig;

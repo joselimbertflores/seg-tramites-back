@@ -9,7 +9,7 @@ import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-a
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
 import { CreateCommunicationDto } from '../dtos/communication.dto';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { CommunicationService } from '../services';
+import { CommunicationService, OutboxService } from '../services';
 
 @Controller('communication')
 @onlyAssignedAccount()
@@ -19,6 +19,7 @@ export class CommunicationController {
     private dependencieService: DependencieService,
     private groupwareGateway: GroupwareGateway,
     private inboxService: CommunicationService,
+    private outboxService: OutboxService,
     private accountService: AccountService,
   ) {}
 
@@ -51,7 +52,7 @@ export class CommunicationController {
 
   @Get('outbox')
   getOutbox(@GetAccountRequest('_id') accountId: string, @Query() queryParams: PaginationDto) {
-    return this.inboxService.getOutbox(accountId, queryParams);
+    return this.outboxService.findAll(accountId, queryParams);
   }
 
   @Put('accept')
@@ -66,7 +67,7 @@ export class CommunicationController {
 
   @Delete('outbox')
   async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: SelectedCommunicationsDto) {
-    const result = await this.inboxService.cancel(account, communicationDto);
+    const result = await this.outboxService.cancel(account, communicationDto);
     this.groupwareGateway.cancelCommunications(result);
     return { message: `Envios cancelados: ${result.length}` };
   }

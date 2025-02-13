@@ -6,24 +6,28 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
+
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
 import { Procedure, procedureState } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/modules/common';
-import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
 import { DocumentService } from '../../procedures/services/document.service';
+import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { CreateCommunicationDto, RecipientDto } from '../dtos';
 
 @Injectable()
 export class CommunicationService {
+  private readonly autoRejectHours = this.configService.get<number>('AUTO_REJECT_HOURS');
+
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectConnection() private connection: Connection,
     private docService: DocumentService,
+    private configService: ConfigService,
   ) {}
 
   async getInbox(accountId: string, filterDto: FilterInboxDto) {
@@ -39,20 +43,6 @@ export class CommunicationService {
     const [communications, length] = await Promise.all([
       this.communicationModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
       this.communicationModel.count(filterQuery),
-    ]);
-    return { communications, length };
-  }
-
-  async getOutbox(accountId: string, { limit, offset, term }: PaginationDto) {
-    const regex = new RegExp(term, 'i');
-    const query: FilterQuery<Communication> = {
-      'sender.account': accountId,
-      status: { $in: [communicationStatus.Pending, communicationStatus.Rejected, communicationStatus.AutoRejected] },
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }),
-    };
-    const [communications, length] = await Promise.all([
-      this.communicationModel.find(query).skip(offset).limit(limit).sort({ sentDate: -1 }),
-      this.communicationModel.count(query),
     ]);
     return { communications, length };
   }
@@ -181,37 +171,6 @@ export class CommunicationService {
     }
   }
 
-  async cancel(account: Account, { communicationIds }: SelectedCommunicationsDto) {
-    const session = await this.connection.startSession();
-    try {
-      session.startTransaction();
-      const documents = await this.communicationModel
-        .find({ _id: { $in: communicationIds } }, null, { session })
-        .populate('recipient.account');
-
-      const isReceived = documents.find(({ status }) => status !== communicationStatus.Pending);
-      if (isReceived) {
-        throw new BadRequestException(`${isReceived.recipient.fullname} ya ha evaluado el tramite`);
-      }
-      await this.communicationModel.deleteMany({ _id: { $in: communicationIds } }, { session });
-      const originalDocuments = documents.filter(({ isOriginal }) => isOriginal);
-      for (const communication of originalDocuments) {
-        await this._restoreStage(communication, account, session);
-      }
-      await session.commitTransaction();
-      return documents.map(({ _id, recipient }) => ({
-        toUser: String(recipient.account.user._id),
-        communicationId: String(_id),
-      }));
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof HttpException) throw error;
-      throw new InternalServerErrorException('Ha ocurrido un error al cancelar');
-    } finally {
-      await session.endSession();
-    }
-  }
-
   async getOne(communicationId: string, account: Account) {
     const communicationDb = await this.communicationModel.findById(communicationId).populate('procedure');
     if (!communicationDb) throw new BadRequestException(`Communication ${communicationId} don't exist`);
@@ -235,43 +194,13 @@ export class CommunicationService {
       if (!communicationDB) throw new BadRequestException(`El envio ${communicationId} no existe`);
       // * Envio desde bandeja de entrada
       if (String(communicationDB.recipient.account._id) === String(account._id)) {
-        if (communicationDB.status !== communicationStatus.Received) {
-          throw new BadRequestException('El envio actual no esta recibido');
-        }
-        this._checkRecipients(recipients, communicationDB.isOriginal);
-        // * Marcar el envio actual como completado para ya no mostrar en bandeja de entrada
-        await this.communicationModel.updateOne(
-          { _id: communicationId },
-          { status: communicationStatus.Completed },
-          { session },
-        );
+        await this._sentFromInbox(communicationDB, recipients, session);
       }
       // * Envio desde bandeja de salida
       else if (String(communicationDB.sender.account._id) === String(account._id)) {
-        switch (communicationDB.status) {
-          case communicationStatus.Pending:
-            // * Si quiere realizar mas envios desde salida, debe ser el original
-            if (!communicationDB.isOriginal) {
-              throw new BadRequestException('No puede realizar mas envios de una copia');
-            }
-            // * Si es el original, esta en curso por lo que  no pueden haber mas originales
-            if (recipients.some(({ isOriginal }) => isOriginal)) {
-              throw new BadRequestException('Envio de original duplicado');
-            }
-            break;
-          case communicationStatus.Rejected:
-            this._checkRecipients(recipients, communicationDB.isOriginal);
-            await this.communicationModel.updateOne(
-              { _id: communicationId },
-              { status: communicationStatus.Forwarding },
-              { session },
-            );
-            break;
-          default:
-            throw new BadRequestException('El envio actual es invalido');
-        }
+        await this._sendFromOutbox(communicationDB, recipients, session);
       } else {
-        // * El ennvio no pertenece al usuario
+        // * El envio no pertenece al usuario
         throw new BadRequestException('El envio actual no esta asociado a su cuenta');
       }
     } else {
@@ -281,42 +210,73 @@ export class CommunicationService {
     }
   }
 
-  private async _restoreStage(
-    { procedure, isOriginal }: Communication,
-    currentEmitter: Account,
-    session: ClientSession,
-  ): Promise<void> {
-    if (!isOriginal) return;
-    const lastStage = await this.communicationModel.findOne(
-      {
-        procedure: procedure.ref._id,
-        'recipient.cuenta': currentEmitter._id,
-        status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
-      },
-      null,
-      { sort: { _id: -1 }, session },
-    );
-    if (lastStage) {
-      await this.communicationModel.updateOne(
-        { _id: lastStage._id },
-        { status: communicationStatus.Received },
-        { session },
-      );
-    } else {
-      await this.procedureModel.updateOne({ _id: procedure.ref._id }, { state: procedureState.INSCRITO }, { session });
-    }
-  }
-
   private async _checkDuplicate(procedureId: string, recipients: RecipientDto[], session: ClientSession) {
     const query: FilterQuery<Communication> = {
       status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
       'procedure.ref': procedureId,
-      'recipient.cuenta': { $in: recipients.map(({ accountId }) => accountId) },
+      'recipient.account': { $in: recipients.map(({ accountId }) => accountId) },
     };
     const duplicate = await this.communicationModel.findOne(query, { recipient: 1 }, { session });
     if (duplicate) {
       throw new BadRequestException(`${duplicate.recipient.fullname} ya tiene el tramite en su bandeja`);
     }
+  }
+
+  // Handle communicationSend
+  private async _sendFromOutbox(
+    currentCommunication: CommunicationDocument,
+    recipients: RecipientDto[],
+    session: ClientSession,
+  ) {
+    const { _id, isOriginal, status, sentDate } = currentCommunication;
+    switch (status) {
+      case communicationStatus.Pending:
+        const now = new Date();
+        const expirationTime = new Date(now.getTime() - this.autoRejectHours * 60 * 60 * 1000);
+        const isExpired = sentDate <= expirationTime;
+
+        if (isExpired) {
+          // * Si el envio expiro, se debe eliminar este elemento para ser remplazado con los nuevos envios
+          this._checkRecipients(recipients, isOriginal);
+          await this.communicationModel.deleteOne({ _id }, { session });
+        } else {
+          // * Si el tramite no expiro, se pueden agregar mas envios al existente, solo si:
+          //  * - Es original
+          //  * - Se estan eviando solo copias, el original es el actual
+          if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
+          if (recipients.some(({ isOriginal }) => isOriginal)) {
+            throw new BadRequestException('El tramite original ya ha sido enviado');
+          }
+        }
+        break;
+
+      case communicationStatus.Rejected:
+        // * Marcar evio actual como completado (Rejected => Forwarding)
+        this._checkRecipients(recipients, isOriginal);
+        await this.communicationModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
+        break;
+
+      default:
+        throw new BadRequestException('El envio actual es invalido');
+    }
+  }
+
+  private async _sentFromInbox(
+    communication: CommunicationDocument,
+    recipients: RecipientDto[],
+    session: ClientSession,
+  ) {
+    // * El envio debe estar recibido para remitirlo
+    if (communication.status !== communicationStatus.Received) {
+      throw new BadRequestException('El envio actual no esta recibido');
+    }
+    this._checkRecipients(recipients, communication.isOriginal);
+    // * Marcar el envio actual como completado para ya no mostrar en bandeja de entrada
+    await this.communicationModel.updateOne(
+      { _id: communication._id },
+      { status: communicationStatus.Completed },
+      { session },
+    );
   }
 
   private _checkRecipients(recipients: RecipientDto[], isOriginal: boolean): void {
