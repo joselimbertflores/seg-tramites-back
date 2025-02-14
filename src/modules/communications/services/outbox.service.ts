@@ -102,6 +102,8 @@ export class OutboxService {
     }
   }
 
+  
+
   @Cron('0 3 * * *')
   private async autoRejectExpiredCommunications() {
     const session = await this.connection.startSession();

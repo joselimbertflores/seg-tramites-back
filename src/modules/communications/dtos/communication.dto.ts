@@ -20,14 +20,6 @@ export class RecipientDto {
 
 export class CreateCommunicationDto {
   @IsMongoId()
-  @IsOptional()
-  communicationId?: string;
-
-  @IsMongoId()
-  @IsOptional()
-  documentId?: string;
-
-  @IsMongoId()
   procedureId: string;
 
   @IsString()
@@ -47,4 +39,17 @@ export class CreateCommunicationDto {
   @ArrayMinSize(1)
   @Type(() => RecipientDto)
   recipients: RecipientDto[];
+}
+
+export class ForwardCommunicationDto extends CreateCommunicationDto {
+  @IsMongoId()
+  communicationId: string;
+
+  @IsMongoId()
+  @IsOptional()
+  documentId?: string;
+}
+export class ResendCommunicationDto extends CreateCommunicationDto {
+  @IsMongoId()
+  communicationId: string;
 }

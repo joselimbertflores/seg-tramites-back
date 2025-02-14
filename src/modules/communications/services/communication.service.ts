@@ -5,17 +5,34 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
-import { Procedure, procedureState } from 'src/modules/procedures/schemas';
+import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
 import { DocumentService } from '../../procedures/services/document.service';
-import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import {
+  FilterInboxDto,
+  ForwardCommunicationDto,
+  RejectCommunicationDto,
+  ResendCommunicationDto,
+  SelectedCommunicationsDto,
+} from '../dtos';
 import { CreateCommunicationDto, RecipientDto } from '../dtos';
+
+interface createModelProps {
+  recipientAccount: Account;
+  currentAccount: Account;
+  procedure: ProcedureDocument;
+  attachmentsCount: string;
+  internalNumber: string;
+  reference: string;
+  sentDate: Date;
+  isOriginal: boolean;
+}
 
 @Injectable()
 export class CommunicationService {
@@ -184,6 +201,181 @@ export class CommunicationService {
     return await this.communicationModel.find({ procedure: procedureId });
   }
 
+  async initiateCommunication(account: Account, { procedureId, recipients, ...propsDto }: CreateCommunicationDto) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+
+      const procedure = await this._getProcedure(procedureId, session);
+      if (procedure.state !== procedureState.INSCRITO) throw new BadRequestException(`Procedure is started`);
+
+      const accounts = await this._getValidRecipients(recipients, session);
+
+      const sentDate = new Date();
+      const data = accounts.map(({ recipient, isOriginal, toUser }) => ({
+        communication: this._createModel({
+          currentAccount: account,
+          recipientAccount: recipient,
+          procedure,
+          sentDate,
+          isOriginal,
+          ...propsDto,
+        }),
+        toUser: String(toUser),
+      }));
+      await this.communicationModel.insertMany(
+        data.map(({ communication }) => communication),
+        { session },
+      );
+      await this.procedureModel.updateOne({ _id: procedureId }, { state: procedureState.EN_REVISION }, { session });
+      await session.commitTransaction();
+      return data;
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async forwardCommunication({ communicationId, recipients }: ForwardCommunicationDto, account: Account) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const communication = await this.communicationModel.findById(communicationId, null, { session });
+      if (!communication) throw new BadRequestException(`Communication ${communicationId} not found`);
+
+      if (communication.status !== communicationStatus.Received) {
+        throw new BadRequestException('El envio actual no esta recibido');
+      }
+
+      const accounts = await this._getValidRecipients(recipients, session);
+
+      await this.communicationModel.updateOne(
+        { _id: communication._id },
+        { status: communicationStatus.Completed },
+        { session },
+      );
+      // const procedure = await this._getProcedure(procedureId, session);
+      // if (procedure.state !== procedureState.INSCRITO) throw new BadRequestException(`Procedure is started`);
+
+      // const accounts = await this._getValidRecipients(recipients, session);
+
+      // const sentDate = new Date();
+      // const data = accounts.map(({ recipient, isOriginal, toUser }) => ({
+      //   communication: this._createModel({
+      //     currentAccount: account,
+      //     recipientAccount: recipient,
+      //     procedure,
+      //     sentDate,
+      //     isOriginal,
+      //     ...propsDto,
+      //   }),
+      //   toUser: String(toUser),
+      // }));
+      // await this.communicationModel.insertMany(
+      //   data.map(({ communication }) => communication),
+      //   { session },
+      // );
+
+      await session.commitTransaction();
+      // return data;
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  async resendCommunication({ communicationId, recipients }: ResendCommunicationDto, account: Account) {
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      const communication = await this.communicationModel.findById(communicationId, null, { session });
+      if (!communication) throw new BadRequestException(`Communication ${communicationId} not found`);
+      const { _id, isOriginal } = communication;
+
+      const sentDate = new Date();
+      const now = new Date();
+      const expirationTime = new Date(now.getTime() - this.autoRejectHours * 60 * 60 * 1000);
+      const isExpired = sentDate <= expirationTime;
+
+      switch (communication.status) {
+        case communicationStatus.Pending:
+          if (isExpired) {
+            // * Si el envio expiro, se debe eliminar este elemento para ser remplazado con los nuevos envios
+            await this.communicationModel.deleteOne({ _id }, { session });
+          } else {
+            //  * Si el tramite no expiro, se pueden agregar mas envios al existente, solo si:
+            //  * - Es original
+            //  * - Se estan eviando solo copias, el original es el actual
+            if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
+            if (recipients.some(({ isOriginal }) => isOriginal)) {
+              throw new BadRequestException('El tramite original ya ha sido enviado');
+            }
+          }
+          break;
+
+        case communicationStatus.Rejected:
+          this._checkCommunicationType(recipients, isOriginal);
+          await this.communicationModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
+          break;
+
+        case communicationStatus.AutoRejected:
+          this._checkCommunicationType(recipients, isOriginal);
+          await this.communicationModel.deleteOne({ _id }, { session });
+          break;
+
+        default:
+          throw new BadRequestException('No se puede realizar un nuevo envio');
+      }
+
+      await session.commitTransaction();
+      // return data;
+    } catch (error) {
+      await session.abortTransaction();
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException();
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  private async _getProcedure(id: string, session?: ClientSession) {
+    const procedure = await this.procedureModel.findById(id, null, { session });
+    if (!procedure) throw new BadRequestException(`Procedure ${id} don't exist`);
+    return procedure;
+  }
+
+  private async _getValidRecipients(recipients: RecipientDto[], session?: ClientSession) {
+    const recipientIds = recipients.map(({ accountId }) => accountId);
+
+    const accounts = await this.accountModel
+      .find({ _id: { $in: recipientIds } }, null, { session })
+      .populate('officer');
+
+    const accountMap: Map<string, Account> = new Map(accounts.map((acc) => [acc._id.toString(), acc]));
+
+    return recipients.map(({ accountId, isOriginal }) => {
+      const account = accountMap.get(accountId);
+      if (!account) throw new BadRequestException(`Recipient ${accountId} does not exist`);
+      return { toUser: account.user._id, recipient: account, isOriginal };
+    });
+
+    const query: FilterQuery<Communication> = {
+      status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
+      'procedure.ref': procedureId,
+      'recipient.account': { $in: accounts.map(({ _id }) => _id) },
+    };
+    const duplicate = await this.communicationModel.findOne(query, { recipient: 1 }, { session });
+    if (duplicate) {
+      throw new BadRequestException(`${duplicate.recipient.fullname} ya tiene el tramite en su bandeja`);
+    }
+  }
+
   private async _setProcessState(
     { communicationId, recipients, procedureId }: CreateCommunicationDto,
     account: Account,
@@ -210,11 +402,11 @@ export class CommunicationService {
     }
   }
 
-  private async _checkDuplicate(procedureId: string, recipients: RecipientDto[], session: ClientSession) {
+  private async _checkDuplicateCommunication(procedureId: string, validAccounts: Account[], session: ClientSession) {
     const query: FilterQuery<Communication> = {
       status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
       'procedure.ref': procedureId,
-      'recipient.account': { $in: recipients.map(({ accountId }) => accountId) },
+      'recipient.account': { $in: validAccounts.map(({ _id }) => _id) },
     };
     const duplicate = await this.communicationModel.findOne(query, { recipient: 1 }, { session });
     if (duplicate) {
@@ -279,7 +471,7 @@ export class CommunicationService {
     );
   }
 
-  private _checkRecipients(recipients: RecipientDto[], isOriginal: boolean): void {
+  private _checkCommunicationType(recipients: RecipientDto[], isOriginal: boolean): void {
     const originals = recipients.filter(({ isOriginal }) => isOriginal);
     if (isOriginal) {
       if (originals.length !== 1) {
@@ -290,5 +482,36 @@ export class CommunicationService {
         throw new BadRequestException('Solo se puede enviar una copia de otra copia');
       }
     }
+  }
+
+  private _createModel({
+    recipientAccount,
+    currentAccount,
+    procedure,
+    ...props
+  }: createModelProps): CommunicationDocument {
+    return new this.communicationModel({
+      sender: {
+        account: currentAccount._id,
+        dependency: currentAccount.dependencia,
+        institution: currentAccount.institution,
+        fullname: currentAccount.officer.fullName,
+        jobtitle: currentAccount.jobtitle,
+      },
+      recipient: {
+        account: recipientAccount._id,
+        dependency: recipientAccount.dependencia,
+        institution: recipientAccount.institution,
+        fullname: recipientAccount.officer.fullName,
+        jobtitle: recipientAccount.jobtitle,
+      },
+      procedure: {
+        ref: procedure,
+        code: procedure.code,
+        group: procedure.group,
+        reference: procedure.reference,
+      },
+      ...props,
+    });
   }
 }
