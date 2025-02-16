@@ -15,6 +15,7 @@ import { UsersModule } from './modules/users/users.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { EnvVars, validate } from './config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     FilesModule,
     PublicationsModule,
     CommunicationsModule,
+    SchedulerModule,
   ],
   controllers: [],
   providers: [],

@@ -7,9 +7,9 @@ import { AccountService } from 'src/modules/administration/services/account.serv
 import { Account } from 'src/modules/administration/schemas';
 import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
 import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
-import { CreateCommunicationDto } from '../dtos/communication.dto';
+import { CreateCommunicationDto, ForwardCommunicationDto, ResendCommunicationDto } from '../dtos/communication.dto';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { CommunicationService, OutboxService } from '../services';
+import { CommunicationService as InboxService, OutboxService } from '../services';
 
 @Controller('communication')
 @onlyAssignedAccount()
@@ -17,10 +17,10 @@ export class CommunicationController {
   constructor(
     private institutionService: InstitutionService,
     private dependencieService: DependencieService,
-    private groupwareGateway: GroupwareGateway,
-    private inboxService: CommunicationService,
-    private outboxService: OutboxService,
     private accountService: AccountService,
+    private groupwareGateway: GroupwareGateway,
+    private inboxService: InboxService,
+    private outboxService: OutboxService,
   ) {}
 
   @Get('institutions')
@@ -38,10 +38,24 @@ export class CommunicationController {
     return this.accountService.searchRecipients(accountId, term);
   }
 
-  @Post()
-  async create(@GetAccountRequest() account: Account, @Body() communication: CreateCommunicationDto) {
-    const communications = await this.inboxService.create(communication, account);
-    this.groupwareGateway.sentCommunications(communications);
+  @Post('initiate')
+  async initiateCommunication(@GetAccountRequest() account: Account, @Body() communication: CreateCommunicationDto) {
+    const communications = await this.outboxService.initiateCommunication(account, communication);
+    // this.groupwareGateway.sentCommunications(communications);
+    return communications;
+  }
+
+  @Post('forward')
+  async forwardCommunication(@GetAccountRequest() account: Account, @Body() communication: ForwardCommunicationDto) {
+    const communications = await this.outboxService.forwardCommunication(account, communication);
+    // this.groupwareGateway.sentCommunications(communications);
+    return communications;
+  }
+
+  @Post('resend')
+  async resendCommunication(@GetAccountRequest() account: Account, @Body() communication: ResendCommunicationDto) {
+    const communications = await this.outboxService.resendCommunication(account, communication);
+    // this.groupwareGateway.sentCommunications(communications);
     return communications;
   }
 

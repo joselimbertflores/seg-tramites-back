@@ -1,28 +1,21 @@
+version: '3.8'
+
 services:
   mongo:
     image: mongo:latest
-    container_name: mongodb
+    container_name: mongo
     ports:
-      - '27017:27017'
+      - "27017:27017"
     volumes:
-      - ./mongodb:/data/db
-    command: ["mongod", "--replSet", "rs0"]
+      - mongo_data:/data/db
+    command: mongod --replSet rs0 --bind_ip_all
 
-  mongo_setup:
+  mongo-setup:
     image: mongo:latest
     container_name: mongo_setup
     depends_on:
       - mongo
-    entrypoint: >
-      bash -c "
-      sleep 10;
-      mongo --host mongo:27017 <<EOF
-        rs.initiate({
-          _id: 'rs0',
-          members: [
-            { _id: 0, host: 'mongo:27017' }
-          ]
-        });
-        rs.status();
-      EOF
-      "
+    entrypoint: [ "bash", "-c", "sleep 10 && mongosh --host mongo --eval 'rs.initiate()'" ]
+
+volumes:
+  mongo_data:
