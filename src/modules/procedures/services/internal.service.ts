@@ -35,7 +35,7 @@ export class InternalService implements ProcedureService {
         ...procedureDto,
       });
       const procedure = await createdProcedure.save({ session });
-      await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
+      // await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
       await session.commitTransaction();
       return procedure;
     } catch (error) {
