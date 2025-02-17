@@ -36,10 +36,11 @@ export class CommunicationController {
   @Get('recipients/:term')
   searchRecipients(@GetAccountRequest('_id') accountId: string, @Param('term') term: string) {
     return this.accountService.searchRecipients(accountId, term);
-  }
+  } 
 
   @Post('initiate')
   async initiateCommunication(@GetAccountRequest() account: Account, @Body() communication: CreateCommunicationDto) {
+    console.log(communication);
     const communications = await this.outboxService.initiateCommunication(account, communication);
     // this.groupwareGateway.sentCommunications(communications);
     return communications;

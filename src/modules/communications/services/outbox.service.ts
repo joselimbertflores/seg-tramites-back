@@ -1,4 +1,10 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  GoneException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 
@@ -83,13 +89,14 @@ export class OutboxService {
         session,
         ...communicationDto,
       });
+
       if (procedure.state !== procedureState.INSCRITO) {
         throw new BadRequestException(`The procedure has already started.`);
       }
       const communications = userCommunications.map(({ communication }) => communication);
       this._validateCommunicationType(communications, true);
 
-      await this.communicationModel.insertMany(communicationDto, { session });
+      await this.communicationModel.insertMany(communications, { session });
       await this.procedureModel.updateOne({ _id: procedure._id }, { state: procedureState.EN_REVISION }, { session });
       await session.commitTransaction();
       return userCommunications;
@@ -184,8 +191,8 @@ export class OutboxService {
           const isExpired = sentDate <= expirationTime;
 
           if (isExpired) {
-            this._validateCommunicationType(communications, isOriginal);
-            await this.communicationModel.deleteOne({ _id }, { session });
+            await this.communicationModel.updateOne({ _id }, { status: communicationStatus.AutoRejected }, { session });
+            throw new GoneException('La comunicacion actual ha expirado por lo que debe realizar un nuevo envio');
           } else {
             if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
             if (communications.some(({ isOriginal }) => isOriginal)) {
