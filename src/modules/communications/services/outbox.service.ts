@@ -159,11 +159,11 @@ export class OutboxService {
       const communication = await this.communicationModel.findById(communicationId, null, { session });
       if (!communication) throw new BadRequestException(`Communication ${communicationId} not found`);
 
-      if (String(communication.sender.account._id) !== String(account._id)) {
+      if (String(communication.sender.account.id) !== String(account._id)) {
         throw new BadRequestException(`Invalid communication: you are not the sender.`);
       }
 
-      const { _id, isOriginal } = communication;
+      const { id, isOriginal } = communication;
 
       const { userCommunications } = await this._generateRecipientCommunications({
         sentDate: new Date(),
@@ -176,12 +176,12 @@ export class OutboxService {
       switch (communication.status) {
         case communicationStatus.Rejected:
           this._validateCommunicationType(communications, isOriginal);
-          await this.communicationModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
+          await this.communicationModel.updateOne({ id }, { status: communicationStatus.Forwarding }, { session });
           break;
 
         case communicationStatus.AutoRejected:
           this._validateCommunicationType(communications, isOriginal);
-          await this.communicationModel.deleteOne({ _id }, { session });
+          await this.communicationModel.deleteOne({ id }, { session });
           break;
 
         case communicationStatus.Pending:
@@ -191,7 +191,7 @@ export class OutboxService {
           const isExpired = sentDate <= expirationTime;
 
           if (isExpired) {
-            await this.communicationModel.updateOne({ _id }, { status: communicationStatus.AutoRejected }, { session });
+            await this.communicationModel.updateOne({ id }, { status: communicationStatus.AutoRejected }, { session });
             throw new GoneException('La comunicacion actual ha expirado por lo que debe realizar un nuevo envio');
           } else {
             if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
@@ -202,7 +202,7 @@ export class OutboxService {
           break;
 
         default:
-          throw new BadRequestException('This communication cannot be resent.');
+          throw new BadRequestException('This communication cannot be resend.');
       }
       await this.communicationModel.insertMany(communications, { session });
       await session.commitTransaction();
@@ -394,9 +394,14 @@ export class OutboxService {
   }
 
   private _plainCommunications(communications: CommunicationDocument[]) {
-    return communications.map((item) => ({
-      ...item.toObject(),
-      expirationDate: new Date(item.sentDate.getTime() + this.autoRejectHours * 60 * 60 * 1000),
-    }));
+    const now = new Date();
+    return communications.map((item) => {
+      const expirationDate = new Date(item.sentDate.getTime() + this.autoRejectHours * 60 * 60 * 1000);
+      return {
+        ...item.toObject(),
+        expirationDate,
+        isExpired: now >= expirationDate,
+      };
+    });
   }
 }
