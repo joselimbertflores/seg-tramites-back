@@ -44,7 +44,7 @@ interface geValidtRecipientsProps {
 
 interface userCommunicationModels {
   recipients: RecipientDto[];
-  session: ClientSession;
+  session?: ClientSession;
   sender: Account;
   sentDate: Date;
   procedureId: string;
@@ -153,51 +153,48 @@ export class OutboxService {
   }
 
   async resendCommunication(account: Account, { communicationId, ...props }: ResendCommunicationDto) {
+    const current = await this.communicationModel.findOne({
+      _id: communicationId,
+      'sender.account': account._id,
+    });
+
+    if (!current) {
+      throw new BadRequestException(`Communication:${communicationId} / sender:${account.id} not found`);
+    }
+    const { userCommunications } = await this._generateRecipientCommunications({
+      sentDate: new Date(),
+      sender: account,
+      ...props,
+    });
+    const communications = userCommunications.map(({ communication }) => communication);
+
+    const { _id, isOriginal, status } = current;
+
+    if (status === communicationStatus.Pending && this._isExpired(current)) {
+      console.log('expirado');
+      await this.communicationModel.updateOne({ _id: current._id }, { status: communicationStatus.AutoRejected });
+      throw new GoneException('Communication has expired');
+    }
+
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const communication = await this.communicationModel.findById(communicationId, null, { session });
-      if (!communication) throw new BadRequestException(`Communication ${communicationId} not found`);
 
-      if (String(communication.sender.account.id) !== String(account._id)) {
-        throw new BadRequestException(`Invalid communication: you are not the sender.`);
-      }
-
-      const { id, isOriginal } = communication;
-
-      const { userCommunications } = await this._generateRecipientCommunications({
-        sentDate: new Date(),
-        sender: account,
-        session,
-        ...props,
-      });
-      const communications = userCommunications.map(({ communication }) => communication);
-
-      switch (communication.status) {
+      switch (status) {
         case communicationStatus.Rejected:
           this._validateCommunicationType(communications, isOriginal);
-          await this.communicationModel.updateOne({ id }, { status: communicationStatus.Forwarding }, { session });
+          await this.communicationModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
           break;
 
         case communicationStatus.AutoRejected:
           this._validateCommunicationType(communications, isOriginal);
-          await this.communicationModel.deleteOne({ id }, { session });
+          await this.communicationModel.deleteOne({ _id }, { session });
           break;
 
         case communicationStatus.Pending:
-          const sentDate = new Date();
-          const now = new Date();
-          const expirationTime = new Date(now.getTime() - this.autoRejectHours * 60 * 60 * 1000);
-          const isExpired = sentDate <= expirationTime;
-
-          if (isExpired) {
-            await this.communicationModel.updateOne({ id }, { status: communicationStatus.AutoRejected }, { session });
-            throw new GoneException('La comunicacion actual ha expirado por lo que debe realizar un nuevo envio');
-          } else {
-            if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
-            if (communications.some(({ isOriginal }) => isOriginal)) {
-              throw new BadRequestException('The original procedure has already been sent.');
-            }
+          if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
+          if (communications.some(({ isOriginal }) => isOriginal)) {
+            throw new BadRequestException('The original procedure has already been sent.');
           }
           break;
 
@@ -208,7 +205,7 @@ export class OutboxService {
       await session.commitTransaction();
       return userCommunications;
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException();
     } finally {
@@ -394,14 +391,20 @@ export class OutboxService {
   }
 
   private _plainCommunications(communications: CommunicationDocument[]) {
-    const now = new Date();
     return communications.map((item) => {
-      const expirationDate = new Date(item.sentDate.getTime() + this.autoRejectHours * 60 * 60 * 1000);
+      const isExpired = this._isExpired(item);
+      if (item.status === communicationStatus.Pending && isExpired) {
+        item.status = communicationStatus.AutoRejected;
+      }
       return {
         ...item.toObject(),
-        expirationDate,
-        isExpired: now >= expirationDate,
       };
     });
+  }
+
+  private _isExpired({ sentDate }: Communication) {
+    const now = new Date();
+    const diffInHours = (now.getTime() - sentDate.getTime()) / (1000 * 60 * 60);
+    return diffInHours > this.autoRejectHours;
   }
 }
