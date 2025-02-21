@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-
 import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
@@ -35,16 +34,8 @@ interface communicationProps {
   reference: string;
 }
 
-interface geValidtRecipientsProps {
-  recipients: RecipientDto[];
-  session: ClientSession;
-  sender: Account;
-  procedureId: string;
-}
-
 interface userCommunicationModels {
   recipients: RecipientDto[];
-  session?: ClientSession;
   sender: Account;
   sentDate: Date;
   procedureId: string;
@@ -87,7 +78,6 @@ export class OutboxService {
       const { procedure, userCommunications } = await this.generateRecipientCommunications({
         sentDate: new Date(),
         sender: account,
-        session,
         ...communicationDto,
       });
 
@@ -127,7 +117,6 @@ export class OutboxService {
       const { userCommunications } = await this.generateRecipientCommunications({
         sentDate: new Date(),
         sender: account,
-        session,
         ...props,
       });
 
@@ -169,7 +158,7 @@ export class OutboxService {
 
     const { _id, isOriginal, status } = current;
 
-    if (status === communicationStatus.Pending && this.checkExpiration(current).isExpired) {
+    if (status === communicationStatus.Pending && this.checkExpiration(current) === 0) {
       await this.communicationModel.updateOne({ _id }, { status: communicationStatus.AutoRejected });
       throw new GoneException('Communication has expired');
     }
@@ -252,16 +241,10 @@ export class OutboxService {
     procedureId,
     recipients,
     sender,
-    session,
     ...props
   }: userCommunicationModels) {
     const procedure = await this.getValidProcedure(procedureId);
-    const recipientAccounts = await this.validateAndRetrieveRecipients({
-      procedureId,
-      recipients,
-      sender,
-      session,
-    });
+    const recipientAccounts = await this.validateAndRetrieveRecipients(sender, recipients, procedureId);
 
     return {
       procedure,
@@ -284,33 +267,26 @@ export class OutboxService {
     return procedure;
   }
 
-  private async validateAndRetrieveRecipients({ recipients, session, sender, procedureId }: geValidtRecipientsProps) {
+  private async validateAndRetrieveRecipients(sender: Account, recipients: RecipientDto[], procedureId: string) {
     const recipientIds = recipients.map(({ accountId }) => accountId);
     if (recipientIds.includes(String(sender._id))) {
       throw new BadRequestException('You cannot send a message to yourself');
     }
-    const accountsMap = await this.getRecipientAccountsMap(recipients, session);
+    const accountsMap = await this.getRecipientAccountsMap(recipients);
     const validRecipients = this.mapRecipients(recipients, accountsMap);
 
-    await this.validateNoDuplicateRecipients(procedureId, accountsMap, session);
+    await this.validateNoDuplicateRecipients(procedureId, accountsMap);
 
     return validRecipients;
   }
 
-  private async getRecipientAccountsMap(recipients: RecipientDto[], session: ClientSession) {
+  private async getRecipientAccountsMap(recipients: RecipientDto[]) {
     const recipientIds = recipients.map(({ accountId }) => accountId);
-    const accounts = await this.accountModel
-      .find({ _id: { $in: recipientIds } }, null, { session })
-      .populate('officer');
-
+    const accounts = await this.accountModel.find({ _id: { $in: recipientIds } }).populate('officer');
     return new Map(accounts.map((acc) => [String(acc._id), acc]));
   }
 
-  private async validateNoDuplicateRecipients(
-    procedureId: string,
-    accounts: Map<string, Account>,
-    session: ClientSession,
-  ) {
+  private async validateNoDuplicateRecipients(procedureId: string, accounts: Map<string, Account>) {
     const duplicate = await this.communicationModel.findOne(
       {
         status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
@@ -318,7 +294,6 @@ export class OutboxService {
         'recipient.account': { $in: Array.from(accounts.keys()) },
       },
       { recipient: 1 },
-      { session },
     );
     if (duplicate) {
       throw new BadRequestException(`${duplicate.recipient.fullname} ya tiene el trámite en su bandeja`);

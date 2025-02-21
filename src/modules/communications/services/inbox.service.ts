@@ -16,8 +16,9 @@ import { DocumentService } from '../../procedures/services/document.service';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 @Injectable()
-export class CommunicationService {
-  private readonly autoRejectHours = this.configService.get<number>('AUTO_REJECT_HOURS');
+export class InboxService {
+  private readonly AUTO_REJECT_HOURS = this.configService.get<number>('AUTO_REJECT_HOURS');
+  private readonly AUTO_REJECT_HOURS_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
 
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
@@ -26,7 +27,7 @@ export class CommunicationService {
     private configService: ConfigService,
   ) {}
 
-  async getInbox(accountId: string, filterDto: FilterInboxDto) {
+  async findAll(accountId: string, filterDto: FilterInboxDto) {
     const { limit, offset, isOriginal, status, term, group } = filterDto;
     const regex = new RegExp(filterDto.term, 'i');
     const filterQuery: FilterQuery<Communication> = {
@@ -44,13 +45,17 @@ export class CommunicationService {
   }
 
   async accept({ communicationIds }: SelectedCommunicationsDto): Promise<{ message: string }> {
+    const documents = await this.communicationModel.find({ _id: { $in: communicationIds } });
+    if (documents.length !== communicationIds.length) {
+      throw new BadRequestException(`Los elementos seleccionados no son validos`);
+    }
+    
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
-      if (documents.length !== communicationIds.length) {
-        throw new BadRequestException(`Algunos de los elementos seleccionados no son validos`);
-      }
+      // if (documents.length !== communicationIds.length) {
+      //   throw new BadRequestException(`Algunos de los elementos seleccionados no son validos`);
+      // }
       const isInvalid = documents.find(({ status }) => status !== communicationStatus.Pending);
       if (isInvalid) {
         throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
@@ -112,5 +117,12 @@ export class CommunicationService {
 
   async getWorkflow(procedureId: string) {
     return await this.communicationModel.find({ procedure: procedureId });
+  }
+
+  private isExpired({ sentDate }: Communication) {
+    const now = new Date();
+    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_HOURS_MILISECONDS;
+    const remainingTimeInMilliseconds = expirationTime - now.getTime();
+    return remainingTimeInMilliseconds <= 0;
   }
 }
