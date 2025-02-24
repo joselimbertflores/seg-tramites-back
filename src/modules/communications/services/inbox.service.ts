@@ -1,6 +1,7 @@
 import {
   Injectable,
   HttpException,
+  ConflictException,
   ForbiddenException,
   BadRequestException,
   InternalServerErrorException,
@@ -44,29 +45,23 @@ export class InboxService {
     return { communications, length };
   }
 
-  async accept({ communicationIds }: SelectedCommunicationsDto): Promise<{ message: string }> {
-    const documents = await this.communicationModel.find({ _id: { $in: communicationIds } });
-    if (documents.length !== communicationIds.length) {
-      throw new BadRequestException(`Los elementos seleccionados no son validos`);
-    }
-    
+  async accept({ communicationIds }: SelectedCommunicationsDto) {
+    const communications = await this.getValidCommunications(communicationIds);
+    const ids = communications.map(({ id }) => id);
+
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      // if (documents.length !== communicationIds.length) {
-      //   throw new BadRequestException(`Algunos de los elementos seleccionados no son validos`);
-      // }
-      const isInvalid = documents.find(({ status }) => status !== communicationStatus.Pending);
-      if (isInvalid) {
-        throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
-      }
+
       await this.communicationModel.updateMany(
-        { _id: { $in: communicationIds } },
+        { _id: { $in: ids } },
         { status: communicationStatus.Received, receivedDate: new Date() },
         { session },
       );
+
       await session.commitTransaction();
-      return { message: 'Tramite aceptado' };
+
+      return ids;
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
@@ -124,5 +119,42 @@ export class InboxService {
     const expirationTime = sentDate.getTime() + this.AUTO_REJECT_HOURS_MILISECONDS;
     const remainingTimeInMilliseconds = expirationTime - now.getTime();
     return remainingTimeInMilliseconds <= 0;
+  }
+
+  private async getValidCommunications(ids: string[]) {
+    const items = await this.communicationModel.find({ _id: { $in: ids } });
+    const toUpdated: string[] = [];
+    const toRemove: string[] = [];
+
+    const foundIds = new Set(items.map((item) => item.id));
+    const missingIds = ids.filter((id) => !foundIds.has(id));
+    toRemove.push(...missingIds);
+
+    for (const item of items) {
+      switch (item.status) {
+        case communicationStatus.Received:
+          toUpdated.push(item.id);
+          break;
+
+        case communicationStatus.Pending:
+          if (this.isExpired(item)) {
+            toRemove.push(item.id);
+          }
+          break;
+
+        default:
+          toRemove.push(item.id);
+          break;
+      }
+    }
+
+    if (toRemove.length > 0 || toUpdated.length > 0) {
+      throw new ConflictException({
+        message: 'Algunos envíos ya fueron aceptados o han expirado.',
+        toRemove,
+        toUpdated,
+      });
+    }
+    return items;
   }
 }

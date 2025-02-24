@@ -9,7 +9,7 @@ import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/procedures/d
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { InboxService } from '../services';
 
-@Controller('communication')
+@Controller('inbox')
 @onlyAssignedAccount()
 export class InboxController {
   constructor(

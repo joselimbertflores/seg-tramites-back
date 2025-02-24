@@ -26,21 +26,21 @@ export class OutboxController {
   async initiateCommunication(@GetAccountRequest() account: Account, @Body() communication: CreateCommunicationDto) {
     const communications = await this.outboxService.initiateCommunication(account, communication);
     // this.groupwareGateway.sentCommunications(communications);
-    return communications;
+    return communications.map(({ communication }) => communication);
   }
 
   @Post('forward')
   async forwardCommunication(@GetAccountRequest() account: Account, @Body() communication: ForwardCommunicationDto) {
     const communications = await this.outboxService.forwardCommunication(account, communication);
     // this.groupwareGateway.sentCommunications(communications);
-    return communications;
+    return communications.map(({ communication }) => communication);
   }
 
   @Post('resend')
   async resendCommunication(@GetAccountRequest() account: Account, @Body() communication: ResendCommunicationDto) {
     const communications = await this.outboxService.resendCommunication(account, communication);
     // this.groupwareGateway.sentCommunications(communications);
-    return communications;
+    return communications.map(({ communication }) => communication);
   }
 
   @Delete()

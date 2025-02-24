@@ -174,6 +174,7 @@ export class OutboxService {
 
         case communicationStatus.AutoRejected:
           this.validateCommunicationType(communications, isOriginal);
+          console.log('elimando', _id);
           await this.communicationModel.deleteOne({ _id }, { session });
           break;
 
@@ -231,7 +232,7 @@ export class OutboxService {
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
-      throw new InternalServerErrorException('Ha ocurrido un error al cancelar');
+      throw new InternalServerErrorException('Error in cancel communications');
     } finally {
       await session.endSession();
     }
