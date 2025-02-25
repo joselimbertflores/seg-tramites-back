@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 
-import { onlyAssignedAccount } from 'src/modules/procedures/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from 'src/modules/procedures/decorators/get-account-request.decorator';
+import { onlyAssignedAccount } from 'src/modules/administration/decorators/only-assigned-account.decorator';
+import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
 import type { Account } from 'src/modules/administration/schemas';
 
 import { FolderService } from '../services';

@@ -6,6 +6,7 @@ import {
   InstitutionController,
   TypeProcedureController,
   AccountController,
+  AssigationController,
 } from './controllers';
 
 import {
@@ -37,6 +38,7 @@ import { UsersModule } from '../users/users.module';
     TypeProcedureController,
     OfficerController,
     AccountController,
+    AssigationController,
   ],
   providers: [DependencieService, InstitutionService, TypeProcedureService, OfficerService, AccountService],
   imports: [

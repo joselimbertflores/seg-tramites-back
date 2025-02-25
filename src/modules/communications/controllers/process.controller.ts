@@ -1,6 +1,6 @@
 import { Controller, Get, Inject, Param } from '@nestjs/common';
 import { IsMongoidPipe } from 'src/modules/common';
-import { onlyAssignedAccount } from 'src/modules/procedures/decorators/only-assigned-account.decorator';
+import { onlyAssignedAccount } from 'src/modules/administration/decorators/only-assigned-account.decorator';
 import { PROCEDURE_FACTORY_TOKEN, ProcedureService } from 'src/modules/procedures/domain';
 import { InboxService } from '../services';
 

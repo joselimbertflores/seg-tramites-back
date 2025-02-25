@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ProcurementService } from '../services';
-import { GetAccountRequest } from '../decorators/get-account-request.decorator';
-import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
-import { PaginationDto } from 'src/modules/common';
+import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
+import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
 import { Account } from 'src/modules/administration/schemas';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
+import { PaginationDto } from 'src/modules/common';
 
 @onlyAssignedAccount()
 @Controller('procurement')
@@ -12,8 +12,8 @@ export class ProcurementController {
   constructor(private procurementService: ProcurementService) {}
 
   @Get()
-  findAll(@GetAccountRequest('_id') accountId: string, @Query() PaginationDto: PaginationDto) {
-    return this.procurementService.findAll(PaginationDto, accountId);
+  findAll(@GetAccountRequest('_id') accountId: string, @Query() paginationDto: PaginationDto) {
+    return this.procurementService.findAll(paginationDto, accountId);
   }
 
   @Post()

@@ -205,10 +205,8 @@ export class OutboxService {
     }
   }
 
-  async cancel(account: Account, { communicationIds }: SelectedCommunicationsDto) {
-    const current = await this.communicationModel
-      .find({ _id: { $in: communicationIds } })
-      .populate('recipient.account');
+  async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
+    const current = await this.communicationModel.find({ _id: { $in: ids } }).populate('recipient.account');
 
     const invalid = current.find(({ status }) => status !== communicationStatus.Pending);
     if (invalid) {
@@ -218,7 +216,7 @@ export class OutboxService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      await this.communicationModel.deleteMany({ _id: { $in: communicationIds } }, { session });
+      await this.communicationModel.deleteMany({ _id: { $in: ids } }, { session });
       for (const communication of current) {
         if (communication.isOriginal) {
           await this.restoreStage(communication, account, session);

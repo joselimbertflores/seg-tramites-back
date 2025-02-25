@@ -3,10 +3,11 @@ import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 
 import { procedureGroup } from '../schemas';
-import { InternalService } from './internal.service';
-import { ExternalService } from './external.service';
-import { ProcurementService } from './procurement.service';
 import { ProcedureService } from '../domain';
+
+import { ExternalService } from './external.service';
+import { InternalService } from './internal.service';
+import { ProcurementService } from './procurement.service';
 
 @Injectable({ scope: Scope.REQUEST })
 export class ProcedureFactoryService {
@@ -18,7 +19,7 @@ export class ProcedureFactoryService {
   ) {}
 
   getService(): ProcedureService {
-    const group = this.request.params.group as procedureGroup;
+    const group = this.request.params['group'] as procedureGroup;
     switch (group) {
       case procedureGroup.EXTERNAL:
         return this.externalService;

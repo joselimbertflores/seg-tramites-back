@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 
-import { GetAccountRequest } from 'src/modules/procedures/decorators/get-account-request.decorator';
-import { onlyAssignedAccount } from 'src/modules/procedures/decorators';
+import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
+import { onlyAssignedAccount } from 'src/modules/administration/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { OutboxService } from '../services';

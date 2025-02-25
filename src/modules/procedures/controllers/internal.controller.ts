@@ -5,8 +5,8 @@ import { InternalService } from '../services';
 import { AccountService, TypeProcedureService } from 'src/modules/administration/services';
 import { SystemResource } from 'src/modules/auth/constants';
 import { Account } from 'src/modules/administration/schemas';
-import { onlyAssignedAccount } from '../decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from '../decorators/get-account-request.decorator';
+import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
+import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
 import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 

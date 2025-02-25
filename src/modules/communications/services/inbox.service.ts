@@ -11,8 +11,8 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 
 import { Connection, FilterQuery, Model } from 'mongoose';
 
-import { Account } from 'src/modules/administration/schemas';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
+import { Account } from 'src/modules/administration/schemas';
 import { DocumentService } from '../../procedures/services/document.service';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
@@ -45,23 +45,23 @@ export class InboxService {
     return { communications, length };
   }
 
-  async accept({ communicationIds }: SelectedCommunicationsDto) {
-    const communications = await this.getValidCommunications(communicationIds);
-    const ids = communications.map(({ id }) => id);
+  async accept({ ids }: SelectedCommunicationsDto) {
+    const communications = await this.getValidCommunications(ids);
+    const communidationIds = communications.map(({ id }) => id);
 
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
 
       await this.communicationModel.updateMany(
-        { _id: { $in: ids } },
+        { _id: { $in: communidationIds } },
         { status: communicationStatus.Received, receivedDate: new Date() },
         { session },
       );
 
       await session.commitTransaction();
 
-      return ids;
+      return communidationIds;
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
@@ -71,27 +71,33 @@ export class InboxService {
     }
   }
 
-  async reject(account: Account, { description, communicationIds }: RejectCommunicationDto) {
+  async reject(account: Account, { description, ids }: RejectCommunicationDto) {
+    const communications = await this.getValidCommunications(ids);
+
+    await this.communicationModel.populate(communications, { path: 'sender.account', select: 'officer' });
+    const invalid = communications.find(({ sender }) => !sender.account.officer);
+
+    if (invalid) {
+      throw new BadRequestException(
+        `El tramite ${invalid.procedure.code} no puede rechazarse. El emisor ha sido deshabilitado`,
+      );
+    }
+    const communidationIds = communications.map(({ id }) => id);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const documents = await this.communicationModel.find({ _id: { $in: communicationIds } }, null, { session });
-      const isInvalid = documents.find(({ status }) => status !== communicationStatus.Pending);
-      if (isInvalid) {
-        throw new BadRequestException(`Invalid: ${isInvalid._id}, state is ${isInvalid.status}`);
-      }
       const currentDate = new Date();
       await this.communicationModel.updateMany(
-        { _id: { $in: communicationIds } },
+        { _id: { $in: communidationIds } },
         {
-          receivedDate: currentDate,
           status: communicationStatus.Rejected,
           actionLog: { fullname: account.officer.fullName, date: currentDate, description },
+          receivedDate: currentDate,
         },
         { session },
       );
       await session.commitTransaction();
-      return { message: 'Tramite rechazado' };
+      return communidationIds;
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
@@ -101,13 +107,13 @@ export class InboxService {
     }
   }
 
-  async getOne(communicationId: string, account: Account) {
-    const communicationDb = await this.communicationModel.findById(communicationId).populate('procedure');
-    if (!communicationDb) throw new BadRequestException(`Communication ${communicationId} don't exist`);
-    if (String(account._id) !== String(communicationDb.recipient.account._id)) {
+  async getOne(id: string, account: Account) {
+    const communication = await this.communicationModel.findById(id);
+    if (!communication) throw new BadRequestException(`Communication ${id} don't exist`);
+    if (account.id !== String(communication.recipient.account._id)) {
       throw new ForbiddenException('Unauthorized to access this communication');
     }
-    return communicationDb;
+    return communication;
   }
 
   async getWorkflow(procedureId: string) {

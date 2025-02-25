@@ -5,7 +5,7 @@ import { AccountService } from 'src/modules/administration/services';
 import { Account } from 'src/modules/administration/schemas';
 import { IsMongoidPipe } from 'src/modules/common';
 
-import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/procedures/decorators';
+import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { InboxService } from '../services';
 
@@ -45,12 +45,12 @@ export class InboxController {
   }
 
   @Put('reject')
-  reject(@Body() data: RejectCommunicationDto, @GetAccountRequest() account: Account) {
+  reject(@GetAccountRequest() account: Account, @Body() data: RejectCommunicationDto) {
     return this.inboxService.reject(account, data);
   }
 
   @Get('/:id')
-  getOne(@Param('id', IsMongoidPipe) communicationId: string, @GetAccountRequest() account: Account) {
-    return this.inboxService.getOne(communicationId, account);
+  getOne(@Param('id', IsMongoidPipe) id: string, @GetAccountRequest() account: Account) {
+    return this.inboxService.getOne(id, account);
   }
 }

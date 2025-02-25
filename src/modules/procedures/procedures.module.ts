@@ -3,21 +3,14 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AdministrationModule } from 'src/modules/administration/administration.module';
+import { InternalController, ExternalController, ProcurementController, DocumentController } from './controllers';
 import {
   DocumentService,
   ExternalService,
   InternalService,
-  ObservationService,
   ProcedureFactoryService,
   ProcurementService,
 } from './services';
-import {
-  InternalController,
-  ExternalController,
-  ProcedureController,
-  DocumentController,
-  ProcurementController,
-} from './controllers';
 import {
   Procedure,
   ProcedureSchema,
@@ -52,7 +45,7 @@ import { PROCEDURE_FACTORY_TOKEN } from './domain';
       { name: Doc.name, schema: DocSchema },
     ]),
   ],
-  controllers: [InternalController, ExternalController, ProcedureController, DocumentController, ProcurementController],
+  controllers: [InternalController, ExternalController, DocumentController, ProcurementController],
   providers: [
     {
       provide: PROCEDURE_FACTORY_TOKEN,
@@ -62,11 +55,10 @@ import { PROCEDURE_FACTORY_TOKEN } from './domain';
       },
       inject: [ProcedureFactoryService],
     },
-    ProcedureFactoryService,
     ExternalService,
     InternalService,
     ProcurementService,
-    ObservationService,
+    ProcedureFactoryService,
     DocumentService,
   ],
   exports: [MongooseModule, DocumentService, PROCEDURE_FACTORY_TOKEN],

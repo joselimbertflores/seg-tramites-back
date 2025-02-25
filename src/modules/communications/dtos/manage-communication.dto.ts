@@ -8,7 +8,7 @@ import { communicationStatus } from '../schemas';
 export class SelectedCommunicationsDto {
   @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
   @IsMongoId({ each: true })
-  communicationIds: string[];
+  ids: string[];
 }
 
 export class RejectCommunicationDto extends SelectedCommunicationsDto {

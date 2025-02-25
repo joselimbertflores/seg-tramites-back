@@ -6,8 +6,8 @@ import { ArchiveService } from '../services/archive.service';
 
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
-import { onlyAssignedAccount } from '../../procedures/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from '../../procedures/decorators/get-account-request.decorator';
+import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
+import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
 import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 
 @ResourceProtected(SystemResource.archived)

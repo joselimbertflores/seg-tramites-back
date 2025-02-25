@@ -10,7 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { User } from 'src/modules/users/schemas';
-import { Account } from 'src/modules/administration/schemas';
+import { Account } from '../schemas';
 
 @Injectable()
 export class AccountGuard implements CanActivate {
@@ -26,10 +26,10 @@ export class AccountGuard implements CanActivate {
       .populate(['officer', 'dependencia', 'institution']);
 
     if (!account) {
-      throw new ForbiddenException(`No esta vinculado a ninguna cuenta`);
+      throw new ForbiddenException(`Missing account`);
     }
     if (!account.officer) {
-      throw new BadRequestException(`La cuenta no esta asignada`);
+      throw new BadRequestException(`Account is not assigned`);
     }
     request['account'] = account;
     return true;

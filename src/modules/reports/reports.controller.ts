@@ -6,7 +6,7 @@ import { DependencieService, InstitutionService, TypeProcedureService } from 'sr
 
 import { IsMongoidPipe } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
-import { GetAccountRequest } from 'src/modules/procedures/decorators/get-account-request.decorator';
+import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
 
 @Controller('reports')
 export class ReportsController {

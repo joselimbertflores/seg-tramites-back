@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
-import { onlyAssignedAccount } from 'src/modules/procedures/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from 'src/modules/procedures/decorators/get-account-request.decorator';
+import { onlyAssignedAccount } from 'src/modules/administration/decorators/only-assigned-account.decorator';
+import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
 import { AccountService } from 'src/modules/administration/services';
 import { Account } from 'src/modules/administration/schemas';
 import { IsMongoidPipe } from 'src/modules/common';
