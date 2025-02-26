@@ -1,13 +1,16 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { TypeProcedureService } from 'src/modules/administration/services/type-procedure.service';
-import { ExternalService } from '../services';
-import { SystemResource } from 'src/modules/auth/constants';
+
 import { Account } from 'src/modules/administration/schemas';
-import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
-import { ResourceProtected } from 'src/modules/auth/decorators';
+
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
 import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
+import { SystemResource } from 'src/modules/auth/constants';
+
+import { TypeProcedureService } from 'src/modules/administration/services';
+import { ExternalService } from '../services';
+
+import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { ResourceProtected } from 'src/modules/auth/decorators';
 
 @Controller('external')
 @ResourceProtected(SystemResource.EXTERNAL)
@@ -39,7 +42,7 @@ export class ExternalController {
   }
 
   @Patch(':id')
-  update(@Param('id') procedureId: string, @Body() procedureDto: UpdateExternalProcedureDto) {
+  update(@Param('id', IsMongoidPipe) procedureId: string, @Body() procedureDto: UpdateExternalProcedureDto) {
     return this.externalService.update(procedureId, procedureDto);
   }
 }

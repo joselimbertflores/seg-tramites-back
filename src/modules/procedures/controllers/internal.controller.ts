@@ -5,9 +5,9 @@ import { InternalService } from '../services';
 import { AccountService, TypeProcedureService } from 'src/modules/administration/services';
 import { SystemResource } from 'src/modules/auth/constants';
 import { Account } from 'src/modules/administration/schemas';
-import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
+
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
+import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
 import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 
 @ResourceProtected(SystemResource.INTERNAL)
@@ -21,8 +21,8 @@ export class InternalController {
   ) {}
 
   @Get('types-procedures')
-  async getTypesProcedures() {
-    return await this.typeProcedureService.getEnabledTypesByGroup('INTERNO');
+  getTypesProcedures() {
+    return this.typeProcedureService.getEnabledTypesByGroup('INTERNO');
   }
 
   @Get('participant/:text')
@@ -31,8 +31,8 @@ export class InternalController {
   }
 
   @Get()
-  findAll(@GetAccountRequest('_id') accountId: string, @Query() PaginationDto: PaginationDto) {
-    return this.internalService.findAll(PaginationDto, accountId);
+  findAll(@GetAccountRequest('_id') accountId: string, @Query() paginationParams: PaginationDto) {
+    return this.internalService.findAll(paginationParams, accountId);
   }
 
   @Post()
@@ -41,7 +41,7 @@ export class InternalController {
   }
 
   @Patch(':id')
-  update(@Param('id') procedureId: string, @Body() procedureDto: UpdateInternalProcedureDto) {
-    return this.internalService.update(procedureId, procedureDto);
+  update(@Param('id', IsMongoidPipe) id: string, @Body() procedureDto: UpdateInternalProcedureDto) {
+    return this.internalService.update(id, procedureDto);
   }
 }

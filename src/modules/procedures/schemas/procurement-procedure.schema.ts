@@ -1,4 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
+
 import { Account, Institution, Dependency, Officer } from 'src/modules/administration/schemas';
 import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
 
@@ -64,11 +66,11 @@ export class ProcurementProcedure {
   code: string;
   prefix: string;
   correlative: number;
-  reference: string;
   cite: string;
-  numberOfDocuments: string;
   account: Account;
   state: procedureState;
+  reference: string;
+  numberOfDocuments: string;
   group: procedureGroup;
   status: procedureStatus;
   createdAt: Date;
@@ -141,3 +143,4 @@ export class ProcurementProcedure {
 }
 
 export const ProcurementProcedureSchema = SchemaFactory.createForClass(ProcurementProcedure);
+export type ProcurementProcedureDocument = HydratedDocument<ProcurementProcedure>;

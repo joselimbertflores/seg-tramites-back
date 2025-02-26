@@ -61,6 +61,6 @@ import { PROCEDURE_FACTORY_TOKEN } from './domain';
     ProcedureFactoryService,
     DocumentService,
   ],
-  exports: [MongooseModule, DocumentService, PROCEDURE_FACTORY_TOKEN],
+  exports: [MongooseModule, DocumentService, ProcedureFactoryService,PROCEDURE_FACTORY_TOKEN],
 })
 export class ProceduresModule {}

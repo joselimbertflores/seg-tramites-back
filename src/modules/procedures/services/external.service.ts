@@ -4,14 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { FilterQuery, Model } from 'mongoose';
 
 import { ExternalProcedure, procedureState, procedureStatus } from '../schemas';
+import { Account } from 'src/modules/administration/schemas';
 
 import { PaginationDto } from 'src/modules/common';
-import { Account } from 'src/modules/administration/schemas';
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
-import { ProcedureService } from '../domain';
+import { validProcedureService } from '../domain';
 
 @Injectable()
-export class ExternalService implements ProcedureService {
+export class ExternalService implements validProcedureService {
   constructor(
     @InjectModel(ExternalProcedure.name) private procedureModel: Model<ExternalProcedure>,
     private configService: ConfigService,
@@ -33,7 +33,7 @@ export class ExternalService implements ProcedureService {
 
   async create(procedureDto: CreateExternalProcedureDto, account: Account) {
     const { segment, ...props } = procedureDto;
-    const { code, correlative, prefix } = await this._generateCode(account, segment);
+    const { code, correlative, prefix } = await this.generateCode(account, segment);
     const createdProcedure = new this.procedureModel({
       account: account._id,
       dependency: account.dependencia,
@@ -59,15 +59,12 @@ export class ExternalService implements ProcedureService {
   }
 
   async getDetail(procedureId: string) {
-    const procedure = await this.procedureModel.findById(procedureId).populate('type');
+    const procedure = await this.procedureModel.findById(procedureId).populate('type', "nombre");
     if (!procedure) throw new BadRequestException(`Procedure ${procedureId} dont exist`);
     return procedure;
   }
 
-  private async _generateCode(
-    account: Account,
-    segment: string,
-  ): Promise<{ code: string; prefix: string; correlative: number }> {
+  private async generateCode(account: Account, segment: string) {
     const prefix = `${segment}-${account.institution.sigla}`.toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;

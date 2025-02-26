@@ -9,10 +9,10 @@ import { PaginationDto } from 'src/modules/common';
 import { InternalProcedure, procedureState, procedureStatus } from '../schemas';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
 import { DocumentService } from './document.service';
-import { ProcedureService } from '../domain';
+import { validProcedureService } from '../domain';
 
 @Injectable()
-export class InternalService implements ProcedureService {
+export class InternalService implements validProcedureService {
   constructor(
     @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
     @InjectConnection() private connection: Connection,
@@ -24,7 +24,7 @@ export class InternalService implements ProcedureService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const { correlative, code, prefix } = await this._generateCode(account);
+      const { correlative, code, prefix } = await this.generateCode(account, 'HR');
       const createdProcedure = new this.procedureModel({
         account: account._id,
         institution: account.institution,
@@ -78,8 +78,8 @@ export class InternalService implements ProcedureService {
     return procedureDB;
   }
 
-  private async _generateCode(account: Account): Promise<{ code: string; prefix: string; correlative: number }> {
-    const prefix = `HR-${account.institution.sigla}`.toUpperCase();
+  async generateCode(account: Account, segment: string) {
+    const prefix = `${segment}-${account.institution.sigla}`.toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {

@@ -1,3 +1,2 @@
-export * from "./interfaces/group-archive.interface"
-export * from "./models/procedure-service.model"
-export * from "./constants/procedure.constant"
+export * from './interfaces/valid-procedure-service.interface';
+export * from './constants/procedure.constant';

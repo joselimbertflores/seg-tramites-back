@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ProcurementService } from '../services';
-import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
-import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
+
 import { Account } from 'src/modules/administration/schemas';
+import { ProcurementService } from '../services';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
-import { PaginationDto } from 'src/modules/common';
+import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
+import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
 
 @onlyAssignedAccount()
 @Controller('procurement')
@@ -22,17 +22,12 @@ export class ProcurementController {
   }
 
   @Patch(':id')
-  update(@Param('id') procedureId: string, @Body() procedureDto: UpdateProcurementProcedureDto) {
+  update(@Param('id', IsMongoidPipe) procedureId: string, @Body() procedureDto: UpdateProcurementProcedureDto) {
     return this.procurementService.update(procedureId, procedureDto);
   }
 
   @Patch('documents/:id')
-  updateDocuments(@Param('id') procedureId: string, @Body() documentDto: UpdatedDocumentProcurementDto) {
+  updateDocuments(@Param('id', IsMongoidPipe) procedureId: string, @Body() documentDto: UpdatedDocumentProcurementDto) {
     return this.procurementService.updateDocuments(procedureId, documentDto);
-  }
-
-  @Get(':id')
-  getDetail(@Param('id') procedureId: string) {
-    return this.procurementService.getDetail(procedureId);
   }
 }

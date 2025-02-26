@@ -117,7 +117,7 @@ export class InboxService {
   }
 
   async getWorkflow(procedureId: string) {
-    return await this.communicationModel.find({ procedure: procedureId });
+    return await this.communicationModel.find({ "procedure.ref": procedureId });
   }
 
   private isExpired({ sentDate }: Communication) {

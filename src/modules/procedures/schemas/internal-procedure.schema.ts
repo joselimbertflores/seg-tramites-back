@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument } from 'mongoose';
+
 import { Account, Dependency, Institution, Officer } from 'src/modules/administration/schemas';
-import { procedureState, procedureStatus } from './procedure.schema';
+import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
 
 @Schema({ _id: false })
 class Worker {
@@ -30,7 +32,7 @@ export class InternalProcedure {
   state: procedureState;
   reference: string;
   numberOfDocuments: string;
-  group: string;
+  group: procedureGroup;
   status: procedureStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -47,3 +49,5 @@ export class InternalProcedure {
 }
 
 export const InternalProcedureSchema = SchemaFactory.createForClass(InternalProcedure);
+
+export type InternalProcedureDocument = HydratedDocument<InternalProcedure>;

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 
 import { Account, Dependency, Institution, Officer, TypeProcedure } from 'src/modules/administration/schemas';
 import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
@@ -82,3 +82,5 @@ export class ExternalProcedure {
   pin: number;
 }
 export const ExternalProcedureSchema = SchemaFactory.createForClass(ExternalProcedure);
+
+export type ExternalProcedureDocument = HydratedDocument<ExternalProcedure>;

@@ -1,4 +1,6 @@
+import { ExternalProcedure, InternalProcedure, ProcurementProcedure } from '../../schemas';
 
-export interface ValidProcedureService {
-  getDetail(id: string): Promise<any>;
+type procedure = ExternalProcedure | InternalProcedure | ProcurementProcedure;
+export interface validProcedureService {
+  getDetail(procedureId: string): Promise<procedure>;
 }
