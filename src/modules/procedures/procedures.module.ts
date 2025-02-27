@@ -1,4 +1,4 @@
-import { Module, Scope } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
@@ -25,7 +25,6 @@ import {
   ProcurementProcedure,
   ProcurementProcedureSchema,
 } from './schemas';
-import { PROCEDURE_FACTORY_TOKEN } from './domain';
 
 @Module({
   imports: [
@@ -46,21 +45,7 @@ import { PROCEDURE_FACTORY_TOKEN } from './domain';
     ]),
   ],
   controllers: [InternalController, ExternalController, DocumentController, ProcurementController],
-  providers: [
-    {
-      provide: PROCEDURE_FACTORY_TOKEN,
-      scope: Scope.REQUEST,
-      useFactory: (procedureFactoryService: ProcedureFactoryService) => {
-        return procedureFactoryService.getService();
-      },
-      inject: [ProcedureFactoryService],
-    },
-    ExternalService,
-    InternalService,
-    ProcurementService,
-    ProcedureFactoryService,
-    DocumentService,
-  ],
-  exports: [MongooseModule, DocumentService, ProcedureFactoryService,PROCEDURE_FACTORY_TOKEN],
+  providers: [ExternalService, InternalService, ProcurementService, ProcedureFactoryService, DocumentService],
+  exports: [MongooseModule, DocumentService, ProcedureFactoryService],
 })
 export class ProceduresModule {}

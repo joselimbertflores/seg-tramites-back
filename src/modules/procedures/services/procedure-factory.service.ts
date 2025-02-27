@@ -1,6 +1,4 @@
-import { BadRequestException, Inject, Injectable, Scope } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
-import { Request } from 'express';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { procedureGroup } from '../schemas';
 
@@ -10,17 +8,27 @@ import { ProcurementService } from './procurement.service';
 
 import { validProcedureService } from '../domain';
 
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class ProcedureFactoryService {
   constructor(
-    @Inject(REQUEST) private request: Request,
     private externalService: ExternalService,
     private internalService: InternalService,
     private procurementService: ProcurementService,
   ) {}
 
-  getService(): validProcedureService {
-    const group = this.request.params['group'] as procedureGroup;
+  // * Alternative with moduleRef
+  // get(code: string) {
+  //   switch (code) {
+  //     case 'EMPTY':
+  //       return this.moduleRef.get(EmptyReportService);
+  //     case 'HALF':
+  //       return this.moduleRef.get(HalfReportService);
+  //     case 'FULL':
+  //       return this.moduleRef.get(FullReportService);
+  //   }
+  // }
+
+  getService(group: procedureGroup): validProcedureService {
     switch (group) {
       case procedureGroup.EXTERNAL:
         return this.externalService;

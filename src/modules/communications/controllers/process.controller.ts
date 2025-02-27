@@ -1,27 +1,24 @@
-import { Controller, Get, Inject, Param } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { IsMongoidPipe } from 'src/modules/common';
-import { onlyAssignedAccount } from 'src/modules/administration/decorators/only-assigned-account.decorator';
-import { InboxService } from '../services';
-import { PROCEDURE_FACTORY_TOKEN, validProcedureService } from 'src/modules/procedures/domain';
+
+import { onlyAssignedAccount } from 'src/modules/administration/decorators';
 import { ProcedureFactoryService } from 'src/modules/procedures/services';
+import { InboxService } from '../services';
+import { ProcessParamDto } from '../dtos';
 
 @onlyAssignedAccount()
 @Controller('process')
 export class ProcessController {
-  constructor(
-    private inboxService: InboxService,
-    private procedureFactoryService: ProcedureFactoryService, 
-    @Inject(PROCEDURE_FACTORY_TOKEN) private readonly procedureService: validProcedureService,
-  ) {}
+  constructor(private inboxService: InboxService, private procedureFactoryService: ProcedureFactoryService) {}
 
-  @Get('detail/:group/:procedureId')
-  getProcedure(@Param('procedureId') procedureId: string) {
-    return this.procedureService.getDetail(procedureId);
+  @Get('detail/:group/:id')
+  getProcedure(@Param() params: ProcessParamDto) {
+    const service = this.procedureFactoryService.getService(params.group);
+    return service.getDetail(params.id);
   }
 
-  @Get('/:group/:procedureId')
-  getWorkflow(@Param('procedureId', IsMongoidPipe) procedureId: string) {
-    console.log(procedureId);
+  @Get('workflow/:id')
+  getWorkflow(@Param('id', IsMongoidPipe) procedureId: string) {
     return this.inboxService.getWorkflow(procedureId);
   }
 }
