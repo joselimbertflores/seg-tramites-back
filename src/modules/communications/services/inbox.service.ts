@@ -35,7 +35,7 @@ export class InboxService {
       'recipient.account': accountId,
       ...(status ? { status } : { status: { $in: [communicationStatus.Received, communicationStatus.Pending] } }),
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
-      ...(isOriginal !== undefined && { isOriginal: isOriginal }),
+      ...(isOriginal !== undefined && { isOriginal }),
       ...(group && { 'procedure.group': filterDto.group }),
     };
     const [communications, length] = await Promise.all([
@@ -117,7 +117,7 @@ export class InboxService {
   }
 
   async getWorkflow(procedureId: string) {
-    return await this.communicationModel.find({ "procedure.ref": procedureId });
+    return await this.communicationModel.find({ 'procedure.ref': procedureId });
   }
 
   private isExpired({ sentDate }: Communication) {
@@ -129,36 +129,29 @@ export class InboxService {
 
   private async getValidCommunications(ids: string[]) {
     const items = await this.communicationModel.find({ _id: { $in: ids } });
-    const toUpdated: string[] = [];
-    const toRemove: string[] = [];
+
+    const toRemove: string[] = items.filter((item) => item.status !== communicationStatus.Pending).map(({ id }) => id);
 
     const foundIds = new Set(items.map((item) => item.id));
     const missingIds = ids.filter((id) => !foundIds.has(id));
     toRemove.push(...missingIds);
 
-    for (const item of items) {
-      switch (item.status) {
-        case communicationStatus.Received:
-          toUpdated.push(item.id);
-          break;
+    const expiredIds: string[] = items
+      .filter(({ status }) => status === communicationStatus.Pending)
+      .filter((item) => this.isExpired(item))
+      .map(({ id }) => id);
 
-        case communicationStatus.Pending:
-          if (this.isExpired(item)) {
-            toRemove.push(item.id);
-          }
-          break;
-
-        default:
-          toRemove.push(item.id);
-          break;
-      }
+    if (expiredIds.length > 0) {
+      toRemove.push(...expiredIds);
+      await this.communicationModel.updateMany(
+        { _id: { $in: expiredIds } },
+        { status: communicationStatus.AutoRejected },
+      );
     }
-
-    if (toRemove.length > 0 || toUpdated.length > 0) {
+    if (toRemove.length > 0) {
       throw new ConflictException({
         message: 'Algunos envíos ya fueron aceptados o han expirado.',
         toRemove,
-        toUpdated,
       });
     }
     return items;

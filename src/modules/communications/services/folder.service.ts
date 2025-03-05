@@ -3,12 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
-import { Folder, FolderDocument } from '../schemas';
+import { Archive, ArchiveDocument, Folder, FolderDocument } from '../schemas';
 import { CreateFolderDto } from '../dtos';
 
 @Injectable()
 export class FolderService {
-  constructor(@InjectModel(Folder.name) private folderModel: Model<FolderDocument>) {}
+  constructor(
+    @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
+    @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
+  ) {}
 
   async create(folderDto: CreateFolderDto, account: Account) {
     try {
@@ -20,11 +23,17 @@ export class FolderService {
   }
 
   async findAll(account: Account) {
-    return await this.folderModel.find({ dependency: account.dependencia._id });
+    return await this.folderModel.find({ dependency: account.dependencia._id }).sort({ _id: -1 });
   }
 
   async delete(id: string) {
-    // TODO check if folder is not empty
-    return await this.folderModel.findByIdAndDelete(id);
+    const folderDB = await this.folderModel.findById(id);
+    if (!folderDB) throw new BadRequestException(`Folder ${id} don't exist`);
+    const isBeingUsed = await this.archiveModel.findOne({ folder: folderDB.id });
+    if (isBeingUsed) {
+      throw new BadRequestException(`La carpeta contiene tramites`);
+    }
+    await this.folderModel.deleteOne({ _id: id });
+    return { message: 'Folder deleted' };
   }
 }

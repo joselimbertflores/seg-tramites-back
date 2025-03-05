@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 import { ResourceProtected } from 'src/modules/auth/decorators';
-import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { ArchiveService } from '../services/archive.service';
 
 import { Account } from 'src/modules/administration/schemas';

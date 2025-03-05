@@ -19,7 +19,7 @@ export class CreateArchiveDto {
 }
 
 export class FilterArchiveDto extends PaginationDto {
-  @IsMongoId()
+  @IsMongoId({ message: 'Folder invalido' })
   @IsOptional()
   folder?: string;
 }

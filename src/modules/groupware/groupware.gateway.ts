@@ -43,11 +43,11 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     client.broadcast.emit('listar', this.groupwareService.getClients());
   }
 
-  sentCommunications(communications: { toUser: string; data: Communication }[]): void {
-    for (const communication of communications) {
-      const user = this.groupwareService.getUser(communication.toUser);
+  sentCommunications(communications: { toUser: string; communication: Communication }[]): void {
+    for (const item of communications) {
+      const user = this.groupwareService.getUser(item.toUser);
       if (!user) return;
-      this.server.to(user.socketIds).emit('new-communication', communication.data);
+      this.server.to(user.socketIds).emit('new-communication', item.communication);
     }
   }
 

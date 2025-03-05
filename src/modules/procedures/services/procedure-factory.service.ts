@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 
 import { procedureGroup } from '../schemas';
 
@@ -37,7 +37,7 @@ export class ProcedureFactoryService {
       case procedureGroup.PROCUREMENT:
         return this.procurementService;
       default:
-        throw new BadRequestException(`Procedure type: ${group} is not defined`);
+        throw new InternalServerErrorException(`Group ${group} is not defined`);
     }
   }
 }

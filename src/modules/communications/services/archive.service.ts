@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
+import mongoose, { ClientSession, FilterQuery, isValidObjectId, Model } from 'mongoose';
 
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { Account } from 'src/modules/administration/schemas';
@@ -106,18 +106,21 @@ export class ArchiveService {
 
   async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
     const regex = new RegExp(term);
-    const folderDB = await this.folderModel.findById(folder, { name: 1 });
-    if (!folderDB) throw new BadRequestException(`Folder ${folder} don't existt`);
+    let folderDB: null | FolderDocument = null;
+    if (folder) {
+      folderDB = await this.folderModel.findById(folder, { name: 1 });
+      if (!folderDB) throw new BadRequestException(`La carpeta ${folder} no existe`);
+    }
     const query: FilterQuery<Archive> = {
-      dependency: account.dependencia,
-      folder: folder,
+      dependency: account.dependencia._id,
+      ...(folderDB && { folder: folderDB.id }),
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
     };
     const [archives, length] = await Promise.all([
       this.archiveModel.find(query).limit(limit).skip(offset).sort({ createdAt: -1 }),
       this.archiveModel.count(query),
     ]);
-    return { archives, length, folderName: folderDB.name };
+    return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
   }
 
   async checkIfProcedureCanBeCompleted(id_procedure: string): Promise<void> {
