@@ -26,11 +26,10 @@ export class DocumentService {
 
   async findAll(account: Account, filterProps: FilterDocsDto) {
     const { term, limit, offset, year, type } = filterProps;
-    const { startOfYear, endOfYear } = this._getYearRange(year);
+    const { startOfYear, endOfYear } = this.getYearRange(year);
 
     const filterQuery: FilterQuery<Doc> = {
       dependecy: account.dependencia,
-      account,
       createdAt: { $gte: startOfYear, $lt: endOfYear },
       ...(term && { reference: new RegExp(term, 'i') }),
       ...(type && { type }),
@@ -44,7 +43,7 @@ export class DocumentService {
   }
 
   async create(account: Account, docDto: CreateDocDto) {
-    const { cite, correlative, segment } = await this._generateCode(account, docDto);
+    const { cite, correlative, segment } = await this.generateCode(account, docDto);
     const newDoc = new this.docModel({
       dependecy: account.dependencia,
       account,
@@ -70,7 +69,7 @@ export class DocumentService {
 
   async searchPendingDocs(account: Account, term?: string) {
     const regex = new RegExp(term, 'i');
-    const { startOfYear, endOfYear } = this._getYearRange();
+    const { startOfYear, endOfYear } = this.getYearRange();
     return await this.docModel
       .find({
         account: account._id,
@@ -81,7 +80,7 @@ export class DocumentService {
       .limit(5);
   }
 
-  private async _generateCode({ dependencia, area }: Account, { isGeneralCode, type }: CreateDocDto) {
+  private async generateCode({ dependencia, area }: Account, { isGeneralCode, type }: CreateDocDto) {
     const baseSegment = dependencia.codigo;
     const segment = isGeneralCode || !area ? baseSegment : `${baseSegment}-${area}`;
 
@@ -95,7 +94,7 @@ export class DocumentService {
     return { cite, correlative, segment };
   }
 
-  private _getYearRange(year: number = new Date().getFullYear()) {
+  private getYearRange(year: number = new Date().getFullYear()) {
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year + 1, 0, 1);
     return { startOfYear, endOfYear };

@@ -37,7 +37,6 @@
     "class-validator": "^0.14.0",
     "file-type": "^16.5.3",
     "file-type-mime": "^0.4.3",
-    "humanize-duration": "^3.31.0",
     "latest": "^0.2.0",
     "mongoose": "^7.3.0",
     "passport": "^0.6.0",

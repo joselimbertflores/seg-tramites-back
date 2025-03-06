@@ -35,7 +35,9 @@ export class InternalService implements validProcedureService {
         ...procedureDto,
       });
       const procedure = await createdProcedure.save({ session });
-      // await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
+      if (docId) {
+        await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
+      }
       await session.commitTransaction();
       return procedure;
     } catch (error) {
@@ -63,7 +65,7 @@ export class InternalService implements validProcedureService {
     const query: FilterQuery<InternalProcedure> = {
       account: accountId,
       status: procedureStatus.PENDING,
-      // $or: [{ code: regex }, { reference: regex }],
+      $or: [{ code: regex }, { reference: regex }],
     };
     const [procedures, length] = await Promise.all([
       this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
