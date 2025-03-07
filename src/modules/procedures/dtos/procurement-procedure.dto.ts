@@ -145,5 +145,13 @@ export class CreateProcurementProcedureDto extends ProcedureDto {
   @IsString()
   @IsOptional()
   codigoProyecto: string;
+
+  @IsString()
+  @IsOptional()
+  certificacionPoa: string;
+
+  @IsString()
+  @IsOptional()
+  certificacionPresupuestaria: string;
 }
 export class UpdateProcurementProcedureDto extends PartialType(CreateProcurementProcedureDto) {}

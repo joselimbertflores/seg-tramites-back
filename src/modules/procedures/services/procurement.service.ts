@@ -61,7 +61,8 @@ export class ProcurementService implements validProcedureService {
   async update(id: string, procedureDto: UpdateProcurementProcedureDto) {
     const procedureDB = await this.procedureModel.findById(id);
     if (!procedureDB) throw new NotFoundException(`Procedure ${id} dont exist`);
-    return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
+    const s= await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
+    return s
   }
 
   async updateDocuments(id: string, { index, properties }: UpdatedDocumentProcurementDto) {

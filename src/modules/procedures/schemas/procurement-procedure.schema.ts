@@ -140,6 +140,12 @@ export class ProcurementProcedure {
 
   @Prop()
   codigoProyecto: string;
+
+  @Prop()
+  certificacionPoa: string;
+
+  @Prop()
+  certificacionPresupuestaria: string;
 }
 
 export const ProcurementProcedureSchema = SchemaFactory.createForClass(ProcurementProcedure);
