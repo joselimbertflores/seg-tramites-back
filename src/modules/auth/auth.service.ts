@@ -5,7 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
-import { AuthDto, UpdateMyAccountDto } from './dto';
+import { AuthDto, UpdateMyUserDto } from './dto';
 
 import { logger } from 'src/config/logger';
 import { User, UserDocument, Role } from 'src/modules/users/schemas';
@@ -45,11 +45,11 @@ export class AuthService {
     };
   }
 
-  async updateMyAccount(id_account: string, data: UpdateMyAccountDto) {
+  async updateMyUser(id: string, data: UpdateMyUserDto) {
     const { password } = data;
     const salt = bcrypt.genSaltSync();
     const encryptedPassword = bcrypt.hashSync(password.toString(), salt);
-    await this.userModel.updateOne({ _id: id_account }, { password: encryptedPassword, updatedPassword: true });
+    await this.userModel.updateOne({ _id: id }, { password: encryptedPassword, updatedPassword: true });
     return { message: 'Contraseña actualizada' };
   }
 

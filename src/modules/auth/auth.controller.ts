@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get, Put, Ip } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthDto, UpdateMyAccountDto } from './dto';
+import { AuthDto, UpdateMyUserDto } from './dto';
 import { GetUserRequest, Public } from './decorators';
 import { UserDocument } from 'src/modules/users/schemas';
 
@@ -20,7 +20,7 @@ export class AuthController {
   }
 
   @Put()
-  updateMyAccount(@GetUserRequest('_id') id: string, @Body() data: UpdateMyAccountDto) {
-    return this.authService.updateMyAccount(id, data);
+  updateMyUser(@GetUserRequest('_id') id: string, @Body() data: UpdateMyUserDto) {
+    return this.authService.updateMyUser(id, data);
   }
 }
