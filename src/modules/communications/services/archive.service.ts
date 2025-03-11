@@ -1,16 +1,15 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import mongoose, { ClientSession, FilterQuery, isValidObjectId, Model } from 'mongoose';
+import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
 
-import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { Account } from 'src/modules/administration/schemas';
-import { Communication, communicationStatus } from '../schemas/communication.schema';
-import { Archive, ArchiveDocument, Folder, FolderDocument } from '../schemas';
-import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { Procedure, procedureStatus } from 'src/modules/procedures/schemas';
 
+import { ArchiveDocument, FolderDocument, Folder, Archive, Communication, communicationStatus } from '../schemas';
+import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
+
 interface archiveCommunicationProps {
-  communicationIds: string[];
+  ids: string[];
   description: string;
   account: Account;
   session: ClientSession;
@@ -20,9 +19,9 @@ export class ArchiveService {
   constructor(
     @InjectConnection() private connection: mongoose.Connection,
     @InjectModel(Account.name) private accountModel: Model<Account>,
+    @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
-    @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
   ) {}
 
@@ -30,11 +29,15 @@ export class ArchiveService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
+
       const { communicationIds, folderId, description, state } = archiveDto;
-      const communications = await this._archiveCommunications({ communicationIds, account, description, session });
-      const originals = communications.filter((el) => el.isOriginal !== false);
+
+      const communications = await this.archiveCommunications({ ids: communicationIds, account, description, session });
+
+      // * For old Schema, isOriginal is undefined
+      const originals = communications.filter(({ isOriginal }) => isOriginal !== false);
+
       if (originals.length > 0) {
-        // * Si es original o es nulo, el estado del tramite debe actualizarse
         await this.procedureModel.updateMany(
           { _id: originals.map(({ procedure }) => procedure.ref) },
           { completedAt: new Date(), status: procedureStatus.COMPLETED, state },
@@ -171,10 +174,10 @@ export class ArchiveService {
     // await createdMail.save({ session });
   }
 
-  private async _archiveCommunications({ communicationIds, session, description, account }: archiveCommunicationProps) {
-    const communications = await this._checkValidCommunications(communicationIds, session);
+  private async archiveCommunications({ ids, session, description, account }: archiveCommunicationProps) {
+    const communications = await this.checkValidCommunications(ids, session);
     await this.communicationModel.updateMany(
-      { _id: { $in: communications.map(({ _id }) => _id) } },
+      { _id: { $in: communications.map((item) => item._id) } },
       {
         status: communicationStatus.Archived,
         actionLog: { fullname: account.officer.fullName, date: new Date(), description },
@@ -184,22 +187,18 @@ export class ArchiveService {
     return communications;
   }
 
-  private async _checkValidCommunications(communicationIds: string[], session: ClientSession) {
-    const communicationsDB = await this.communicationModel
-      .find({ _id: { $in: communicationIds } }, null, { session })
+  private async checkValidCommunications(ids: string[], session: ClientSession) {
+    const communications = await this.communicationModel
+      .find({ _id: { $in: ids } }, null, { session })
       .populate('procedure.ref', 'code group reference');
 
-    const selectedIds = communicationsDB.map(({ _id }) => _id.toString());
-    const hasError = communicationIds.find((id) => !selectedIds.includes(id));
-    if (hasError) {
-      throw new BadRequestException(`La communicacion ${hasError} no existe`);
-    }
+    const foundIds = new Set(communications.map((item) => item.id));
 
-    const isInvalid = communicationsDB.find(({ status }) => status !== communicationStatus.Received);
-    if (isInvalid) {
-      throw new BadRequestException(`La comunicacion $${isInvalid._id} no ha sido recibida`);
-    }
+    const hasError = ids.find((id) => !foundIds[id]);
+    if (hasError) throw new BadRequestException(`La communicacion ${hasError} no existe`);
 
-    return communicationsDB;
+    const isInvalid = communications.find(({ status }) => status !== communicationStatus.Received);
+    if (isInvalid) throw new BadRequestException(`La comunicacion $${isInvalid.id} no esta recibida`);
+    return communications;
   }
 }

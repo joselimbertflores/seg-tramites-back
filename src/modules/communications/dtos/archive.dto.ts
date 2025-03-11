@@ -8,7 +8,8 @@ export class CreateArchiveDto {
   description: string;
 
   @IsMongoId()
-  folderId: string;
+  @IsOptional()
+  folderId?: string;
 
   @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
   @IsMongoId({ each: true })
