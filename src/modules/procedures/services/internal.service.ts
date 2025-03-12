@@ -8,7 +8,6 @@ import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { InternalProcedure, procedureState, procedureStatus } from '../schemas';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
-import { DocumentService } from './document.service';
 import { validProcedureService } from '../domain';
 
 @Injectable()
@@ -17,10 +16,9 @@ export class InternalService implements validProcedureService {
     @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
     @InjectConnection() private connection: Connection,
     private configService: ConfigService,
-    private docService: DocumentService,
   ) {}
 
-  async create({ docId, ...procedureDto }: CreateInternalProcedureDto, account: Account) {
+  async create(procedureDto: CreateInternalProcedureDto, account: Account) {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -35,9 +33,6 @@ export class InternalService implements validProcedureService {
         ...procedureDto,
       });
       const procedure = await createdProcedure.save({ session });
-      if (docId) {
-        await this.docService.attachProcedure(docId, { code: procedure.code, group: procedure.group }, session);
-      }
       await session.commitTransaction();
       return procedure;
     } catch (error) {

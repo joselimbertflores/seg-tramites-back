@@ -11,7 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { GroupwareService } from './groupware.service';
 import { JwtPayload } from 'src/modules/auth/interfaces/jwt.interface';
-import { Communication, CommunicationDocument } from '../communications/schemas/communication.schema';
+import { Communication } from '../communications/schemas/communication.schema';
 
 interface expelClientProps {
   id_account: string;

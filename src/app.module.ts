@@ -29,9 +29,9 @@ import { SchedulerModule } from './modules/scheduler/scheduler.module';
       }),
       inject: [ConfigService],
     }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, '..', 'public'),
-    // }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+    }),
     ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
