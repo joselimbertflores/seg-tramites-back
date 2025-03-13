@@ -13,18 +13,16 @@ import { Connection, FilterQuery, Model } from 'mongoose';
 
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
 import { Account } from 'src/modules/administration/schemas';
-import { DocumentService } from '../../procedures/services/document.service';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 @Injectable()
 export class InboxService {
   private readonly AUTO_REJECT_HOURS = this.configService.get<number>('AUTO_REJECT_HOURS');
-  private readonly AUTO_REJECT_HOURS_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
+  private readonly AUTO_REJECT_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
 
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
     @InjectConnection() private connection: Connection,
-    private docService: DocumentService,
     private configService: ConfigService,
   ) {}
 
@@ -120,12 +118,6 @@ export class InboxService {
     return await this.communicationModel.find({ 'procedure.ref': procedureId });
   }
 
-  private isExpired({ sentDate }: Communication) {
-    const now = new Date();
-    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_HOURS_MILISECONDS;
-    const remainingTimeInMilliseconds = expirationTime - now.getTime();
-    return remainingTimeInMilliseconds <= 0;
-  }
 
   private async getValidCommunications(ids: string[]) {
     const items = await this.communicationModel.find({ _id: { $in: ids } });
@@ -155,5 +147,12 @@ export class InboxService {
       });
     }
     return items;
+  }
+
+  private isExpired({ sentDate }: Communication) {
+    const now = new Date();
+    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_MILISECONDS;
+    const remainingTimeInMilliseconds = expirationTime - now.getTime();
+    return remainingTimeInMilliseconds <= 0;
   }
 }

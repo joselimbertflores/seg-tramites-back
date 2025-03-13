@@ -46,7 +46,7 @@ interface userCommunicationModels {
 @Injectable()
 export class OutboxService {
   private readonly AUTO_REJECT_HOURS = this.configService.get<number>('AUTO_REJECT_HOURS');
-  private readonly AUTO_REJECT_HOURS_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
+  private readonly AUTO_REJECT_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
 
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
@@ -84,6 +84,7 @@ export class OutboxService {
       if (procedure.state !== procedureState.INSCRITO) {
         throw new BadRequestException(`The procedure has already started.`);
       }
+
       const communications = userCommunications.map(({ communication }) => communication);
       this.validateCommunicationType(communications, true);
 
@@ -174,7 +175,6 @@ export class OutboxService {
 
         case communicationStatus.AutoRejected:
           this.validateCommunicationType(communications, isOriginal);
-          console.log('elimando', _id);
           await this.communicationModel.deleteOne({ _id }, { session });
           break;
 
@@ -218,7 +218,8 @@ export class OutboxService {
       session.startTransaction();
       await this.communicationModel.deleteMany({ _id: { $in: ids } }, { session });
       for (const communication of current) {
-        if (communication.isOriginal) {
+        // * For old communications, with idOriginal as undefined
+        if (communication.isOriginal !== false) {
           await this.restoreStage(communication, account, session);
         }
       }
@@ -331,7 +332,7 @@ export class OutboxService {
         jobtitle: recipient.jobtitle,
       },
       procedure: {
-        ref: procedure,
+        ref: procedure._id,
         code: procedure.code,
         group: procedure.group,
         reference: procedure.reference,
@@ -349,15 +350,15 @@ export class OutboxService {
   }
 
   private validateCommunicationType(communications: Communication[], isOriginal: boolean): void {
-    const originals = communications.filter(({ isOriginal }) => isOriginal);
-    if (isOriginal) {
-      if (originals.length !== 1) {
-        throw new BadRequestException('Los envíos deben contener 1 trámite original');
-      }
-    } else {
-      if (communications.length > 1 || originals.length >= 1) {
-        throw new BadRequestException('Solo se puede enviar una copia de otra copia');
-      }
+    const originalsCount = communications.filter(({ isOriginal }) => isOriginal).length;
+    const hasCopies = communications.length > 1;
+
+    if (isOriginal && originalsCount !== 1) {
+      throw new BadRequestException('Los envíos deben contener 1 trámite original');
+    }
+
+    if (!isOriginal && (hasCopies || originalsCount >= 1)) {
+      throw new BadRequestException('Solo se puede enviar una copia de otra copia');
     }
   }
 
@@ -375,7 +376,7 @@ export class OutboxService {
 
   private checkExpiration({ sentDate }: Communication) {
     const now = new Date();
-    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_HOURS_MILISECONDS;
+    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_MILISECONDS;
     const remainingTimeInMilliseconds = expirationTime - now.getTime();
     return Math.max(0, remainingTimeInMilliseconds);
   }

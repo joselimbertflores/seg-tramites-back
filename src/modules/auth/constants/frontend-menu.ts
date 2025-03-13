@@ -86,7 +86,7 @@ export const FRONTEND_MENU: Menu[] = [
       {
         resource: [SystemResource.INTERNAL],
         text: 'Contrataciones',
-        icon: 'receipt_long',
+        icon: 'snippet_folder',
         routerLink: 'manage/procurement',
       },
     ],
@@ -95,25 +95,19 @@ export const FRONTEND_MENU: Menu[] = [
   {
     resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de entrada',
-    icon: 'drafts',
+    icon: 'inbox',
     routerLink: 'manage/inbox',
   },
   {
     resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de salida',
-    icon: 'mark_as_unread',
+    icon: 'outbox',
     routerLink: 'manage/outbox',
   },
   {
     resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
-    text: 'Documentos',
-    icon: 'width_normal',
-    routerLink: 'manage/documents',
-  },
-  {
-    resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Archivos',
-    icon: 'mark_as_unread',
+    icon: 'shelves',
     routerLink: 'manage/folders',
   },
 
