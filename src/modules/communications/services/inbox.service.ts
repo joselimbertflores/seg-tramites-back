@@ -76,9 +76,7 @@ export class InboxService {
     const invalid = communications.find(({ sender }) => !sender.account.officer);
 
     if (invalid) {
-      throw new BadRequestException(
-        `El tramite ${invalid.procedure.code} no puede rechazarse. El emisor ha sido deshabilitado`,
-      );
+      throw new BadRequestException( `El tramite ${invalid.procedure.code} no puede rechazarse. El emisor ha sido deshabilitado`);
     }
     const communidationIds = communications.map(({ id }) => id);
     const session = await this.connection.startSession();
