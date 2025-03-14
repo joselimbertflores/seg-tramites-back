@@ -194,7 +194,7 @@ export class ArchiveService {
 
     const foundIds = new Set(communications.map((item) => item.id));
 
-    const hasError = ids.find((id) => !foundIds[id]);
+    const hasError = ids.find((id) => !foundIds.has(id));
     if (hasError) throw new BadRequestException(`La communicacion ${hasError} no existe`);
 
     const isInvalid = communications.find(({ status }) => status !== communicationStatus.Received);
