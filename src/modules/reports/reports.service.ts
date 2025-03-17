@@ -3,59 +3,53 @@ import { InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, Model } from 'mongoose';
 
 import { Account, Dependency } from 'src/modules/administration/schemas';
-import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
-import { SearchProcedureByApplicantDto, SearchProcedureByPropertiesDto } from './dto';
+import { PaginationDto } from 'src/modules/common';
+import { SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
+import { ExternalProcedure, ExternalProcedureDocument, Procedure, ProcedureDocument } from '../procedures/schemas';
 
 @Injectable()
 export class ReportsService {
   constructor(
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
+    @InjectModel(Procedure.name) private procedureModel: Model<ProcedureDocument>,
+    @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>,
     // @InjectModel(Communication.name) private communicationModel: Model<Communication>,
-  ) {}
+  ) { }
 
-  async searchProcedureByApplicant(
-    { by, properties }: SearchProcedureByApplicantDto,
-    { limit, offset }: PaginationDto,
-  ) {
-    // const query: FilterQuery<ExternalDetail> = Object.entries(properties).reduce((acc, [key, value]) => {
-    //   if (key === 'nombre') value = new RegExp(value, 'i');
-    //   acc[`${by}.${key}`] = value;
-    //   return acc;
-    // }, {});
-    // if (query.length === 0) throw new BadRequestException('No se ingreso ningun parametro');
-    // const [details, length] = await Promise.all([
-    //   this.externalModel.find(query).lean().limit(limit).skip(offset).select('_id'),
-    //   this.externalModel.count(query),
-    // ]);
-    // const procedures = await this.procedureModel
-    //   .find({ details: { $in: details.map((detail) => detail._id) }, group: groupProcedure.EXTERNAL })
-    //   .populate('details')
-    //   .lean();
-    // return { procedures, length };
+  async searchProcedureByProperties({ limit, offset }: PaginationDto, dto: SearchProcedureDto) {
+    const { start, end, ...values } = dto;
+    const query: mongoose.FilterQuery<Procedure>[] = Object.entries(values).map(([key, value]) => {
+      if (key === 'code' || key === 'reference') return { [key]: new RegExp(value, 'i') };
+      return { [key]: value };
+    });
+    const interval = {
+      ...(start && { $gte: start }),
+      ...(end && { $lte: end }),
+    };
+    if (Object.keys(interval).length > 0) query.push({ createdAt: interval });
+    const [procedures, length] = await Promise.all([
+      this.procedureModel.find({ $and: query }).lean().limit(limit).skip(offset),
+      this.procedureModel.count({ $and: query }),
+    ]);
+    return { procedures, length };
   }
 
-  async searchProcedureByProperties(
-    { limit, offset }: PaginationDto,
-    properties: SearchProcedureByPropertiesDto,
-  ) {
-    // const { start, end, ...values } = properties;
-    // const query: mongoose.FilterQuery<Procedure>[] = Object.entries(values).map(([key, value]) => {
-    //   if (key === 'code' || key === 'reference') return { [key]: new RegExp(value, 'i') };
-    //   return { [key]: value };
-    // });
-    // const interval = {
-    //   ...(start && { $gte: new Date(start) }),
-    //   ...(end && { $lte: new Date(end) }),
-    // };
-    // if (Object.keys(interval).length > 0) query.push({ startDate: interval });
-    // if (query.length === 0) throw new BadRequestException('No se ingreso ningun parametro');
-    // const [procedures, length] = await Promise.all([
-    //   this.procedureModel.find({ $and: query }).lean().limit(limit).skip(offset),
-    //   this.procedureModel.count({ $and: query }),
-    // ]);
-    // return { procedures, length };
+  async searchProcedureByApplicant(dto: SearchProcedureByApplicantDto, { limit, offset }: PaginationDto) {
+    const query: FilterQuery<ExternalProcedure> = Object.entries(dto).reduce((acc, [key, value]) => {
+      if (key === 'firstname') value = new RegExp(value, 'i');
+      acc[`${dto.by}.${key}`] = value;
+      return acc;
+    }, {});
+    if (query.length === 0) throw new BadRequestException('No se ingreso ningun parametro');
+    const [procedures, length] = await Promise.all([
+      this.externalModel.find(query).lean().limit(limit).skip(offset),
+      this.externalModel.count(query),
+    ]);
+    return { procedures, length };
   }
+
+
 
   async getUnlinkData(account: Account) {
     // await account.populate([

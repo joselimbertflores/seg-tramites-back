@@ -5,7 +5,7 @@ import { SystemResource } from 'src/modules/auth/constants';
 export class Permission {
   @Prop({
     type: String,
-    enum: Object.values(SystemResource),
+    enum: SystemResource,
   })
   resource: SystemResource;
 

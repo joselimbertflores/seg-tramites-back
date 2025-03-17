@@ -1,12 +1,15 @@
 import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
 import { ReportsService } from './reports.service';
-import { SearchProcedureByApplicantDto, SearchProcedureByPropertiesDto } from './dto';
+import { SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { DependencieService, InstitutionService, TypeProcedureService } from 'src/modules/administration/services';
 
 import { IsMongoidPipe } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
+import { RequirePermissions } from '../auth/decorators';
+import { SystemResource } from '../auth/constants';
+import { reportType } from './report-types.enum';
 
 @Controller('reports')
 export class ReportsController {
@@ -15,7 +18,7 @@ export class ReportsController {
     private typeProcedureService: TypeProcedureService,
     private institutionService: InstitutionService,
     private dependencyService: DependencieService,
-  ) {}
+  ) { }
 
   @Get('types-procedures/:term')
   getTypeProceduresByText(@Param('term') term: string, @Query('type') type: string | undefined) {
@@ -32,21 +35,25 @@ export class ReportsController {
     return await this.dependencyService.getActiveDependenciesOfInstitution(id_institution);
   }
 
-  @Post('applicant')
-  searchProcedureByApplicant(
-    @Body() searchDto: SearchProcedureByApplicantDto,
-    @Query() paginationParams: PaginationDto,
-  ) {
-    return this.reportsService.searchProcedureByApplicant(searchDto, paginationParams);
-  }
-
+  @RequirePermissions(SystemResource.REPORTS, [reportType.SEARCH])
   @Post('procedure')
   searchProcedureByProperties(
-    @Body() searchDto: SearchProcedureByPropertiesDto,
-    @Query() paginationParams: PaginationDto,
+    @Body() body: SearchProcedureDto,
+    @Query() queryParams: PaginationDto,
   ) {
-    return this.reportsService.searchProcedureByProperties(paginationParams, searchDto);
+    return this.reportsService.searchProcedureByProperties(queryParams, body);
   }
+
+  @RequirePermissions(SystemResource.REPORTS, [reportType.APPLICANT])
+  @Post('applicant')
+  searchProcedureByApplicant(
+    @Body() body: SearchProcedureByApplicantDto,
+    @Query() queryParams: PaginationDto,
+  ) {
+    return this.reportsService.searchProcedureByApplicant(body, queryParams);
+  }
+
+
 
   @Get('unlink')
   getAccountInbox(@GetAccountRequest() account: Account) {

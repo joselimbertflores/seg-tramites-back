@@ -1,3 +1,5 @@
+import { reportType } from "src/modules/reports/report-types.enum";
+
 export enum SystemResource {
   USERS = 'user',
   ROLES = 'roles',
@@ -11,10 +13,11 @@ export enum SystemResource {
   EXTERNAL = 'external',
   INTERNAL = 'internal',
 
+  REPORTS = 'reports',
+
   communication = 'communication',
   groupware = 'groupware',
   archived = 'archived',
-  reports = 'reports',
   jobs = 'jobs',
   publications = 'publications',
 }
@@ -79,17 +82,6 @@ export const SYSTEM_RESOURCES = [
       { value: 'delete', label: 'Eliminar' },
     ],
   },
-  // {
-  //   value: SystemResource.jobs,
-
-  //   label: 'CARGOS',
-  //   actions: [
-  //     { value: 'create', label: 'Crear' },
-  //     { value: 'read', label: 'Ver' },
-  //     { value: 'update', label: 'Editar' },
-  //     { value: 'delete', label: 'Eliminar' },
-  //   ],
-  // },
   {
     value: SystemResource.TYPES_PROCEDURES,
     label: 'TIPOS DE TRAMITES',
@@ -132,14 +124,11 @@ export const SYSTEM_RESOURCES = [
     ],
   },
   {
-    value: SystemResource.reports,
+    value: SystemResource.REPORTS,
     label: 'REPORTES',
-
     actions: [
-      { value: 'applicants', label: 'Solicitante' },
-      { value: 'search', label: 'Busquedas' },
-      { value: 'dependents', label: 'Dependientes' },
-      { value: 'unit', label: 'Unidades' },
+      { value: reportType.APPLICANT, label: 'Solicitante' },
+      { value: reportType.SEARCH, label: 'Busquedas' },
     ],
   },
 ];

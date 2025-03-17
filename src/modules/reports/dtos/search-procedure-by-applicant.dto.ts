@@ -34,8 +34,8 @@ class ApplicantProps {
 }
 
 export class SearchProcedureByApplicantDto {
-  @IsIn(['solicitante', 'representante'])
-  by: 'solicitante' | 'representante';
+  @IsIn(['applicant', 'representative'])
+  by: 'applicant' | 'representative';
 
   @IsNotEmptyObject()
   @IsObject()

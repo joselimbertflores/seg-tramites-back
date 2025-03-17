@@ -110,6 +110,12 @@ export const FRONTEND_MENU: Menu[] = [
     icon: 'shelves',
     routerLink: 'manage/folders',
   },
+  {
+    resource: [SystemResource.REPORTS],
+    text: 'Reportes',
+    icon: 'equalizer',
+    routerLink: 'reports',
+  },
 
   // {
   //   resource: 'archived',
@@ -117,12 +123,12 @@ export const FRONTEND_MENU: Menu[] = [
   //   icon: 'folder_copy',
   //   routerLink: 'archives',
   // },
-  // {
-  //   resource: 'reports',
-  //   text: 'Reportes',
-  //   icon: 'equalizer',
-  //   routerLink: 'reports',
-  // },
+  // // {
+  // //   resource: 'reports',
+  // //   text: 'Reportes',
+  // //   icon: 'equalizer',
+  // //   routerLink: 'reports',
+  // // },
   // {
   //   text: 'Grupo de trabajo',
   //   icon: 'equalizer',
