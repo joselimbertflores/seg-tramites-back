@@ -17,6 +17,9 @@ export class EnvVars {
   @IsNumber()
   @Min(24)
   AUTO_REJECT_HOURS: number;
+
+  @IsNumber()
+  YEAR: number;
 }
 
 export function validate(config: Record<string, unknown>): EnvVars {

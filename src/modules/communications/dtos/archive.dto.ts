@@ -24,3 +24,9 @@ export class FilterArchiveDto extends PaginationDto {
   @IsOptional()
   folder?: string;
 }
+
+export class SelectedArchivesDto {
+  @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
+  @IsMongoId({ each: true })
+  ids: string[];
+}

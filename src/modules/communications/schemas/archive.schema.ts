@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
 import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
-import { Communication } from './communication.schema';
+import { Communication, CommunicationDocument } from './communication.schema';
 import { Folder } from './folder.schema';
 
 @Schema({ _id: false })
@@ -93,4 +93,8 @@ export class Archive {
 
 export const ArchiveSchema = SchemaFactory.createForClass(Archive);
 
-export type ArchiveDocument = HydratedDocument<Archive>;
+export type ArchiveDocumentOverride = {
+  communication: Types.ObjectId & CommunicationDocument;
+};
+
+export type ArchiveDocument = HydratedDocument<Archive, ArchiveDocumentOverride>;

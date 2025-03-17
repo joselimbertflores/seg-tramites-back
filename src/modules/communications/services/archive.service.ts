@@ -3,10 +3,10 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
-import { Procedure, procedureStatus } from 'src/modules/procedures/schemas';
+import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 
 import { ArchiveDocument, FolderDocument, Folder, Archive, Communication, communicationStatus } from '../schemas';
-import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
+import { CreateArchiveDto, FilterArchiveDto, SelectedArchivesDto } from '../dtos';
 
 interface archiveCommunicationProps {
   ids: string[];
@@ -74,34 +74,31 @@ export class ArchiveService {
     }
   }
 
-  async unarchiveMail(id_mail: string, account: Account): Promise<{ message: string }> {
-    const mailDB = await this.communicationModel.findById(id_mail);
-    if (mailDB.status !== communicationStatus.Archived) throw new BadRequestException('El tramite ya fue desarchivado');
+  async unarchive({ ids }: SelectedArchivesDto, account: Account) {
+    const archives = await this.getValidArchives(ids, account);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      // let newStatus = StatusMail.Received;
-      // if (String(mailDB.receiver.cuenta._id) !== String(account._id)) {
-      //   await this.insertPartipantInWokflow(mailDB, account, session);
-      //   newStatus = StatusMail.Completed;
-      // }
-      // await this.communicationModel.updateOne(
-      //   { _id: id_mail },
-      //   { status: newStatus, $unset: { eventLog: 1 } },
-      //   { session },
-      // );
-      // await this.procedureModel.updateOne(
-      //   { _id: mailDB.procedure._id },
-      //   { state: stateProcedure.EN_REVISION, $unset: { endDate: 1 } },
-      //   { session },
-      // );
+      const communications = archives.map(({ communication }) => communication);
+      await this.communicationModel.updateMany(
+        { _id: { $in: communications.map(({ _id }) => _id) } },
+        { status: communicationStatus.Received, $unset: { actionLog: 1 } },
+        { session },
+      );
+      const originals = communications.filter(({ isOriginal }) => isOriginal !== false);
+      if (originals.length > 0) {
+        await this.procedureModel.updateMany(
+          { _id: { $in: communications.map(({ procedure }) => procedure.ref._id) } },
+          { state: procedureState.EN_REVISION, status: procedureStatus.PENDING, $unset: { completedAt: 1 } },
+          { session },
+        );
+      }
+      await this.archiveModel.deleteMany({ _id: { $in: archives.map(({ _id }) => _id) } }, { session });
       await session.commitTransaction();
-      return { message: 'Tramite desarchivado' };
+      return { message: 'Tramites desarchivados correctamente' };
     } catch (error) {
       await session.abortTransaction();
-      throw new InternalServerErrorException('Error al desarchivar tramite', {
-        cause: error,
-      });
+      throw new InternalServerErrorException('Error al desarchivar tramite');
     } finally {
       session.endSession();
     }
@@ -124,54 +121,6 @@ export class ArchiveService {
       this.archiveModel.count(query),
     ]);
     return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
-  }
-
-  async checkIfProcedureCanBeCompleted(id_procedure: string): Promise<void> {
-    // const procedureDB = await this.procedureModel.findById(id_procedure);
-    // if (procedureDB.state === stateProcedure.CONCLUIDO) {
-    //   throw new BadRequestException(
-    //     `El tramite ${procedureDB.code} ya fue concluido.`,
-    //   );
-    // }
-    // const isProcessStarted = await this.communicationModel.findOne({
-    //   procedure: id_procedure,
-    // });
-    // if (isProcessStarted)
-    //   throw new BadRequestException(
-    //     'Solo puede concluir tramites que no hayan sido remitidos',
-    //   );
-  }
-
-  async insertPartipantInWokflow(
-    currentMail: Communication,
-    participant: Account,
-    session: mongoose.mongo.ClientSession,
-  ): Promise<void> {
-    const inboundDate = new Date();
-    const outboundDate = new Date(inboundDate.getTime() + 1000);
-    // const { receiver, attachmentQuantity, internalNumber } = currentMail;
-    // const { officer } = await participant.populate({
-    //   path: 'funcionario',
-    //   populate: { path: 'cargo', select: 'nombre' },
-    // });
-    // const newMail = {
-    //   procedure: currentMail.procedure._id,
-    //   emitter: receiver,
-    //   receiver: {
-    //     cuenta: participant._id,
-    //     // TODO repair user fullane
-    //     fullname: '',
-    //     ...(officer.cargo && { jobtitle: officer.cargo.nombre }),
-    //   },
-    //   outboundDate,
-    //   inboundDate,
-    //   reference: 'Solicita desarchivo',
-    //   attachmentQuantity: attachmentQuantity,
-    //   internalNumber: internalNumber,
-    //   status: StatusMail.Received,
-    // };
-    // const createdMail = new this.communicationModel(newMail);
-    // await createdMail.save({ session });
   }
 
   private async archiveCommunications({ ids, session, description, account }: archiveCommunicationProps) {
@@ -200,5 +149,23 @@ export class ArchiveService {
     const isInvalid = communications.find(({ status }) => status !== communicationStatus.Received);
     if (isInvalid) throw new BadRequestException(`La comunicacion $${isInvalid.id} no esta recibida`);
     return communications;
+  }
+
+  private async getValidArchives(ids: string[], account: Account) {
+    const archives = await this.archiveModel.find({ _id: { $in: ids } }).populate('communication');
+
+    const foundIds = new Set(archives.map((item) => item.id));
+
+    const missingId = ids.find((id) => !foundIds.has(id));
+    if (missingId) {
+      throw new BadRequestException(`El elemento ${missingId} ya fue desarchivado`);
+    }
+
+    const invalidArchive = archives.some((item) => String(item.account._id) !== String(account._id));
+
+    if (invalidArchive) {
+      throw new BadRequestException(`No puede desarchivar tramites de otros funcionarios`);
+    }
+    return archives;
   }
 }

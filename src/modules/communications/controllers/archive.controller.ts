@@ -1,13 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { ArchiveService } from '../services/archive.service';
 
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
-import { onlyAssignedAccount } from '../../administration/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from '../../administration/decorators/get-account-request.decorator';
-import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
+import { CreateArchiveDto, FilterArchiveDto, SelectedArchivesDto } from '../dtos';
+import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
 
 @ResourceProtected(SystemResource.archived)
 @onlyAssignedAccount()
@@ -15,20 +14,18 @@ import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 export class ArchiveController {
   constructor(private readonly archiveService: ArchiveService, private readonly groupwareGateway: GroupwareGateway) {}
 
-  @Post()
-  create(@Body() archiveDto: CreateArchiveDto, @GetAccountRequest() account: Account) {
-    return this.archiveService.create(account, archiveDto);
-  }
-
   @Get()
   findAll(@Query() queryParams: FilterArchiveDto, @GetAccountRequest() account: Account) {
     return this.archiveService.findAll(queryParams, account);
   }
 
-  @Post('mail/restore/:id_mail')
-  async unarchiveMail(@Param('id_mail') id_mail: string, @GetAccountRequest() account: Account) {
-    const message = await this.archiveService.unarchiveMail(id_mail, account);
-    this.groupwareGateway.notifyUnarchive(String(account.dependencia._id), id_mail);
-    return { message };
+  @Post()
+  archive(@Body() archiveDto: CreateArchiveDto, @GetAccountRequest() account: Account) {
+    return this.archiveService.create(account, archiveDto);
+  }
+
+  @Post('unarchive')
+  unarchive(@Body() data: SelectedArchivesDto, @GetAccountRequest() account: Account) {
+    return this.archiveService.unarchive(data, account);
   }
 }
