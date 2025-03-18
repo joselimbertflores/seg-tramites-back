@@ -113,7 +113,7 @@ export const FRONTEND_MENU: Menu[] = [
   {
     resource: [SystemResource.REPORTS],
     text: 'Reportes',
-    icon: 'equalizer',
+    icon: 'analytics',
     routerLink: 'reports',
   },
 
