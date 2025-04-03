@@ -1,20 +1,21 @@
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { Module } from '@nestjs/common';
 import { join } from 'path';
-import { AuthModule } from './modules/auth/auth.module';
+
 import { AdministrationModule } from './modules/administration/administration.module';
-import { GroupwareModule } from './modules/groupware/groupware.module';
 import { ProceduresModule } from './modules/procedures/procedures.module';
+import { GroupwareModule } from './modules/groupware/groupware.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 import { FilesModule } from './modules/files/files.module';
 import { PublicationsModule } from './modules/publications/publications.module';
 import { UsersModule } from './modules/users/users.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
 import { EnvVars, validate } from './config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 
 @Module({

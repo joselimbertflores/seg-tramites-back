@@ -111,7 +111,7 @@ export class Communication {
   @Prop()
   receivedDate?: Date;
 
-  @Prop({ type: Boolean, default: false })
+  @Prop({ type: Boolean })
   isOriginal: boolean;
 }
 

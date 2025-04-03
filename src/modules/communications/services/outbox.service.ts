@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Connection, FilterQuery, Model } from 'mongoose';
+import { ClientSession, Connection, FilterQuery, Model, mongo } from 'mongoose';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
@@ -49,7 +49,7 @@ export class OutboxService {
   private readonly AUTO_REJECT_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
 
   constructor(
-    @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
+    @InjectModel(Communication.name) private outboxModel: Model<CommunicationDocument>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectConnection() private connection: Connection,
@@ -64,8 +64,8 @@ export class OutboxService {
       ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }),
     };
     const [communications, length] = await Promise.all([
-      this.communicationModel.find(query).skip(offset).limit(limit).sort({ sentDate: 'descending' }),
-      this.communicationModel.count(query),
+      this.outboxModel.find(query).skip(offset).limit(limit).sort({ sentDate: 'descending' }),
+      this.outboxModel.count(query),
     ]);
     return { communications: communications.map((item) => this.plainCommunication(item)), length };
   }
@@ -88,7 +88,7 @@ export class OutboxService {
       const communications = userCommunications.map(({ communication }) => communication);
       this.validateCommunicationType(communications, true);
 
-      await this.communicationModel.insertMany(communications, { session });
+      await this.outboxModel.insertMany(communications, { session });
       await this.procedureModel.updateOne({ _id: procedure._id }, { state: procedureState.EN_REVISION }, { session });
       await session.commitTransaction();
       return userCommunications;
@@ -105,7 +105,7 @@ export class OutboxService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const communication = await this.communicationModel.findById(communicationId, null, { session });
+      const communication = await this.outboxModel.findById(communicationId, null, { session });
       if (!communication) throw new BadRequestException(`Communication ${communicationId} not found`);
 
       if (communication.status !== communicationStatus.Received) {
@@ -124,9 +124,9 @@ export class OutboxService {
       const communications = userCommunications.map(({ communication }) => communication);
       this.validateCommunicationType(communications, communication.isOriginal);
 
-      await this.communicationModel.insertMany(communications, { session });
+      await this.outboxModel.insertMany(communications, { session });
 
-      await this.communicationModel.updateOne(
+      await this.outboxModel.updateOne(
         { _id: communication._id },
         { status: communicationStatus.Completed },
         { session },
@@ -144,7 +144,7 @@ export class OutboxService {
   }
 
   async resendCommunication(account: Account, { communicationId, ...props }: ResendCommunicationDto) {
-    const current = await this.communicationModel.findOne({ _id: communicationId, 'sender.account': account._id });
+    const current = await this.outboxModel.findOne({ _id: communicationId, 'sender.account': account._id });
 
     if (!current) {
       throw new BadRequestException(`Communication:${communicationId} / sender:${account.id} not found`);
@@ -160,7 +160,7 @@ export class OutboxService {
     const { _id, isOriginal, status } = current;
 
     if (status === communicationStatus.Pending && this.checkExpiration(current) === 0) {
-      await this.communicationModel.updateOne({ _id }, { status: communicationStatus.AutoRejected });
+      await this.outboxModel.updateOne({ _id }, { status: communicationStatus.AutoRejected });
       throw new GoneException('Communication has expired');
     }
 
@@ -170,12 +170,12 @@ export class OutboxService {
       switch (status) {
         case communicationStatus.Rejected:
           this.validateCommunicationType(communications, isOriginal);
-          await this.communicationModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
+          await this.outboxModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
           break;
 
         case communicationStatus.AutoRejected:
           this.validateCommunicationType(communications, isOriginal);
-          await this.communicationModel.deleteOne({ _id }, { session });
+          await this.outboxModel.deleteOne({ _id }, { session });
           break;
 
         case communicationStatus.Pending:
@@ -188,7 +188,7 @@ export class OutboxService {
         default:
           throw new BadRequestException('This communication cannot be resend.');
       }
-      await this.communicationModel.insertMany(communications, { session });
+      await this.outboxModel.insertMany(communications, { session });
 
       await session.commitTransaction();
 
@@ -206,29 +206,34 @@ export class OutboxService {
   }
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
-    const current = await this.communicationModel.find({ _id: { $in: ids } }).populate('recipient.account');
+    const selectedItems = await this.outboxModel.find({ _id: { $in: ids } }).populate('recipient.account');
+    const validItems = selectedItems.filter(({ status }) => status === communicationStatus.Pending);
+    const invalidItems = selectedItems.filter(({ status }) => status !== communicationStatus.Pending);
 
-    const invalid = current.find(({ status }) => status !== communicationStatus.Pending);
-    if (invalid) {
-      throw new BadRequestException(`${invalid.recipient.fullname} ya ha evaluado el tramite`);
-    }
+    // const invalid = selectedItems.find(({ status }) => status !== communicationStatus.Pending);
+    // if (invalid) {
+    //   throw new BadRequestException(`${invalid.recipient.fullname} ya ha evaluado el tramite`);
+    // }
 
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      await this.communicationModel.deleteMany({ _id: { $in: ids } }, { session });
-      for (const communication of current) {
-        // * For old communications, with idOriginal as undefined
-        if (communication.isOriginal !== false) {
-          await this.restoreStage(communication, account, session);
-        }
-      }
+      await this.outboxModel.deleteMany({ _id: { $in: ids } }, { session });
+      // * For old communications, with idOriginal as undefined
+      await this.restoreStages(selectedItems.filter((item) => item.isOriginal!==false), account, session);
+      // for (const communication of selectedItems) {
+      //   if (communication.isOriginal !== false) {
+      //     console.log(`Restauruando elemento: ${communication.isOriginal ? 'Original' : 'Antiguo nulo'}`);
+      //     await this.restoreStage(communication, account, session);
+      //   }
+      // }
       await session.commitTransaction();
-      return current.map(({ id, recipient }) => ({
+      return selectedItems.map(({ id, recipient }) => ({
         toUser: String(recipient.account.user._id),
         communicationId: id,
       }));
     } catch (error) {
+      console.log(error);
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException('Error in cancel communications');
@@ -287,7 +292,7 @@ export class OutboxService {
   }
 
   private async validateNoDuplicateRecipients(procedureId: string, accounts: Map<string, Account>) {
-    const duplicate = await this.communicationModel.findOne(
+    const duplicate = await this.outboxModel.findOne(
       {
         status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
         'procedure.ref': procedureId,
@@ -300,23 +305,58 @@ export class OutboxService {
     }
   }
 
-  private async restoreStage({ procedure }: CommunicationDocument, sender: Account, session: ClientSession) {
-    const lastStage = await this.communicationModel.findOneAndUpdate(
-      {
-        procedure: procedure.ref._id,
+  // private async restoreStage({ procedure }: CommunicationDocument, sender: Account, session: ClientSession) {
+  //   const lastStage = await this.outboxModel.findOneAndUpdate(
+  //     {
+  //       'procedure.ref': procedure.ref._id,
+  //       'recipient.account': sender._id,
+  //       status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
+  //     },
+  //     { status: communicationStatus.Received },
+  //     { sort: { _id: -1 }, session },
+  //   );
+  //   console.log('elemento al que regresar', lastStage);
+  //   if (!lastStage) {
+  //     await this.procedureModel.updateOne({ _id: procedure.ref._id }, { state: procedureState.INSCRITO }, { session });
+  //   }
+  // }
+
+  private async restoreStages(items: CommunicationDocument[], sender: Account, session: ClientSession) {
+    const procedureIds = [...new Set(items.map(({ procedure }) => procedure.ref._id))];
+
+    const lastStages = await this.outboxModel
+      .find({
+        'procedure.ref': { $in: procedureIds },
         'recipient.account': sender._id,
         status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
+      })
+      .sort({ _id: -1 }) // Tomar el más reciente
+      .lean(); // Reducir la carga de MongoDB
+
+    const updates: mongo.AnyBulkWriteOperation[] = lastStages.map((stage) => ({
+      updateOne: {
+        filter: { _id: stage._id },
+        update: { status: communicationStatus.Received },
       },
-      { status: communicationStatus.Received },
-      { sort: { _id: -1 }, session },
-    );
-    if (!lastStage) {
-      await this.procedureModel.updateOne({ _id: procedure.ref._id }, { state: procedureState.INSCRITO }, { session });
+    }));
+
+    if (updates.length > 0) await this.outboxModel.bulkWrite(updates, { session });
+
+    // Para los trámites sin un "lastStage", actualizarlos a INSCRITO
+    const affectedProcedureIds = new Set(lastStages.map((s) => String(s.procedure.ref)));
+    const proceduresToReset = procedureIds.filter((id) => !affectedProcedureIds.has(id.toString()));
+
+    if (proceduresToReset.length > 0) {
+      await this.procedureModel.updateMany(
+        { _id: { $in: proceduresToReset } },
+        { state: procedureState.INSCRITO },
+        { session },
+      );
     }
   }
 
   private buildCommunicationInstance({ sender, recipient, procedure, ...props }: communicationProps) {
-    return new this.communicationModel({
+    return new this.outboxModel({
       sender: {
         account: sender._id,
         dependency: sender.dependencia,
