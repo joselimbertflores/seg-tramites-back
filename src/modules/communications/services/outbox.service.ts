@@ -207,6 +207,10 @@ export class OutboxService {
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
     const selectedItems = await this.outboxModel.find({ _id: { $in: ids } }).populate('recipient.account');
+    if (selectedItems.some(({ status }) => status !== communicationStatus.Pending)) {
+      throw new BadRequestException('No se pueden cancelar comunicaciones que no esten pendientes');
+    }
+
     const validItems = selectedItems.filter(({ status }) => status === communicationStatus.Pending);
     const invalidItems = selectedItems.filter(({ status }) => status !== communicationStatus.Pending);
 
@@ -218,16 +222,16 @@ export class OutboxService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
+
       await this.outboxModel.deleteMany({ _id: { $in: ids } }, { session });
+
       // * For old communications, with idOriginal as undefined
-      await this.restoreStages(selectedItems.filter((item) => item.isOriginal!==false), account, session);
-      // for (const communication of selectedItems) {
-      //   if (communication.isOriginal !== false) {
-      //     console.log(`Restauruando elemento: ${communication.isOriginal ? 'Original' : 'Antiguo nulo'}`);
-      //     await this.restoreStage(communication, account, session);
-      //   }
-      // }
+      const originals = selectedItems.filter((item) => item.isOriginal !== false);
+
+      await this.restoreStages(originals, account, session);
+
       await session.commitTransaction();
+
       return selectedItems.map(({ id, recipient }) => ({
         toUser: String(recipient.account.user._id),
         communicationId: id,
@@ -343,6 +347,7 @@ export class OutboxService {
     if (updates.length > 0) await this.outboxModel.bulkWrite(updates, { session });
 
     // Para los trámites sin un "lastStage", actualizarlos a INSCRITO
+    console.log(lastStages);
     const affectedProcedureIds = new Set(lastStages.map((s) => String(s.procedure.ref)));
     const proceduresToReset = procedureIds.filter((id) => !affectedProcedureIds.has(id.toString()));
 
