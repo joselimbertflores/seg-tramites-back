@@ -15,8 +15,8 @@ export class EnvVars {
   JWT_KEY: string;
 
   @IsNumber()
-  @Min(24)
-  AUTO_REJECT_HOURS: number;
+  @Min(1)
+  AUTO_REJECT_DAYS: number;
 
   @IsNumber()
   YEAR: number;

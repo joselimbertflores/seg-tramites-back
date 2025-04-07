@@ -1,62 +1,39 @@
-import { HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
 import { Cron } from '@nestjs/schedule';
 
-import { Model, Connection } from 'mongoose';
+import { Model } from 'mongoose';
+import { isWeekend, subDays } from 'date-fns';
 
 import { EnvVars } from 'src/config';
 import { Communication, CommunicationDocument, communicationStatus } from '../communications/schemas';
-import { subBusinessDays } from 'date-fns';
 
 @Injectable()
 export class SchedulerService {
-  private readonly autoRejectHours = this.configService.get<number>('AUTO_REJECT_HOURS');
+  private readonly autoRejectDays = this.configService.get<number>('AUTO_REJECT_DAYS');
 
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
-    @InjectConnection() private connection: Connection,
     private configService: ConfigService<EnvVars>,
   ) {}
 
-  @Cron('0 3 * * *')
+  @Cron('0 3 * * 1-5')
   async autoRejectExpiredCommunications() {
-    const session = await this.connection.startSession();
-    try {
-      session.startTransaction();
-
-      const now = new Date();
-
-      // const expirationTime = new Date(now.getTime() - this.autoRejectHours * 60 * 60 * 1000);
-      const expirationTime = this.subtractBusinessHours(now, this.autoRejectHours);
-
-      await this.communicationModel.updateMany(
-        { status: communicationStatus.Pending, sentDate: { $lte: expirationTime } },
-        { $set: { status: communicationStatus.AutoRejected } },
-        { session },
-      );
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof HttpException) throw error;
-      throw new InternalServerErrorException();
-    } finally {
-      await session.endSession();
-    }
+    const expirationDate = this.calculateBusinessDaysDeadline(this.autoRejectDays);
+    await this.communicationModel.updateMany(
+      { status: communicationStatus.Pending, sentDate: { $lte: expirationDate } },
+      { $set: { status: communicationStatus.AutoRejected } },
+    );
   }
 
-  private subtractBusinessHours(startDate: Date, totalHours: number): Date {
-    const result = new Date(startDate);
-
-    while (totalHours > 0) {
-      result.setHours(result.getHours() - 1);
-
-      const day = result.getDay();
-      if (day >= 1 && day <= 5) {
-        totalHours--;
-      }
+  calculateBusinessDaysDeadline(daysLimit: number): Date {
+    let date = new Date();
+    let remainingDays = daysLimit;
+    while (remainingDays > 0) {
+      date = subDays(date, 1);
+      if (!isWeekend(date)) remainingDays--;
     }
-
-    return result;
+    return date;
   }
 }

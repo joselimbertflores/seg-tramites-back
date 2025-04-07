@@ -22,6 +22,7 @@ import {
   ForwardCommunicationDto,
   SelectedCommunicationsDto,
 } from '../dtos';
+import { addDays, isWeekend, setHours, setMilliseconds, setMinutes, setSeconds, subHours } from 'date-fns';
 
 interface communicationProps {
   procedure: ProcedureDocument;
@@ -45,8 +46,7 @@ interface userCommunicationModels {
 }
 @Injectable()
 export class OutboxService {
-  private readonly AUTO_REJECT_HOURS = this.configService.get<number>('AUTO_REJECT_HOURS');
-  private readonly AUTO_REJECT_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
+  private readonly AUTO_REJECT_DAYS = this.configService.get<number>('AUTO_REJECT_DAYS');
 
   constructor(
     @InjectModel(Communication.name) private outboxModel: Model<CommunicationDocument>,
@@ -412,17 +412,24 @@ export class OutboxService {
       const remainingTime = this.checkExpiration(item);
       return {
         ...item.toObject(),
-        status: remainingTime === 0 ? communicationStatus.AutoRejected : item.status,
         remainingTime,
       };
     }
     return item.toObject();
   }
 
-  private checkExpiration({ sentDate }: Communication) {
-    const now = new Date();
-    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_MILISECONDS;
-    const remainingTimeInMilliseconds = expirationTime - now.getTime();
-    return Math.max(0, remainingTimeInMilliseconds);
+  checkExpiration({ sentDate }: Communication): number {
+    const expirationDate = this.addWorkingDays(sentDate);
+    return Math.max(0, expirationDate.getTime() - new Date().getTime());
+  }
+
+  addWorkingDays(startDate: Date): Date {
+    let expirationDate = new Date(startDate);
+    let remainingDays = this.AUTO_REJECT_DAYS;
+    while (remainingDays > 0) {
+      expirationDate = addDays(expirationDate, 1);
+      if (!isWeekend(expirationDate)) remainingDays--;
+    }
+    return expirationDate;
   }
 }

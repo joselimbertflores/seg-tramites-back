@@ -20,10 +20,7 @@ import { EnvVars, validate } from './config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      validate,
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ validate, isGlobal: true }),
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService<EnvVars>) => ({
         uri: configService.get('DATABASE_URL'),
