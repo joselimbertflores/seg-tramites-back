@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { Model } from 'mongoose';

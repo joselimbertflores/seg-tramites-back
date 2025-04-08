@@ -2,16 +2,16 @@ import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 
 import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
 import { onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { OutboxService } from '../services';
 import {
   CreateCommunicationDto,
-  ForwardCommunicationDto,
   ResendCommunicationDto,
+  ForwardCommunicationDto,
   SelectedCommunicationsDto,
 } from '../dtos';
-import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 
 @Controller('outbox')
 @onlyAssignedAccount()
@@ -46,8 +46,8 @@ export class OutboxController {
 
   @Delete()
   async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: SelectedCommunicationsDto) {
-    const result = await this.outboxService.cancel(account, communicationDto);
-    this.groupwareGateway.cancelCommunications(result);
-    return { message: `Envios cancelados: ${result.length}` };
+    const { items, ...result } = await this.outboxService.cancel(account, communicationDto);
+    this.groupwareGateway.cancelCommunications(items);
+    return result;
   }
 }

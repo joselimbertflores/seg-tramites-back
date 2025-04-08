@@ -1,13 +1,9 @@
-import {
-  Injectable,
-  GoneException,
-  HttpException,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, HttpException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
+
 import { ClientSession, Connection, FilterQuery, Model, mongo } from 'mongoose';
+import { addDays, isWeekend } from 'date-fns';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
@@ -22,7 +18,6 @@ import {
   ForwardCommunicationDto,
   SelectedCommunicationsDto,
 } from '../dtos';
-import { addDays, isWeekend, setHours, setMilliseconds, setMinutes, setSeconds, subHours } from 'date-fns';
 
 interface communicationProps {
   procedure: ProcedureDocument;
@@ -159,11 +154,6 @@ export class OutboxService {
 
     const { _id, isOriginal, status } = current;
 
-    if (status === communicationStatus.Pending && this.checkExpiration(current) === 0) {
-      await this.outboxModel.updateOne({ _id }, { status: communicationStatus.AutoRejected });
-      throw new GoneException('Communication has expired');
-    }
-
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -206,24 +196,20 @@ export class OutboxService {
   }
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
-    const selectedItems = await this.outboxModel.find({ _id: { $in: ids } }).populate('recipient.account');
+    const selectedItems = await this.outboxModel
+      .find({ _id: { $in: ids }, 'sender.account': account._id })
+      .populate('recipient.account');
+
     if (selectedItems.some(({ status }) => status !== communicationStatus.Pending)) {
-      throw new BadRequestException('No se pueden cancelar comunicaciones que no esten pendientes');
+      throw new BadRequestException('Solo puede cancelar envios que no hayan sido recibidos, rechazados o expirados');
     }
-
-    const validItems = selectedItems.filter(({ status }) => status === communicationStatus.Pending);
-    const invalidItems = selectedItems.filter(({ status }) => status !== communicationStatus.Pending);
-
-    // const invalid = selectedItems.find(({ status }) => status !== communicationStatus.Pending);
-    // if (invalid) {
-    //   throw new BadRequestException(`${invalid.recipient.fullname} ya ha evaluado el tramite`);
-    // }
 
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
+      const selectedItemsIds = selectedItems.map(({ _id }) => _id);
 
-      await this.outboxModel.deleteMany({ _id: { $in: ids } }, { session });
+      await this.outboxModel.deleteMany({ _id: { $in: selectedItemsIds } }, { session });
 
       // * For old communications, with idOriginal as undefined
       const originals = selectedItems.filter((item) => item.isOriginal !== false);
@@ -232,12 +218,15 @@ export class OutboxService {
 
       await session.commitTransaction();
 
-      return selectedItems.map(({ id, recipient }) => ({
-        toUser: String(recipient.account.user._id),
-        communicationId: id,
-      }));
+      return {
+        items: selectedItems.map(({ id, recipient }) => ({
+          toUser: String(recipient.account.user._id),
+          communicationId: id,
+        })),
+        message: `Total de envios cancelados: ${selectedItemsIds.length}`,
+        ids: selectedItemsIds,
+      };
     } catch (error) {
-      console.log(error);
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException('Error in cancel communications');
@@ -309,22 +298,6 @@ export class OutboxService {
     }
   }
 
-  // private async restoreStage({ procedure }: CommunicationDocument, sender: Account, session: ClientSession) {
-  //   const lastStage = await this.outboxModel.findOneAndUpdate(
-  //     {
-  //       'procedure.ref': procedure.ref._id,
-  //       'recipient.account': sender._id,
-  //       status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
-  //     },
-  //     { status: communicationStatus.Received },
-  //     { sort: { _id: -1 }, session },
-  //   );
-  //   console.log('elemento al que regresar', lastStage);
-  //   if (!lastStage) {
-  //     await this.procedureModel.updateOne({ _id: procedure.ref._id }, { state: procedureState.INSCRITO }, { session });
-  //   }
-  // }
-
   private async restoreStages(items: CommunicationDocument[], sender: Account, session: ClientSession) {
     const procedureIds = [...new Set(items.map(({ procedure }) => procedure.ref._id))];
 
@@ -347,8 +320,7 @@ export class OutboxService {
     if (updates.length > 0) await this.outboxModel.bulkWrite(updates, { session });
 
     // Para los trámites sin un "lastStage", actualizarlos a INSCRITO
-    console.log(lastStages);
-    const affectedProcedureIds = new Set(lastStages.map((s) => String(s.procedure.ref)));
+    const affectedProcedureIds = new Set(lastStages.map(({ procedure }) => String(procedure.ref._id)));
     const proceduresToReset = procedureIds.filter((id) => !affectedProcedureIds.has(id.toString()));
 
     if (proceduresToReset.length > 0) {
@@ -408,28 +380,19 @@ export class OutboxService {
   }
 
   private plainCommunication(item: CommunicationDocument) {
-    if (item.status === communicationStatus.Pending) {
-      const remainingTime = this.checkExpiration(item);
-      return {
-        ...item.toObject(),
-        remainingTime,
-      };
-    }
-    return item.toObject();
+    return {
+      ...item.toObject(),
+      ...(item.status === communicationStatus.Pending && { remainingTime: this.getRemaininginTime(item) }),
+    };
   }
 
-  checkExpiration({ sentDate }: Communication): number {
-    const expirationDate = this.addWorkingDays(sentDate);
-    return Math.max(0, expirationDate.getTime() - new Date().getTime());
-  }
-
-  addWorkingDays(startDate: Date): Date {
-    let expirationDate = new Date(startDate);
+  private getRemaininginTime({ sentDate }: Communication): number {
+    let expirationDate = new Date(sentDate);
     let remainingDays = this.AUTO_REJECT_DAYS;
     while (remainingDays > 0) {
       expirationDate = addDays(expirationDate, 1);
       if (!isWeekend(expirationDate)) remainingDays--;
     }
-    return expirationDate;
+    return Math.max(0, expirationDate.getTime() - new Date().getTime());
   }
 }
