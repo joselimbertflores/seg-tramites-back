@@ -105,7 +105,7 @@ export class ArchiveService {
   }
 
   async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
-    const regex = new RegExp(term);
+    const regex = new RegExp(term, 'i');
     let folderDB: null | FolderDocument = null;
     if (folder) {
       folderDB = await this.folderModel.findById(folder, { name: 1 });
@@ -116,6 +116,7 @@ export class ArchiveService {
       ...(folderDB && { folder: folderDB.id }),
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
     };
+    console.log(query);
     const [archives, length] = await Promise.all([
       this.archiveModel.find(query).limit(limit).skip(offset).sort({ createdAt: -1 }),
       this.archiveModel.count(query),
