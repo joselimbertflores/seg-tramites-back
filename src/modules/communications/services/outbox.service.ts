@@ -319,7 +319,6 @@ export class OutboxService {
 
     if (updates.length > 0) await this.outboxModel.bulkWrite(updates, { session });
 
-    // Para los trámites sin un "lastStage", actualizarlos a INSCRITO
     const affectedProcedureIds = new Set(lastStages.map(({ procedure }) => String(procedure.ref._id)));
     const proceduresToReset = procedureIds.filter((id) => !affectedProcedureIds.has(id.toString()));
 

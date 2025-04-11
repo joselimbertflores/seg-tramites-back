@@ -33,12 +33,14 @@ export class InboxService {
       'recipient.account': accountId,
       ...(status ? { status } : { status: { $in: [communicationStatus.Received, communicationStatus.Pending] } }),
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
-      ...(isOriginal !== undefined && { isOriginal }),
       ...(group && { 'procedure.group': filterDto.group }),
+      ...(typeof isOriginal === 'boolean' && {
+        ...(isOriginal ? { isOriginal } : { isOriginal: { $in: [false, null] } }),
+      }),
     };
     const [communications, length] = await Promise.all([
       this.communicationModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
-      this.communicationModel.count(filterQuery),
+      this.communicationModel.countDocuments(filterQuery),
     ]);
     return { communications, length };
   }
@@ -76,7 +78,9 @@ export class InboxService {
     const invalid = communications.find(({ sender }) => !sender.account.officer);
 
     if (invalid) {
-      throw new BadRequestException( `El tramite ${invalid.procedure.code} no puede rechazarse. El emisor ha sido deshabilitado`);
+      throw new BadRequestException(
+        `El tramite ${invalid.procedure.code} no puede rechazarse. El emisor ha sido deshabilitado`,
+      );
     }
     const communidationIds = communications.map(({ id }) => id);
     const session = await this.connection.startSession();
@@ -115,7 +119,6 @@ export class InboxService {
   async getWorkflow(procedureId: string) {
     return await this.communicationModel.find({ 'procedure.ref': procedureId });
   }
-
 
   private async getValidCommunications(ids: string[]) {
     const items = await this.communicationModel.find({ _id: { $in: ids } });
