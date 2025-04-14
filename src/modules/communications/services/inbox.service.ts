@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
@@ -15,13 +16,21 @@ import { Communication, CommunicationDocument, communicationStatus } from '../sc
 import { Account } from 'src/modules/administration/schemas';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
+type skippedItem = {
+  id: string;
+  status?: string;
+  reason: string;
+};
+
+type bulkActionResponse = {
+  updatedIds: string[];
+  skipped: skippedItem[];
+};
+
 @Injectable()
 export class InboxService {
-  private readonly AUTO_REJECT_HOURS = this.configService.get<number>('AUTO_REJECT_HOURS');
-  private readonly AUTO_REJECT_MILISECONDS = this.AUTO_REJECT_HOURS * 60 * 60 * 1000;
-
   constructor(
-    @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
+    @InjectModel(Communication.name) private inboxModel: Model<CommunicationDocument>,
     @InjectConnection() private connection: Connection,
     private configService: ConfigService,
   ) {}
@@ -39,29 +48,33 @@ export class InboxService {
       }),
     };
     const [communications, length] = await Promise.all([
-      this.communicationModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
-      this.communicationModel.countDocuments(filterQuery),
+      this.inboxModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
+      this.inboxModel.countDocuments(filterQuery),
     ]);
     return { communications, length };
   }
 
-  async accept({ ids }: SelectedCommunicationsDto) {
-    const communications = await this.getValidCommunications(ids);
-    const communidationIds = communications.map(({ id }) => id);
-
+  async accept({ ids }: SelectedCommunicationsDto): Promise<bulkActionResponse> {
+    const { valid, invalid, notFoundIds } = await this.filterPendingCommunications(ids);
+    if (notFoundIds) {
+      throw new NotFoundException({ message: 'Some selected elements dont exist', notFoundIds });
+    }
+    const validIds = valid.map(({ id }) => id);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
 
-      await this.communicationModel.updateMany(
-        { _id: { $in: communidationIds } },
+      await this.inboxModel.updateMany(
+        { _id: { $in: validIds } },
         { status: communicationStatus.Received, receivedDate: new Date() },
         { session },
       );
-
       await session.commitTransaction();
 
-      return communidationIds;
+      return {
+        updatedIds: validIds,
+        skipped: invalid.map(({ id, status }) => ({ id, status, reason: `Invalid status` })),
+      };
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
@@ -72,23 +85,22 @@ export class InboxService {
   }
 
   async reject(account: Account, { description, ids }: RejectCommunicationDto) {
-    const communications = await this.getValidCommunications(ids);
+    const { valid, invalid, notFoundIds } = await this.filterPendingCommunications(ids);
 
-    await this.communicationModel.populate(communications, { path: 'sender.account', select: 'officer' });
-    const invalid = communications.find(({ sender }) => !sender.account.officer);
+    await this.inboxModel.populate(valid, { path: 'sender.account', select: 'officer' });
 
-    if (invalid) {
-      throw new BadRequestException(
-        `El tramite ${invalid.procedure.code} no puede rechazarse. El emisor ha sido deshabilitado`,
-      );
-    }
-    const communidationIds = communications.map(({ id }) => id);
+    const validIds = valid.filter(({ sender }) => sender.account.officer).map(({ id }) => id);
+
+    const withoutSender = valid
+      .filter(({ sender }) => !sender.account.officer)
+      .map(({ _id, status }) => ({ _id, status }));
+
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
       const currentDate = new Date();
-      await this.communicationModel.updateMany(
-        { _id: { $in: communidationIds } },
+      await this.inboxModel.updateMany(
+        { _id: { $in: validIds } },
         {
           status: communicationStatus.Rejected,
           actionLog: { fullname: account.officer.fullName, date: currentDate, description },
@@ -97,7 +109,14 @@ export class InboxService {
         { session },
       );
       await session.commitTransaction();
-      return communidationIds;
+      return {
+        updatedIds: validIds,
+        skipped: [
+          ...invalid.map(({ _id, status }) => ({ id: _id, status, reason: `Invalid status: ${status}` })),
+          ...withoutSender.map((item) => ({ ...item, reason: 'Missing sender officer' })),
+        ],
+        notFoundIds: notFoundIds,
+      };
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
@@ -108,7 +127,7 @@ export class InboxService {
   }
 
   async getOne(id: string, account: Account) {
-    const communication = await this.communicationModel.findById(id);
+    const communication = await this.inboxModel.findById(id);
     if (!communication) throw new BadRequestException(`Communication ${id} don't exist`);
     if (account.id !== String(communication.recipient.account._id)) {
       throw new ForbiddenException('Unauthorized to access this communication');
@@ -117,43 +136,20 @@ export class InboxService {
   }
 
   async getWorkflow(procedureId: string) {
-    return await this.communicationModel.find({ 'procedure.ref': procedureId });
+    return await this.inboxModel.find({ 'procedure.ref': procedureId });
   }
 
-  private async getValidCommunications(ids: string[]) {
-    const items = await this.communicationModel.find({ _id: { $in: ids } });
-
-    const toRemove: string[] = items.filter((item) => item.status !== communicationStatus.Pending).map(({ id }) => id);
+  private async filterPendingCommunications(ids: string[]) {
+    const items = await this.inboxModel
+      .find({ _id: { $in: ids } })
+      .populate({ path: 'sender.account', select: 'officer' });
 
     const foundIds = new Set(items.map((item) => item.id));
-    const missingIds = ids.filter((id) => !foundIds.has(id));
-    toRemove.push(...missingIds);
 
-    const expiredIds: string[] = items
-      .filter(({ status }) => status === communicationStatus.Pending)
-      .filter((item) => this.isExpired(item))
-      .map(({ id }) => id);
-
-    if (expiredIds.length > 0) {
-      toRemove.push(...expiredIds);
-      await this.communicationModel.updateMany(
-        { _id: { $in: expiredIds } },
-        { status: communicationStatus.AutoRejected },
-      );
-    }
-    if (toRemove.length > 0) {
-      throw new ConflictException({
-        message: 'Algunos envíos ya fueron aceptados o han expirado.',
-        toRemove,
-      });
-    }
-    return items;
-  }
-
-  private isExpired({ sentDate }: Communication) {
-    const now = new Date();
-    const expirationTime = sentDate.getTime() + this.AUTO_REJECT_MILISECONDS;
-    const remainingTimeInMilliseconds = expirationTime - now.getTime();
-    return remainingTimeInMilliseconds <= 0;
+    return {
+      valid: items.filter(({ status }) => status === communicationStatus.Pending),
+      invalid: items.filter(({ status }) => status !== communicationStatus.Pending),
+      notFoundIds: ids.filter((id) => !foundIds.has(id)),
+    };
   }
 }
