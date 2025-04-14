@@ -40,8 +40,8 @@ export class InboxController {
   }
 
   @Put('accept')
-  accept(@Body() data: SelectedCommunicationsDto) {
-    return this.inboxService.accept(data);
+  accept(@GetAccountRequest() account: Account, @Body() data: SelectedCommunicationsDto) {
+    return this.inboxService.accept(account, data);
   }
 
   @Put('reject')
