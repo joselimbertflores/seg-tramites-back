@@ -119,7 +119,7 @@ export class InboxService {
       throw new ForbiddenException('Unauthorized to access this communication');
     }
 
-    return items;
+    return this.checkInvalidItemByStatus(items, communicationStatus.Pending);
   }
 
   private checkInvalidItemByStatus(items: CommunicationDocument[], validStatus: communicationStatus) {
