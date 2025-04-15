@@ -11,7 +11,7 @@ import { Communication, CommunicationDocument, communicationStatus } from '../co
 
 @Injectable()
 export class SchedulerService {
-  private readonly autoRejectDays = this.configService.get<number>('AUTO_REJECT_DAYS');
+  private readonly AUTO_REJECT_DAYS = this.configService.get<number>('AUTO_REJECT_DAYS');
 
   constructor(
     @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
@@ -20,7 +20,7 @@ export class SchedulerService {
 
   @Cron('0 3 * * 1-5')
   async autoRejectExpiredCommunications() {
-    const expirationDate = this.calculateBusinessDaysDeadline(this.autoRejectDays);
+    const expirationDate = this.calculateBusinessDaysDeadline(this.AUTO_REJECT_DAYS);
     await this.communicationModel.updateMany(
       { status: communicationStatus.Pending, sentDate: { $lte: expirationDate } },
       { $set: { status: communicationStatus.AutoRejected } },

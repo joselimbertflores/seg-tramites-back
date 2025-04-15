@@ -1,74 +1,72 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+
 import mongoose, { ClientSession, FilterQuery, Model } from 'mongoose';
 
-import { Account } from 'src/modules/administration/schemas';
 import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
+import { Account } from 'src/modules/administration/schemas';
 
-import { ArchiveDocument, FolderDocument, Folder, Archive, Communication, communicationStatus } from '../schemas';
+import {
+  Folder,
+  Archive,
+  Communication,
+  FolderDocument,
+  ArchiveDocument,
+  communicationStatus,
+  CommunicationDocument,
+} from '../schemas';
 import { CreateArchiveDto, FilterArchiveDto, SelectedArchivesDto } from '../dtos';
+import { InboxService } from './inbox.service';
 
-interface archiveCommunicationProps {
-  ids: string[];
-  description: string;
+interface buildArchiveInstanteProps {
+  item: CommunicationDocument;
   account: Account;
+  folderId?: string;
+  description: string;
+}
+
+interface archiveCommunicationsProps {
+  date: Date;
+  ids: string[];
+  account: Account;
+  description: string;
+  state: procedureState;
   session: ClientSession;
 }
 @Injectable()
 export class ArchiveService {
   constructor(
     @InjectConnection() private connection: mongoose.Connection,
-    @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
+    private inboxService: InboxService,
   ) {}
 
   async create(account: Account, archiveDto: CreateArchiveDto) {
+    const { ids, folderId, description, state } = archiveDto;
+
+    const date = new Date();
+
     const session = await this.connection.startSession();
+
     try {
       session.startTransaction();
 
-      const { communicationIds, folderId, description, state } = archiveDto;
+      const items = await this.archiveCommunications({ ids, session, description, state, account, date });
 
-      const communications = await this.archiveCommunications({ ids: communicationIds, account, description, session });
+      const models = items.map((item) => this.buildCommunicationInstance({ item, description, account, folderId }));
 
-      // * For old Schema, isOriginal is undefined
-      const originals = communications.filter(({ isOriginal }) => isOriginal !== false);
-
-      if (originals.length > 0) {
-        await this.procedureModel.updateMany(
-          { _id: originals.map(({ procedure }) => procedure.ref) },
-          { completedAt: new Date(), status: procedureStatus.COMPLETED, state },
-          { session },
-        );
-      }
-      const models = communications.map(({ _id, procedure: { ref }, isOriginal }) => {
-        return new this.archiveModel({
-          communication: _id,
-          dependency: account.dependencia,
-          institution: account.institution,
-          account: account,
-          folder: folderId,
-          officer: { fullname: account.officer.fullName, jobtitle: account.jobtitle },
-          procedure: {
-            ref: ref,
-            code: ref.code,
-            group: ref.group,
-            reference: ref.reference,
-          },
-          isOriginal,
-          description,
-        });
-      });
       await this.archiveModel.insertMany(models, { session });
+
       await session.commitTransaction();
-      return { message: `Comunicacion archivadas: ${communications.length}` };
+
+      return { message: `Archived communications: ${items.length}`, itemIds: items.map((item) => item.id) };
     } catch (error) {
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
-      throw new InternalServerErrorException(`Error archive`);
+      throw new InternalServerErrorException(`Error archive communications`);
     } finally {
       session.endSession();
     }
@@ -124,34 +122,6 @@ export class ArchiveService {
     return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
   }
 
-  private async archiveCommunications({ ids, session, description, account }: archiveCommunicationProps) {
-    const communications = await this.checkValidCommunications(ids, session);
-    await this.communicationModel.updateMany(
-      { _id: { $in: communications.map((item) => item._id) } },
-      {
-        status: communicationStatus.Archived,
-        actionLog: { fullname: account.officer.fullName, date: new Date(), description },
-      },
-      { session },
-    );
-    return communications;
-  }
-
-  private async checkValidCommunications(ids: string[], session: ClientSession) {
-    const communications = await this.communicationModel
-      .find({ _id: { $in: ids } }, null, { session })
-      .populate('procedure.ref', 'code group reference');
-
-    const foundIds = new Set(communications.map((item) => item.id));
-
-    const hasError = ids.find((id) => !foundIds.has(id));
-    if (hasError) throw new BadRequestException(`La communicacion ${hasError} no existe`);
-
-    const isInvalid = communications.find(({ status }) => status !== communicationStatus.Received);
-    if (isInvalid) throw new BadRequestException(`La comunicacion $${isInvalid.id} no esta recibida`);
-    return communications;
-  }
-
   private async getValidArchives(ids: string[], account: Account) {
     const archives = await this.archiveModel.find({ _id: { $in: ids } }).populate('communication');
 
@@ -168,5 +138,48 @@ export class ArchiveService {
       throw new BadRequestException(`No puede desarchivar tramites de otros funcionarios`);
     }
     return archives;
+  }
+
+  private async archiveCommunications({ ids, date, state, session, account, description }: archiveCommunicationsProps) {
+    const items = await this.inboxService.getValidatedCommunications(ids, account, communicationStatus.Received);
+    await this.communicationModel.updateMany(
+      { _id: { $in: items.map((item) => item._id) } },
+      {
+        status: communicationStatus.Archived,
+        actionLog: { fullname: account.officer.fullName, description, date },
+      },
+      { session },
+    );
+    // * For old Schema, isOriginal is undefined
+    const originals = items.filter((item) => item.isOriginal !== false);
+    const affectedProcedureIds = new Set(originals.map(({ procedure }) => String(procedure.ref._id)));
+
+    if (originals.length > 0) {
+      await this.procedureModel.updateMany(
+        { _id: [...affectedProcedureIds] },
+        { completedAt: date, status: procedureStatus.COMPLETED, state },
+        { session },
+      );
+    }
+    return items;
+  }
+
+  private buildCommunicationInstance({ item, account, description, folderId }: buildArchiveInstanteProps) {
+    return new this.archiveModel({
+      communication: item._id,
+      dependency: account.dependencia,
+      institution: account.institution,
+      account: account,
+      folder: folderId,
+      officer: { fullname: account.officer.fullName, jobtitle: account.jobtitle },
+      procedure: {
+        ref: item.procedure.ref,
+        code: item.procedure.code,
+        group: item.procedure.group,
+        reference: item.procedure.reference,
+      },
+      isOriginal: item.isOriginal,
+      description,
+    });
   }
 }

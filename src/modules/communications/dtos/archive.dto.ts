@@ -13,10 +13,10 @@ export class CreateArchiveDto {
 
   @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
   @IsMongoId({ each: true })
-  communicationIds: string[];
+  ids: string[];
 
   @IsIn([procedureState.CONCLUIDO, procedureState.SUSPENDIDO, procedureState.ANULADO])
-  state: string;
+  state: procedureState;
 }
 
 export class FilterArchiveDto extends PaginationDto {

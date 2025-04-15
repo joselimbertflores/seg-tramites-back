@@ -1,26 +1,21 @@
 import {
   Injectable,
-  HttpException,
+  NotFoundException,
   ForbiddenException,
   BadRequestException,
-  InternalServerErrorException,
-  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { InjectModel } from '@nestjs/mongoose';
 
-import { Connection, FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 
-import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
+import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
 import { Account } from 'src/modules/administration/schemas';
 
 @Injectable()
 export class InboxService {
-  constructor(
-    @InjectModel(Communication.name) private inboxModel: Model<CommunicationDocument>,
-    @InjectConnection() private connection: Connection,
-  ) {}
+  constructor(@InjectModel(Communication.name) private inboxModel: Model<CommunicationDocument>) {}
 
   async findAll(accountId: string, filterDto: FilterInboxDto) {
     const { limit, offset, isOriginal, status, term, group } = filterDto;
@@ -44,9 +39,7 @@ export class InboxService {
   async getOne(id: string, account: Account) {
     const communication = await this.inboxModel.findById(id);
     if (!communication) throw new BadRequestException(`Communication ${id} don't exist`);
-    if (account.id !== String(communication.recipient.account._id)) {
-      throw new ForbiddenException('Unauthorized to access this communication');
-    }
+    this.verifyRecipientAccess(communication, account);
     return communication;
   }
 
@@ -55,84 +48,72 @@ export class InboxService {
   }
 
   async accept(account: Account, { ids }: SelectedCommunicationsDto) {
-    const items = await this.getSelectedCommunications(ids, account);
+    const items = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
+
+    const itemIds = items.map((item) => item.id);
 
     const currentDate = new Date();
 
     await this.inboxModel.updateMany(
-      { _id: { $in: items.map((item) => item.id) } },
+      { _id: { $in: itemIds } },
       { status: communicationStatus.Received, receivedDate: currentDate },
     );
-    return {
-      receivedDate: currentDate,
-      items: items.map(({ _id }) => String(_id)),
-    };
+    return { date: currentDate, itemIds, message: `Received communications: ${itemIds.length}` };
   }
 
   async reject(account: Account, { description, ids }: RejectCommunicationDto) {
-    const items = await this.getSelectedCommunications(ids, account);
-
-    const validPendings = items.filter(
-      ({ sender, status }) => sender.account.officer && status === communicationStatus.Pending,
-    );
+    const items = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
 
     const currentDate = new Date();
 
+    const itemIds = items.map((item) => item.id);
+
     await this.inboxModel.updateMany(
-      { _id: { $in: validPendings.map(({ id }) => id) } },
+      { _id: { $in: itemIds } },
       {
         status: communicationStatus.Rejected,
         actionLog: { fullname: account.officer.fullName, date: currentDate, description },
         receivedDate: currentDate,
       },
     );
-    return {
-      success: validPendings.map(({ id }) => ({ id, date: currentDate })),
-      skipped: [
-        ...items
-          .filter((item) => item.status !== communicationStatus.Pending || !item.sender.account.officer)
-          .map(({ id, procedure, status }) => ({
-            id,
-            reason:
-              status !== 'pending'
-                ? `El estado del tramite ${procedure.code} es invalido`
-                : `El remitente del tramite ${procedure.code} ya no esta disponible`,
-          })),
-      ],
-    };
+    return { date: currentDate, ids: itemIds, message: `Rejected communications: ${ids.length}` };
   }
 
-  private async getSelectedCommunications(ids: string[], account: Account) {
-    const items = await this.inboxModel
+  async getValidatedCommunications(ids: string[], account: Account, expectedStatus: communicationStatus) {
+    const communications = await this.inboxModel
       .find({ _id: { $in: ids } })
       .populate({ path: 'sender.account', select: 'officer' });
 
-    const foundIds = new Set(items.map((item) => item.id));
+    const foundIds = new Set(communications.map((item) => item.id));
 
     const notFoundIds = ids.filter((id) => !foundIds.has(id));
 
     if (notFoundIds.length > 0) {
-      throw new NotFoundException({ message: 'Some elements dont exist', ids: notFoundIds });
+      throw new NotFoundException({ message: 'Some elements dont exist', notFoundIds });
     }
 
-    if (items.some(({ recipient }) => String(recipient.account._id) !== String(account._id))) {
-      throw new ForbiddenException('Unauthorized to access this communication');
-    }
+    communications.forEach((comm) => this.verifyRecipientAccess(comm, account));
 
-    return this.checkInvalidItemByStatus(items, communicationStatus.Pending);
+    return this.validateStatusOrThrow(communications, expectedStatus);
   }
 
-  private checkInvalidItemByStatus(items: CommunicationDocument[], validStatus: communicationStatus) {
-    const invalid = items.filter(({ status }) => status !== validStatus);
-    if (invalid.length > 0) {
+  private verifyRecipientAccess({ id, recipient }: CommunicationDocument, account: Account) {
+    if (String(account._id) !== String(recipient.account._id)) {
+      throw new ForbiddenException({ message: 'Unauthorized to access this communication', id });
+    }
+  }
+
+  private validateStatusOrThrow(communications: CommunicationDocument[], validStatus: communicationStatus) {
+    const invalidItems = communications
+      .filter(({ status }) => status !== validStatus)
+      .map(({ id, procedure: { code }, status }) => ({ id, status, code }));
+
+    if (invalidItems.length > 0) {
       throw new UnprocessableEntityException({
-        message: 'Algunos trámites no se pueden aceptar',
-        details: invalid.map(({ id, procedure }) => ({
-          id,
-          reason: `El estado del tramite ${procedure.code} es invalido`,
-        })),
+        message: `Some items do not have the expected status: ${validStatus}`,
+        invalidItems,
       });
     }
-    return items;
+    return communications;
   }
 }
