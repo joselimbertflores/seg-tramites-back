@@ -249,10 +249,10 @@ export class OutboxService {
       userCommunications: recipientAccounts.map(({ toUser, isOriginal, recipient }) => ({
         toUser,
         communication: this.buildCommunicationInstance({
+          isOriginal,
           recipient,
           procedure,
           sender,
-          isOriginal,
           ...props,
         }),
       })),
@@ -365,7 +365,7 @@ export class OutboxService {
     });
   }
 
-  private validateCommunicationType(communications: Communication[], isOriginal: boolean): void {
+  private validateCommunicationType(communications: Communication[], isOriginal: boolean | undefined): void {
     const originalsCount = communications.filter(({ isOriginal }) => isOriginal).length;
     const hasCopies = communications.length > 1;
 

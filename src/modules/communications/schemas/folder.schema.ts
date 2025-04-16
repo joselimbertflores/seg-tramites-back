@@ -7,6 +7,9 @@ export class Folder {
   @Prop({ type: String, required: true, trim: true })
   name: string;
 
+  @Prop({ type: String, trim: true })
+  managerName: string | null;
+
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: Dependency.name,

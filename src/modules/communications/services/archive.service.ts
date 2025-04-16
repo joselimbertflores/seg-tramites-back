@@ -21,7 +21,7 @@ import { InboxService } from './inbox.service';
 interface buildArchiveInstanteProps {
   item: CommunicationDocument;
   account: Account;
-  folderId?: string;
+  folder: Folder | null;
   description: string;
 }
 
@@ -44,8 +44,32 @@ export class ArchiveService {
     private inboxService: InboxService,
   ) {}
 
+  async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
+    const regex = new RegExp(term, 'i');
+    let folderDB: null | FolderDocument = null;
+    if (folder) {
+      folderDB = await this.folderModel.findById(folder, { name: 1 });
+      if (!folderDB) throw new BadRequestException(`La carpeta ${folder} no existe`);
+    }
+    const query: FilterQuery<Archive> = {
+      dependency: account.dependencia,
+      ...(folderDB && { folder: folderDB.id }),
+      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
+    };
+    const [archives, length] = await Promise.all([
+      this.archiveModel.find(query).limit(limit).skip(offset).sort({ createdAt: -1 }),
+      this.archiveModel.count(query),
+    ]);
+    return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
+  }
+
   async create(account: Account, archiveDto: CreateArchiveDto) {
     const { ids, folderId, description, state } = archiveDto;
+
+    const folder = folderId ? await this.folderModel.findById(folderId) : null;
+    if (folderId && !folder) {
+      throw new BadRequestException(`El folder ${folderId} no existe`);
+    }
 
     const date = new Date();
 
@@ -56,7 +80,7 @@ export class ArchiveService {
 
       const items = await this.archiveCommunications({ ids, session, description, state, account, date });
 
-      const models = items.map((item) => this.buildCommunicationInstance({ item, description, account, folderId }));
+      const models = items.map((item) => this.buildCommunicationInstance({ item, description, account, folder }));
 
       await this.archiveModel.insertMany(models, { session });
 
@@ -102,26 +126,6 @@ export class ArchiveService {
     }
   }
 
-  async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
-    const regex = new RegExp(term, 'i');
-    let folderDB: null | FolderDocument = null;
-    if (folder) {
-      folderDB = await this.folderModel.findById(folder, { name: 1 });
-      if (!folderDB) throw new BadRequestException(`La carpeta ${folder} no existe`);
-    }
-    const query: FilterQuery<Archive> = {
-      dependency: account.dependencia._id,
-      ...(folderDB && { folder: folderDB.id }),
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
-    };
-    console.log(query);
-    const [archives, length] = await Promise.all([
-      this.archiveModel.find(query).limit(limit).skip(offset).sort({ createdAt: -1 }),
-      this.archiveModel.count(query),
-    ]);
-    return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
-  }
-
   private async getValidArchives(ids: string[], account: Account) {
     const archives = await this.archiveModel.find({ _id: { $in: ids } }).populate('communication');
 
@@ -164,13 +168,13 @@ export class ArchiveService {
     return items;
   }
 
-  private buildCommunicationInstance({ item, account, description, folderId }: buildArchiveInstanteProps) {
+  private buildCommunicationInstance({ item, account, description, folder }: buildArchiveInstanteProps) {
     return new this.archiveModel({
       communication: item._id,
       dependency: account.dependencia,
       institution: account.institution,
       account: account,
-      folder: folderId,
+      folder: folder,
       officer: { fullname: account.officer.fullName, jobtitle: account.jobtitle },
       procedure: {
         ref: item.procedure.ref,

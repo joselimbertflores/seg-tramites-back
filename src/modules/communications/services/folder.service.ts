@@ -2,8 +2,8 @@ import { BadRequestException, Injectable, InternalServerErrorException } from '@
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { Account } from 'src/modules/administration/schemas';
 import { Archive, ArchiveDocument, Folder, FolderDocument } from '../schemas';
+import { Account } from 'src/modules/administration/schemas';
 import { CreateFolderDto } from '../dtos';
 
 @Injectable()
@@ -13,17 +13,21 @@ export class FolderService {
     @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
   ) {}
 
+  async findAll(account: Account) {
+    return await this.folderModel.find({ dependency: account.dependencia._id }).sort({ _id: -1 });
+  }
+
   async create(folderDto: CreateFolderDto, account: Account) {
     try {
-      return await this.folderModel.create({ ...folderDto, dependency: account.dependencia._id });
+      return await this.folderModel.create({
+        ...folderDto,
+        managerName: account.officer.fullName,
+        dependency: account.dependencia,
+      });
     } catch (error) {
       if (error['code'] === 11000) throw new BadRequestException('El nombre de la carpeta ya existe');
       throw new InternalServerErrorException();
     }
-  }
-
-  async findAll(account: Account) {
-    return await this.folderModel.find({ dependency: account.dependencia._id }).sort({ _id: -1 });
   }
 
   async delete(id: string) {

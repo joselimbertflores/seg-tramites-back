@@ -112,7 +112,7 @@ export class Communication {
   receivedDate?: Date;
 
   @Prop({ type: Boolean })
-  isOriginal: boolean;
+  isOriginal?: boolean;
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);
