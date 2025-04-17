@@ -113,6 +113,12 @@ export class Communication {
 
   @Prop({ type: Boolean })
   isOriginal?: boolean;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Communication.name,
+  })
+  parentId?: Communication;
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);

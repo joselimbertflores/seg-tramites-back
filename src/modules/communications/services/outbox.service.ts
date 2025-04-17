@@ -26,18 +26,25 @@ interface communicationProps {
   sentDate: Date;
   attachmentsCount: string;
   internalNumber: string;
-  isOriginal: boolean;
   reference: string;
+  isOriginal?: boolean;
+  parentId?: string;
 }
 
 interface userCommunicationModels {
-  recipients: RecipientDto[];
   sender: Account;
   sentDate: Date;
   procedureId: string;
   attachmentsCount: string;
-  internalNumber: string;
   reference: string;
+  internalNumber: string;
+  recipients: RecipientDto[];
+}
+interface createCommunicationModelsProps {
+  sender: Account;
+  communicationDto: CreateCommunicationDto;
+  parentId?: string;
+  newStructure: boolean;
 }
 @Injectable()
 export class OutboxService {
@@ -70,10 +77,10 @@ export class OutboxService {
     try {
       session.startTransaction();
 
-      const { procedure, userCommunications } = await this.generateRecipientCommunications({
-        sentDate: new Date(),
+      const { procedure, userCommunications } = await this.buildCommunications({
+        communicationDto,
         sender: account,
-        ...communicationDto,
+        newStructure: true,
       });
 
       if (procedure.state !== procedureState.INSCRITO) {
@@ -100,32 +107,28 @@ export class OutboxService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const communication = await this.outboxModel.findById(communicationId, null, { session });
-      if (!communication) throw new BadRequestException(`Communication ${communicationId} not found`);
+      const current = await this.outboxModel.findById(communicationId, null, { session });
+      if (!current) throw new BadRequestException(`Communication ${communicationId} not found`);
 
-      if (communication.status !== communicationStatus.Received) {
+      if (current.status !== communicationStatus.Received) {
         throw new BadRequestException('El envio actual no esta recibido');
       }
 
-      if (String(communication.recipient.account._id) !== String(account._id)) {
+      if (String(current.recipient.account._id) !== String(account._id)) {
         throw new BadRequestException(`Invalid communication: you are not the current recipient.`);
       }
-      const { userCommunications } = await this.generateRecipientCommunications({
-        sentDate: new Date(),
+      const { userCommunications } = await this.buildCommunications({
+        communicationDto: props,
         sender: account,
-        ...props,
+        newStructure: typeof current.isOriginal === 'boolean',
       });
 
       const communications = userCommunications.map(({ communication }) => communication);
-      this.validateCommunicationType(communications, communication.isOriginal);
+      this.validateCommunicationType(communications, current.isOriginal);
 
       await this.outboxModel.insertMany(communications, { session });
 
-      await this.outboxModel.updateOne(
-        { _id: communication._id },
-        { status: communicationStatus.Completed },
-        { session },
-      );
+      await this.outboxModel.updateOne({ _id: current._id }, { status: communicationStatus.Completed }, { session });
 
       await session.commitTransaction();
       return userCommunications;
@@ -145,11 +148,12 @@ export class OutboxService {
       throw new BadRequestException(`Communication:${communicationId} / sender:${account.id} not found`);
     }
 
-    const { userCommunications } = await this.generateRecipientCommunications({
-      sentDate: new Date(),
+    const { userCommunications } = await this.buildCommunications({
+      communicationDto: props,
       sender: account,
-      ...props,
+      newStructure: typeof current.isOriginal === 'boolean',
     });
+
     const communications = userCommunications.map(({ communication }) => communication);
 
     const { _id, isOriginal, status } = current;
@@ -235,25 +239,24 @@ export class OutboxService {
     }
   }
 
-  private async generateRecipientCommunications({
-    procedureId,
-    recipients,
-    sender,
-    ...props
-  }: userCommunicationModels) {
-    const procedure = await this.getValidProcedure(procedureId);
+  private async buildCommunications({ communicationDto, sender, newStructure, parentId }: createCommunicationModelsProps) {
+    const { procedureId, recipients, ...props } = communicationDto;
+    const procedure = await this.getValidProcedure(communicationDto.procedureId);
     const recipientAccounts = await this.validateAndRetrieveRecipients(sender, recipients, procedureId);
+    const sentDate = new Date();
 
     return {
       procedure,
       userCommunications: recipientAccounts.map(({ toUser, isOriginal, recipient }) => ({
         toUser,
         communication: this.buildCommunicationInstance({
-          isOriginal,
+          ...props,
           recipient,
           procedure,
+          sentDate,
           sender,
-          ...props,
+          parentId,
+          ...(newStructure && { isOriginal }),
         }),
       })),
     };
@@ -333,6 +336,7 @@ export class OutboxService {
 
   private buildCommunicationInstance({ sender, recipient, procedure, ...props }: communicationProps) {
     return new this.outboxModel({
+      ...props,
       sender: {
         account: sender._id,
         dependency: sender.dependencia,
@@ -353,7 +357,6 @@ export class OutboxService {
         group: procedure.group,
         reference: procedure.reference,
       },
-      ...props,
     });
   }
 
