@@ -12,6 +12,7 @@ export enum SystemResource {
 
   EXTERNAL = 'external',
   INTERNAL = 'internal',
+  PROCUREMENT = 'procurement',
 
   REPORTS = 'reports',
 

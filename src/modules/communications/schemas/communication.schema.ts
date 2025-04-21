@@ -118,9 +118,8 @@ export class Communication {
     type: mongoose.Schema.Types.ObjectId,
     ref: Communication.name,
   })
-  parentId?: Communication;
+  parentId?: CommunicationDocument;
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);
-
 export type CommunicationDocument = HydratedDocument<Communication>;

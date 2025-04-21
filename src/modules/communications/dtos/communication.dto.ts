@@ -41,15 +41,7 @@ export class CreateCommunicationDto {
   recipients: RecipientDto[];
 }
 
-export class ForwardCommunicationDto extends CreateCommunicationDto {
-  @IsMongoId()
-  communicationId: string;
-
-  @IsMongoId()
-  @IsOptional()
-  documentId?: string;
-}
-export class ResendCommunicationDto extends CreateCommunicationDto {
+export class ReplyCommunicationDto extends CreateCommunicationDto {
   @IsMongoId()
   communicationId: string;
 }

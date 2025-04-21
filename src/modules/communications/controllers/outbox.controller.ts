@@ -6,12 +6,7 @@ import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { OutboxService } from '../services';
-import {
-  CreateCommunicationDto,
-  ResendCommunicationDto,
-  ForwardCommunicationDto,
-  SelectedCommunicationsDto,
-} from '../dtos';
+import { CreateCommunicationDto, ReplyCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 @Controller('outbox')
 @onlyAssignedAccount()
@@ -31,14 +26,14 @@ export class OutboxController {
   }
 
   @Post('forward')
-  async forwardCommunication(@GetAccountRequest() account: Account, @Body() communication: ForwardCommunicationDto) {
+  async forwardCommunication(@GetAccountRequest() account: Account, @Body() communication: ReplyCommunicationDto) {
     const communications = await this.outboxService.forwardCommunication(account, communication);
     this.groupwareGateway.sentCommunications(communications);
     return communications.map(({ communication }) => communication);
   }
 
   @Post('resend')
-  async resendCommunication(@GetAccountRequest() account: Account, @Body() communication: ResendCommunicationDto) {
+  async resendCommunication(@GetAccountRequest() account: Account, @Body() communication: ReplyCommunicationDto) {
     const communications = await this.outboxService.resendCommunication(account, communication);
     this.groupwareGateway.sentCommunications(communications);
     return communications.map(({ communication }) => communication);

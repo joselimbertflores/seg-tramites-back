@@ -9,8 +9,8 @@ import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administrati
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { InboxService } from '../services';
 
-@Controller('inbox')
 @onlyAssignedAccount()
+@Controller('inbox')
 export class InboxController {
   constructor(
     private institutionService: InstitutionService,

@@ -12,9 +12,9 @@ import { ExternalService } from '../services';
 import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 
-@Controller('external')
-@ResourceProtected(SystemResource.EXTERNAL)
 @onlyAssignedAccount()
+@ResourceProtected(SystemResource.EXTERNAL)
+@Controller('external')
 export class ExternalController {
   constructor(
     private readonly externalService: ExternalService,

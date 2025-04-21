@@ -1,8 +1,16 @@
-import { Injectable, HttpException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  InternalServerErrorException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 
-import { ClientSession, Connection, FilterQuery, Model, mongo } from 'mongoose';
+import { ClientSession, Connection, Document, FilterQuery, Model, mongo } from 'mongoose';
 import { addDays, isWeekend } from 'date-fns';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
@@ -11,13 +19,7 @@ import { Account } from 'src/modules/administration/schemas';
 
 import { PaginationDto } from 'src/modules/common';
 import { EnvVars } from 'src/config';
-import {
-  RecipientDto,
-  CreateCommunicationDto,
-  ResendCommunicationDto,
-  ForwardCommunicationDto,
-  SelectedCommunicationsDto,
-} from '../dtos';
+import { RecipientDto, CreateCommunicationDto, ReplyCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 interface communicationProps {
   procedure: ProcedureDocument;
@@ -30,17 +32,7 @@ interface communicationProps {
   isOriginal?: boolean;
   parentId?: string;
 }
-
-interface userCommunicationModels {
-  sender: Account;
-  sentDate: Date;
-  procedureId: string;
-  attachmentsCount: string;
-  reference: string;
-  internalNumber: string;
-  recipients: RecipientDto[];
-}
-interface createCommunicationModelsProps {
+interface buildCommunicationsProps {
   sender: Account;
   communicationDto: CreateCommunicationDto;
   parentId?: string;
@@ -66,8 +58,8 @@ export class OutboxService {
       ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }),
     };
     const [communications, length] = await Promise.all([
-      this.outboxModel.find(query).skip(offset).limit(limit).sort({ sentDate: 'descending' }),
-      this.outboxModel.count(query),
+      this.outboxModel.find(query).lean().skip(offset).limit(limit).sort({ sentDate: 'descending' }),
+      this.outboxModel.countDocuments(query),
     ]);
     return { communications: communications.map((item) => this.plainCommunication(item)), length };
   }
@@ -103,7 +95,7 @@ export class OutboxService {
     }
   }
 
-  async forwardCommunication(account: Account, { communicationId, ...props }: ForwardCommunicationDto) {
+  async forwardCommunication(account: Account, { communicationId, ...props }: ReplyCommunicationDto) {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
@@ -120,6 +112,7 @@ export class OutboxService {
       const { userCommunications } = await this.buildCommunications({
         communicationDto: props,
         sender: account,
+        parentId: current._id.toString(),
         newStructure: typeof current.isOriginal === 'boolean',
       });
 
@@ -128,7 +121,7 @@ export class OutboxService {
 
       await this.outboxModel.insertMany(communications, { session });
 
-      await this.outboxModel.updateOne({ _id: current._id }, { status: communicationStatus.Completed }, { session });
+      await current.updateOne({ status: communicationStatus.Completed }, { session });
 
       await session.commitTransaction();
       return userCommunications;
@@ -141,46 +134,45 @@ export class OutboxService {
     }
   }
 
-  async resendCommunication(account: Account, { communicationId, ...props }: ResendCommunicationDto) {
+  async resendCommunication(account: Account, { communicationId, ...props }: ReplyCommunicationDto) {
     const current = await this.outboxModel.findOne({ _id: communicationId, 'sender.account': account._id });
 
     if (!current) {
-      throw new BadRequestException(`Communication:${communicationId} / sender:${account.id} not found`);
+      throw new NotFoundException(`Communication:${communicationId} / recipient:${account.id} not found`);
     }
 
     const { userCommunications } = await this.buildCommunications({
       communicationDto: props,
       sender: account,
+      parentId: current.parentId?._id.toString(),
       newStructure: typeof current.isOriginal === 'boolean',
     });
 
     const communications = userCommunications.map(({ communication }) => communication);
 
-    const { _id, isOriginal, status } = current;
-
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      switch (status) {
+      switch (current.status) {
         case communicationStatus.Rejected:
-          this.validateCommunicationType(communications, isOriginal);
-          await this.outboxModel.updateOne({ _id }, { status: communicationStatus.Forwarding }, { session });
+          this.validateCommunicationType(communications, current.isOriginal);
+          await current.updateOne({ status: communicationStatus.Forwarding }, { session });
           break;
 
         case communicationStatus.AutoRejected:
-          this.validateCommunicationType(communications, isOriginal);
-          await this.outboxModel.deleteOne({ _id }, { session });
+          this.validateCommunicationType(communications, current.isOriginal);
+          await current.deleteOne({ session });
           break;
 
         case communicationStatus.Pending:
-          if (!isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
+          if (!current.isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
           if (communications.some(({ isOriginal }) => isOriginal)) {
             throw new BadRequestException('The original procedure has already been sent.');
           }
           break;
 
         default:
-          throw new BadRequestException('This communication cannot be resend.');
+          throw new ConflictException('This communication cannot be resend.');
       }
       await this.outboxModel.insertMany(communications, { session });
 
@@ -191,7 +183,6 @@ export class OutboxService {
         communication: this.plainCommunication(communication),
       }));
     } catch (error) {
-      if (session.inTransaction()) await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException();
     } finally {
@@ -200,13 +191,7 @@ export class OutboxService {
   }
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
-    const selectedItems = await this.outboxModel
-      .find({ _id: { $in: ids }, 'sender.account': account._id })
-      .populate('recipient.account');
-
-    if (selectedItems.some(({ status }) => status !== communicationStatus.Pending)) {
-      throw new BadRequestException('Solo puede cancelar envios que no hayan sido recibidos, rechazados o expirados');
-    }
+    const selectedItems = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
 
     const session = await this.connection.startSession();
     try {
@@ -239,7 +224,7 @@ export class OutboxService {
     }
   }
 
-  private async buildCommunications({ communicationDto, sender, newStructure, parentId }: createCommunicationModelsProps) {
+  private async buildCommunications({ communicationDto, sender, newStructure, parentId }: buildCommunicationsProps) {
     const { procedureId, recipients, ...props } = communicationDto;
     const procedure = await this.getValidProcedure(communicationDto.procedureId);
     const recipientAccounts = await this.validateAndRetrieveRecipients(sender, recipients, procedureId);
@@ -264,7 +249,7 @@ export class OutboxService {
 
   private async getValidProcedure(id: string) {
     const procedure = await this.procedureModel.findById(id);
-    if (!procedure) throw new BadRequestException(`Procedure ${id} don't exist`);
+    if (!procedure) throw new NotFoundException(`Procedure ${id} not found`);
     return procedure;
   }
 
@@ -310,8 +295,8 @@ export class OutboxService {
         'recipient.account': sender._id,
         status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
       })
-      .sort({ _id: -1 }) // Tomar el más reciente
-      .lean(); // Reducir la carga de MongoDB
+      .sort({ _id: -1 })
+      .lean();
 
     const updates: mongo.AnyBulkWriteOperation[] = lastStages.map((stage) => ({
       updateOne: {
@@ -368,22 +353,10 @@ export class OutboxService {
     });
   }
 
-  private validateCommunicationType(communications: Communication[], isOriginal: boolean | undefined): void {
-    const originalsCount = communications.filter(({ isOriginal }) => isOriginal).length;
-    const hasCopies = communications.length > 1;
-
-    if (isOriginal && originalsCount !== 1) {
-      throw new BadRequestException('Los envíos deben contener 1 trámite original');
-    }
-
-    if (!isOriginal && (hasCopies || originalsCount >= 1)) {
-      throw new BadRequestException('Solo se puede enviar una copia de otra copia');
-    }
-  }
-
   private plainCommunication(item: CommunicationDocument) {
+    const plainObject = item instanceof Document ? item.toObject() : item;
     return {
-      ...item.toObject(),
+      ...plainObject,
       ...(item.status === communicationStatus.Pending && { remainingTime: this.getRemaininginTime(item) }),
     };
   }
@@ -396,5 +369,60 @@ export class OutboxService {
       if (!isWeekend(expirationDate)) remainingDays--;
     }
     return Math.max(0, expirationDate.getTime() - new Date().getTime());
+  }
+
+  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: communicationStatus) {
+    const communications = await this.outboxModel
+      .find({ _id: { $in: ids }, 'sender.account': account._id })
+      .populate('recipient.account', 'user');
+
+    const foundIds = new Set(communications.map((item) => item.id));
+
+    const notFoundIds = ids.filter((id) => !foundIds.has(id));
+
+    if (notFoundIds.length > 0) {
+      throw new NotFoundException({ message: `Some elements with sender ${account.id} dont exist`, notFoundIds });
+    }
+
+    return this.validateStatusOrThrow(communications, expectedStatus);
+  }
+
+  private validateStatusOrThrow(communications: CommunicationDocument[], validStatus: communicationStatus) {
+    const invalidItems = communications
+      .filter(({ status }) => status !== validStatus)
+      .map(({ id, procedure: { code }, status }) => ({ id, status, code }));
+
+    if (invalidItems.length > 0) {
+      throw new UnprocessableEntityException({
+        message: `Some items do not have the expected status: ${validStatus}`,
+        invalidItems,
+      });
+    }
+    return communications;
+  }
+
+  private validateCommunicationType(communications: Communication[], isOriginal: boolean | undefined): void {
+    if (isOriginal) {
+      this.validateOriginalCommunication(communications);
+    } else {
+      this.validateCopyCommunication(communications);
+    }
+  }
+
+  private validateOriginalCommunication(comms: Communication[]): void {
+    const originalsCount = comms.filter(({ isOriginal }) => isOriginal).length;
+    if (originalsCount !== 1) {
+      throw new BadRequestException('Los envíos deben contener 1 trámite original');
+    }
+  }
+
+  private validateCopyCommunication(comms: Communication[]): void {
+    const originalsCount = comms.filter(({ isOriginal }) => isOriginal).length;
+    if (originalsCount > 0) {
+      throw new BadRequestException('Solo se puede enviar una copia de otra copia');
+    }
+    if (comms.length !== 1) {
+      throw new BadRequestException('Solo se permite un destinatario para una copia');
+    }
   }
 }

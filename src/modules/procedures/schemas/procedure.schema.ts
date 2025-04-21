@@ -30,10 +30,12 @@ export class Procedure {
   @Prop({
     type: String,
     required: true,
+    uppercase: true,
+    trim: true,
   })
   code: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: true, uppercase: true, trim: true })
   prefix: string;
 
   @Prop({ type: Number, required: true })

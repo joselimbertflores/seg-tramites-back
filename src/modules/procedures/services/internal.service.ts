@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 
-import { Connection, FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
@@ -14,41 +14,26 @@ import { validProcedureService } from '../domain';
 export class InternalService implements validProcedureService {
   constructor(
     @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
-    @InjectConnection() private connection: Connection,
     private configService: ConfigService,
   ) {}
 
   async create(procedureDto: CreateInternalProcedureDto, account: Account) {
-    const session = await this.connection.startSession();
-    try {
-      session.startTransaction();
-      const { correlative, code, prefix } = await this.generateCode(account, 'HR');
-      const createdProcedure = new this.procedureModel({
-        account: account._id,
-        institution: account.institution,
-        dependency: account.dependencia,
-        code: code,
-        prefix,
-        correlative,
-        ...procedureDto,
-      });
-      const procedure = await createdProcedure.save({ session });
-      await session.commitTransaction();
-      return procedure;
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-      await session.abortTransaction();
-      throw new InternalServerErrorException();
-    } finally {
-      session.endSession();
-    }
+    const { correlative, code, prefix } = await this.generateCode(account);
+    const createdProcedure = new this.procedureModel({
+      account: account._id,
+      institution: account.institution,
+      dependency: account.dependencia,
+      code: code,
+      prefix,
+      correlative,
+      ...procedureDto,
+    });
+    return await createdProcedure.save();
   }
 
   async update(id: string, procedureDto: UpdateInternalProcedureDto) {
     const procedureDB = await this.procedureModel.findById(id);
-    if (!procedureDB) {
-      throw new NotFoundException('El tramite no existe');
-    }
+    if (!procedureDB) throw new NotFoundException(`Procedure ${id} not found`);
     if (procedureDB.state !== procedureState.INSCRITO) {
       throw new BadRequestException('El tramite ya esta en curso');
     }
@@ -63,20 +48,20 @@ export class InternalService implements validProcedureService {
       $or: [{ code: regex }, { reference: regex }],
     };
     const [procedures, length] = await Promise.all([
-      this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
-      this.procedureModel.count(query),
+      this.procedureModel.find(query).lean().sort({ _id: -1 }).limit(limit).skip(offset),
+      this.procedureModel.countDocuments(query),
     ]);
     return { procedures, length };
   }
 
-  async getDetail(procedureId: string): Promise<any> {
-    const procedureDB = await this.procedureModel.findById(procedureId).populate('account');
-    if (!procedureDB) throw new NotFoundException(`El tramite ${procedureId} no existe.`);
+  async getDetail(id: string): Promise<any> {
+    const procedureDB = await this.procedureModel.findById(id).populate('account');
+    if (!procedureDB) throw new NotFoundException(`Procedure ${id} not found`);
     return procedureDB;
   }
 
-  async generateCode(account: Account, segment: string) {
-    const prefix = `${segment}-${account.institution.sigla}`.toUpperCase();
+  async generateCode(account: Account) {
+    const prefix = `HR-${account.institution.sigla}`.trim().toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {

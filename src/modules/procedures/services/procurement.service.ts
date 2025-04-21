@@ -1,12 +1,12 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 
-import { Connection, FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 
 import { PaginationDto } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
-import { procedureStatus, ProcurementProcedure } from '../schemas';
+import { InternalProcedure, InternalProcedureDocument, procedureStatus, ProcurementProcedure } from '../schemas';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
 import { validProcedureService } from '../domain';
 
@@ -14,7 +14,7 @@ import { validProcedureService } from '../domain';
 export class ProcurementService implements validProcedureService {
   constructor(
     @InjectModel(ProcurementProcedure.name) private procedureModel: Model<ProcurementProcedure>,
-    @InjectConnection() private connection: Connection,
+    @InjectModel(InternalProcedure.name) private internalProcedureModel: Model<InternalProcedureDocument>,
     private configService: ConfigService,
   ) {}
 
@@ -26,43 +26,30 @@ export class ProcurementService implements validProcedureService {
       $or: [{ code: regex }, { reference: regex }],
     };
     const [procedures, length] = await Promise.all([
-      this.procedureModel.find(query).sort({ _id: -1 }).limit(limit).skip(offset).lean(),
-      this.procedureModel.count(query),
+      this.procedureModel.find(query).lean().sort({ _id: -1 }).limit(limit).skip(offset),
+      this.procedureModel.countDocuments(query),
     ]);
     return { procedures, length };
   }
 
-  async create({ ...props }: CreateProcurementProcedureDto, account: Account) {
-    const session = await this.connection.startSession();
-    try {
-      session.startTransaction();
-      const { correlative, code, prefix } = await this.generateCode(account);
-      const createdProcedure = new this.procedureModel({
-        account: account._id,
-        institution: account.institution,
-        dependency: account.dependencia,
-        code: code,
-        prefix,
-        correlative,
-        ...props,
-      });
-      const procedure = await createdProcedure.save({ session });
-      await session.commitTransaction();
-      return procedure;
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-      await session.abortTransaction();
-      throw new InternalServerErrorException();
-    } finally {
-      session.endSession();
-    }
+  async create(procedureDto: CreateProcurementProcedureDto, account: Account) {
+    const { correlative, code, prefix } = await this.generateCode(account);
+    const createdProcedure = new this.procedureModel({
+      account: account._id,
+      institution: account.institution,
+      dependency: account.dependencia,
+      code: code,
+      prefix,
+      correlative,
+      ...procedureDto,
+    });
+    return await createdProcedure.save();
   }
 
   async update(id: string, procedureDto: UpdateProcurementProcedureDto) {
     const procedureDB = await this.procedureModel.findById(id);
-    if (!procedureDB) throw new NotFoundException(`Procedure ${id} dont exist`);
-    const s= await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
-    return s
+    if (!procedureDB) throw new NotFoundException(`Procedure ${id} not found`);
+    return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
   async updateDocuments(id: string, { index, properties }: UpdatedDocumentProcurementDto) {
@@ -76,15 +63,15 @@ export class ProcurementService implements validProcedureService {
     return procedure.documents[index];
   }
 
-  async getDetail(procedureId: string) {
-    const procedureDB = await this.procedureModel.findById(procedureId).populate('account');
-    if (!procedureDB) throw new NotFoundException(`El tramite ${procedureId} no existe.`);
+  async getDetail(id: string) {
+    const procedureDB = await this.procedureModel.findById(id).populate('account');
+    if (!procedureDB) throw new NotFoundException(`Procedure ${id} not found`);
     return procedureDB;
   }
 
-  private async generateCode(account: Account): Promise<{ code: string; prefix: string; correlative: number }> {
-    const prefix = `HR-${account.institution.sigla}`.toUpperCase();
-    const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
+  private async generateCode(account: Account) {
+    const prefix = `HR-${account.institution.sigla}`.trim().toUpperCase();
+    const last = await this.internalProcedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {
       prefix,

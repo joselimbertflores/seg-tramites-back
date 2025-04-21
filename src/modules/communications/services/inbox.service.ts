@@ -1,21 +1,27 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { FilterQuery, Model } from 'mongoose';
+import { ClientSession, FilterQuery, Model } from 'mongoose';
 
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
+import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
 
+interface archiveCommunicationsProps {
+  date: Date;
+  ids: string[];
+  account: Account;
+  description: string;
+  state: procedureState;
+  session: ClientSession;
+}
 @Injectable()
 export class InboxService {
-  constructor(@InjectModel(Communication.name) private inboxModel: Model<CommunicationDocument>) {}
+  constructor(
+    @InjectModel(Communication.name) private inboxModel: Model<CommunicationDocument>,
+    @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
+  ) {}
 
   async findAll(accountId: string, filterDto: FilterInboxDto) {
     const { limit, offset, isOriginal, status, term, group } = filterDto;
@@ -30,21 +36,23 @@ export class InboxService {
       }),
     };
     const [communications, length] = await Promise.all([
-      this.inboxModel.find(filterQuery).limit(limit).skip(offset).sort({ sentDate: -1 }),
+      this.inboxModel.find(filterQuery).lean().limit(limit).skip(offset).sort({ sentDate: 'desc' }),
       this.inboxModel.countDocuments(filterQuery),
     ]);
     return { communications, length };
   }
 
   async getOne(id: string, account: Account) {
-    const communication = await this.inboxModel.findById(id);
-    if (!communication) throw new BadRequestException(`Communication ${id} don't exist`);
-    this.verifyRecipientAccess(communication, account);
+    const communication = await this.inboxModel.findById(id).lean();
+    if (!communication) throw new NotFoundException(`Communication ${id} not found`);
+    if (String(account._id) !== String(communication.recipient.account._id)) {
+      throw new ForbiddenException({ message: 'Unauthorized to access this communication', id });
+    }
     return communication;
   }
 
   async getWorkflow(procedureId: string) {
-    return await this.inboxModel.find({ 'procedure.ref': procedureId });
+    return await this.inboxModel.find({ 'procedure.ref': procedureId }).lean();
   }
 
   async accept(account: Account, { ids }: SelectedCommunicationsDto) {
@@ -79,9 +87,33 @@ export class InboxService {
     return { date: currentDate, ids: itemIds, message: `Rejected communications: ${ids.length}` };
   }
 
-  async getValidatedCommunications(ids: string[], account: Account, expectedStatus: communicationStatus) {
+  async archive({ ids, date, state, account, description, session }: archiveCommunicationsProps) {
+    const items = await this.getValidatedCommunications(ids, account, communicationStatus.Received);
+    await this.inboxModel.updateMany(
+      { _id: { $in: items.map((item) => item._id) } },
+      {
+        status: communicationStatus.Archived,
+        actionLog: { fullname: account.officer.fullName, description, date },
+      },
+      { session },
+    );
+    // * For old Schema, isOriginal is undefined
+    const originals = items.filter((item) => item.isOriginal !== false);
+    const affectedProcedureIds = new Set(originals.map(({ procedure }) => String(procedure.ref._id)));
+
+    if (affectedProcedureIds.keys.length > 0) {
+      await this.procedureModel.updateMany(
+        { _id: [...affectedProcedureIds] },
+        { completedAt: date, status: procedureStatus.COMPLETED, state },
+        { session },
+      );
+    }
+    return items;
+  }
+
+  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: communicationStatus) {
     const communications = await this.inboxModel
-      .find({ _id: { $in: ids } })
+      .find({ _id: { $in: ids }, 'recipient.account': account._id })
       .populate({ path: 'sender.account', select: 'officer' });
 
     const foundIds = new Set(communications.map((item) => item.id));
@@ -89,18 +121,10 @@ export class InboxService {
     const notFoundIds = ids.filter((id) => !foundIds.has(id));
 
     if (notFoundIds.length > 0) {
-      throw new NotFoundException({ message: 'Some elements dont exist', notFoundIds });
+      throw new NotFoundException({ message: `Some elements with recipient ${account._id} not found`, notFoundIds });
     }
-
-    communications.forEach((comm) => this.verifyRecipientAccess(comm, account));
 
     return this.validateStatusOrThrow(communications, expectedStatus);
-  }
-
-  private verifyRecipientAccess({ id, recipient }: CommunicationDocument, account: Account) {
-    if (String(account._id) !== String(recipient.account._id)) {
-      throw new ForbiddenException({ message: 'Unauthorized to access this communication', id });
-    }
   }
 
   private validateStatusOrThrow(communications: CommunicationDocument[], validStatus: communicationStatus) {

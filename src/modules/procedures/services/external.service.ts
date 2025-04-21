@@ -25,8 +25,8 @@ export class ExternalService implements validProcedureService {
       ...(term && { $or: [{ code: regex }, { reference: regex }] }),
     };
     const [procedures, length] = await Promise.all([
-      this.procedureModel.find(query).populate('account').sort({ _id: -1 }).limit(limit).skip(offset),
-      this.procedureModel.count(query),
+      this.procedureModel.find(query).lean().populate('account').sort({ _id: -1 }).limit(limit).skip(offset),
+      this.procedureModel.countDocuments(query),
     ]);
     return { procedures, length };
   }
@@ -49,23 +49,21 @@ export class ExternalService implements validProcedureService {
 
   async update(id: string, procedureDto: UpdateExternalProcedureDto) {
     const procedureDB = await this.procedureModel.findById(id);
-    if (!procedureDB) {
-      throw new NotFoundException('El tramite no existe');
-    }
+    if (!procedureDB) throw new NotFoundException(`Procedure ${id} not found`);
     if (procedureDB.state !== procedureState.INSCRITO) {
       throw new BadRequestException('El tramite ya esta en curso');
     }
     return await this.procedureModel.findByIdAndUpdate(id, procedureDto, { new: true });
   }
 
-  async getDetail(procedureId: string) {
-    const procedure = await this.procedureModel.findById(procedureId).populate('type', "nombre");
-    if (!procedure) throw new BadRequestException(`Procedure ${procedureId} dont exist`);
+  async getDetail(id: string) {
+    const procedure = await this.procedureModel.findById(id).populate('type', 'nombre');
+    if (!procedure) throw new NotFoundException(`Procedure ${id} not found`);
     return procedure;
   }
 
   private async generateCode(account: Account, segment: string) {
-    const prefix = `${segment}-${account.institution.sigla}`.toUpperCase();
+    const prefix = `${segment}-${account.institution.sigla}`.trim().toUpperCase();
     const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
     const correlative = last ? last.correlative + 1 : 1;
     return {
