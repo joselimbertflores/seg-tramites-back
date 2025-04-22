@@ -14,8 +14,8 @@ export class ReportsService {
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
     @InjectModel(Procedure.name) private procedureModel: Model<ProcedureDocument>,
     @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>,
-    // @InjectModel(Communication.name) private communicationModel: Model<Communication>,
-  ) { }
+  ) // @InjectModel(Communication.name) private communicationModel: Model<Communication>,
+  {}
 
   async searchProcedureByProperties({ limit, offset }: PaginationDto, dto: SearchProcedureDto) {
     const { start, end, ...values } = dto;
@@ -30,7 +30,7 @@ export class ReportsService {
     if (Object.keys(interval).length > 0) query.push({ createdAt: interval });
     const [procedures, length] = await Promise.all([
       this.procedureModel.find({ $and: query }).lean().limit(limit).skip(offset),
-      this.procedureModel.count({ $and: query }),
+      this.procedureModel.countDocuments({ $and: query }),
     ]);
     return { procedures, length };
   }
@@ -44,12 +44,10 @@ export class ReportsService {
     if (query.length === 0) throw new BadRequestException('No se ingreso ningun parametro');
     const [procedures, length] = await Promise.all([
       this.externalModel.find(query).lean().limit(limit).skip(offset),
-      this.externalModel.count(query),
+      this.externalModel.countDocuments(query),
     ]);
     return { procedures, length };
   }
-
-
 
   async getUnlinkData(account: Account) {
     // await account.populate([

@@ -135,7 +135,9 @@ export class ArchiveService {
 
   private async getValidatedArchive(id: string, account: Account) {
     const archive = await this.archiveModel.findById(id).populate('communication');
-    if (!archive || !archive?.communication) throw new NotFoundException(`Archive ${id} not found`);
+    if (!archive || !archive?.communication) {
+      throw new NotFoundException(`Archive ${id} not found, check if communication and archive exist`);
+    }
 
     if (String(archive.dependency._id) !== String(account.dependencia._id)) {
       throw new ForbiddenException(`Archive not belonging to this dependency`);

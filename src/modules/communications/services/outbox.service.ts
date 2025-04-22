@@ -191,29 +191,29 @@ export class OutboxService {
   }
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
-    const selectedItems = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
+    const communications = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
 
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const selectedItemsIds = selectedItems.map(({ _id }) => _id);
+      const communicationIds = communications.map(({ _id }) => _id);
 
-      await this.outboxModel.deleteMany({ _id: { $in: selectedItemsIds } }, { session });
+      await this.outboxModel.deleteMany({ _id: { $in: communicationIds } }, { session });
 
       // * For old communications, with idOriginal as undefined
-      const originals = selectedItems.filter((item) => item.isOriginal !== false);
+      const originals = communications.filter((item) => item.isOriginal !== false);
 
       await this.restoreStages(originals, account, session);
 
       await session.commitTransaction();
 
       return {
-        items: selectedItems.map(({ id, recipient }) => ({
+        items: communications.map(({ id, recipient }) => ({
           toUser: String(recipient.account.user._id),
           communicationId: id,
         })),
-        message: `Total de envios cancelados: ${selectedItemsIds.length}`,
-        ids: selectedItemsIds,
+        message: `Total de envios cancelados: ${communicationIds.length}`,
+        ids: communicationIds,
       };
     } catch (error) {
       await session.abortTransaction();
@@ -295,7 +295,7 @@ export class OutboxService {
         'recipient.account': sender._id,
         status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
       })
-      .sort({ _id: -1 })
+      .sort({ _id: 'desc' })
       .lean();
 
     const updates: mongo.AnyBulkWriteOperation[] = lastStages.map((stage) => ({

@@ -99,11 +99,11 @@ export class InboxService {
     );
     // * For old Schema, isOriginal is undefined
     const originals = items.filter((item) => item.isOriginal !== false);
-    const affectedProcedureIds = new Set(originals.map(({ procedure }) => String(procedure.ref._id)));
+    const affectedProcedureIds = [...new Set(originals.map(({ procedure }) => String(procedure.ref._id)))];
 
-    if (affectedProcedureIds.keys.length > 0) {
+    if (affectedProcedureIds.length > 0) {
       await this.procedureModel.updateMany(
-        { _id: [...affectedProcedureIds] },
+        { _id: { $in: affectedProcedureIds } },
         { completedAt: date, status: procedureStatus.COMPLETED, state },
         { session },
       );
