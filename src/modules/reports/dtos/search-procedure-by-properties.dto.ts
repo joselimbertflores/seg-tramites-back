@@ -33,6 +33,5 @@ export class SearchProcedureDto {
   end?: Date;
 
   @IsEnum(procedureGroup)
-  @IsOptional()
-  group?: procedureGroup;
+  group: procedureGroup;
 }

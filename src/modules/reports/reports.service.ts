@@ -13,9 +13,8 @@ export class ReportsService {
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
     @InjectModel(Procedure.name) private procedureModel: Model<ProcedureDocument>,
-    @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>,
-  ) // @InjectModel(Communication.name) private communicationModel: Model<Communication>,
-  {}
+    @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>, // @InjectModel(Communication.name) private communicationModel: Model<Communication>,
+  ) {}
 
   async searchProcedureByProperties({ limit, offset }: PaginationDto, dto: SearchProcedureDto) {
     const { start, end, ...values } = dto;
@@ -23,11 +22,13 @@ export class ReportsService {
       if (key === 'code' || key === 'reference') return { [key]: new RegExp(value, 'i') };
       return { [key]: value };
     });
-    const interval = {
-      ...(start && { $gte: start }),
-      ...(end && { $lte: end }),
-    };
+    const interval = { ...(start && { $gte: start }), ...(end && { $lte: end }) };
     if (Object.keys(interval).length > 0) query.push({ createdAt: interval });
+
+    if (query.length < 2) {
+      throw new BadRequestException('Debe proporcionar al menos 2 criterios de búsqueda.');
+    }
+    
     const [procedures, length] = await Promise.all([
       this.procedureModel.find({ $and: query }).lean().limit(limit).skip(offset),
       this.procedureModel.countDocuments({ $and: query }),
