@@ -1,4 +1,4 @@
-import { reportType } from "src/modules/reports/report-types.enum";
+import { reportType } from 'src/modules/reports/report-types.enum';
 
 export enum SystemResource {
   USERS = 'user',
@@ -107,6 +107,26 @@ export const SYSTEM_RESOURCES = [
     value: SystemResource.archived,
 
     label: 'ARCHIVOS',
+    actions: [
+      { value: 'create', label: 'Crear' },
+      { value: 'read', label: 'Ver' },
+      { value: 'update', label: 'Editar' },
+      { value: 'delete', label: 'Eliminar' },
+    ],
+  },
+  {
+    value: SystemResource.EXTERNAL,
+    label: 'TRAMITES EXTERNOS',
+    actions: [
+      { value: 'create', label: 'Crear' },
+      { value: 'read', label: 'Ver' },
+      { value: 'update', label: 'Editar' },
+      { value: 'delete', label: 'Eliminar' },
+    ],
+  },
+  {
+    value: SystemResource.INTERNAL,
+    label: 'TRAMITES INTERNOS',
     actions: [
       { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },

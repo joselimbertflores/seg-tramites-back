@@ -18,11 +18,11 @@ export class ReportsController {
     private typeProcedureService: TypeProcedureService,
     private institutionService: InstitutionService,
     private dependencyService: DependencieService,
-  ) { }
+  ) {}
 
-  @Get('types-procedures/:term')
-  getTypeProceduresByText(@Param('term') term: string, @Query('type') type: string | undefined) {
-    return this.typeProcedureService.getTypesByText(term, type, true);
+  @Get('types-procedures')
+  getTypeProceduresByText(@Query('term') term: string) {
+    return this.typeProcedureService.getTypesByText(term);
   }
 
   @Get('institutions')
@@ -37,23 +37,15 @@ export class ReportsController {
 
   @RequirePermissions(SystemResource.REPORTS, [reportType.SEARCH])
   @Post('procedure')
-  searchProcedureByProperties(
-    @Body() body: SearchProcedureDto,
-    @Query() queryParams: PaginationDto,
-  ) {
+  searchProcedureByProperties(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
     return this.reportsService.searchProcedureByProperties(queryParams, body);
   }
 
   @RequirePermissions(SystemResource.REPORTS, [reportType.APPLICANT])
   @Post('applicant')
-  searchProcedureByApplicant(
-    @Body() body: SearchProcedureByApplicantDto,
-    @Query() queryParams: PaginationDto,
-  ) {
+  searchProcedureByApplicant(@Body() body: SearchProcedureByApplicantDto, @Query() queryParams: PaginationDto) {
     return this.reportsService.searchProcedureByApplicant(body, queryParams);
   }
-
-
 
   @Get('unlink')
   getAccountInbox(@GetAccountRequest() account: Account) {

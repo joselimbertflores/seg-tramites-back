@@ -1,26 +1,35 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNotEmpty, IsNotEmptyObject, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsIn,
+  IsMongoId,
+  IsNotEmpty,
+  IsNotEmptyObject,
+  IsObject,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 class ApplicantProps {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  nombre?: string;
+  firstname?: string;
 
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  paterno?: string;
+  middlename?: string;
 
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  materno?: string;
+  lastname?: string;
 
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  telefono?: string;
+  phone?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -30,7 +39,7 @@ class ApplicantProps {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  tipo?: string;
+  type?: string;
 }
 
 export class SearchProcedureByApplicantDto {
@@ -42,4 +51,8 @@ export class SearchProcedureByApplicantDto {
   @ValidateNested()
   @Type(() => ApplicantProps)
   properties: ApplicantProps;
+
+  @IsMongoId()
+  @IsOptional()
+  typeProcedure?: string;
 }

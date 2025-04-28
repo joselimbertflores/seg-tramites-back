@@ -5,19 +5,19 @@ import { Account, Dependency, Institution, Officer, TypeProcedure } from 'src/mo
 import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
 
 abstract class Person {
-  @Prop()
+  @Prop({ trim: true, uppercase: true })
   firstname: string;
 
-  @Prop()
+  @Prop({ trim: true, uppercase: true })
   middlename: string;
 
-  @Prop()
+  @Prop({ trim: true, uppercase: true })
   lastname: string;
 
   @Prop()
   phone: string;
 
-  @Prop()
+  @Prop({ trim: true })
   dni: string;
 }
 

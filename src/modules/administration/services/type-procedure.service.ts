@@ -17,12 +17,7 @@ export class TypeProcedureService {
       ...(term && { nombre: new RegExp(term, 'i') }),
     };
     const [types, length] = await Promise.all([
-      this.typeProcedureModel
-        .find(query)
-        .lean()
-        .skip(offset)
-        .limit(limit)
-        .sort({ _id: -1 }),
+      this.typeProcedureModel.find(query).lean().skip(offset).limit(limit).sort({ _id: -1 }),
       this.typeProcedureModel.count(query),
     ]);
     return { types, length };
@@ -39,10 +34,7 @@ export class TypeProcedureService {
     });
   }
 
-  async getEnabledTypesBySegment(
-    segment: string,
-    type?: 'INTERNO' | 'EXTERNO',
-  ) {
+  async getEnabledTypesBySegment(segment: string, type?: 'INTERNO' | 'EXTERNO') {
     return await this.typeProcedureModel
       .find({
         segmento: segment.toUpperCase(),
@@ -53,17 +45,13 @@ export class TypeProcedureService {
   }
 
   async getEnabledTypesByGroup(group: string) {
-    return await this.typeProcedureModel
-      .find({ activo: true, tipo: group })
-      .lean()
-      .limit(10);
+    return await this.typeProcedureModel.find({ activo: true, tipo: group }).lean().limit(10);
   }
 
-  async getTypesByText(term: string, type?: string, all = false) {
+  async getTypesByText(term?: string, all = false) {
     return await this.typeProcedureModel
       .find({
-        nombre: new RegExp(term, 'i'),
-        ...(type ? { tipo: type } : {}),
+        ...(term && { nombre: new RegExp(term, 'i') }),
         ...(!all ? { activo: true } : {}),
       })
       .lean()
@@ -71,8 +59,6 @@ export class TypeProcedureService {
   }
 
   public async getSegments(type?: 'EXTERNO' | 'INTERNO'): Promise<string[]> {
-    return await this.typeProcedureModel
-      .find(type ? { tipo: type } : {})
-      .distinct('segmento');
+    return await this.typeProcedureModel.find(type ? { tipo: type } : {}).distinct('segmento');
   }
 }

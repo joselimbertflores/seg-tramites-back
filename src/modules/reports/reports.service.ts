@@ -26,9 +26,9 @@ export class ReportsService {
     if (Object.keys(interval).length > 0) query.push({ createdAt: interval });
 
     if (query.length < 2) {
-      throw new BadRequestException('Debe proporcionar al menos 2 criterios de búsqueda.');
+      throw new BadRequestException('Debe proporcionar al menos 2 campos para realizar la búsqueda.');
     }
-    
+
     const [procedures, length] = await Promise.all([
       this.procedureModel.find({ $and: query }).lean().limit(limit).skip(offset),
       this.procedureModel.countDocuments({ $and: query }),
@@ -36,16 +36,25 @@ export class ReportsService {
     return { procedures, length };
   }
 
-  async searchProcedureByApplicant(dto: SearchProcedureByApplicantDto, { limit, offset }: PaginationDto) {
-    const query: FilterQuery<ExternalProcedure> = Object.entries(dto).reduce((acc, [key, value]) => {
-      if (key === 'firstname') value = new RegExp(value, 'i');
-      acc[`${dto.by}.${key}`] = value;
-      return acc;
-    }, {});
-    if (query.length === 0) throw new BadRequestException('No se ingreso ningun parametro');
+  async searchProcedureByApplicant(
+    { by, typeProcedure, properties }: SearchProcedureByApplicantDto,
+    { limit, offset }: PaginationDto,
+  ) {
+    const query: mongoose.FilterQuery<ExternalProcedure>[] = [
+      // * aplicant props
+      ...Object.entries(properties).map(([key, value]) => {
+        if (key === 'firstname') return { [`${by}.${key}`]: new RegExp(value, 'i') };
+        if (key === 'middlename' || key === 'lastname') return { [`${by}.${key}`]: { $regex: value, $options: 'i' } };
+        return { [`${by}.${key}`]: value };
+      }),
+      ...(typeProcedure ? [{ type: typeProcedure }] : []),
+    ];
+    if (Object.keys(properties).length <= 1) {
+      throw new BadRequestException('Debe proporcionar al menos 1 campo para realizar la búsqueda.');
+    }
     const [procedures, length] = await Promise.all([
-      this.externalModel.find(query).lean().limit(limit).skip(offset),
-      this.externalModel.countDocuments(query),
+      this.externalModel.find({ $and: query }).lean().limit(limit).skip(offset),
+      this.externalModel.countDocuments({ $and: query }),
     ]);
     return { procedures, length };
   }

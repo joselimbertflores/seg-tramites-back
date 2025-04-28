@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { procedureGroup, procedureState } from 'src/modules/procedures/schemas';
 
 export class SearchProcedureDto {
@@ -23,12 +23,12 @@ export class SearchProcedureDto {
   reference?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsDate()
   @Type(() => Date)
   start?: Date;
 
   @IsOptional()
-  @IsDateString()
+  @IsDate()
   @Type(() => Date)
   end?: Date;
 
