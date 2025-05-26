@@ -37,7 +37,6 @@ export class AuthService {
   }
 
   async checkAuthStatus(user: UserDocument) {
-    console.log(user.role.permissions);
     return {
       token: this._generateToken(user),
       menu: this._getFrontMenu(user.role),

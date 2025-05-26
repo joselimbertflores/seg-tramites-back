@@ -52,7 +52,27 @@ export class InboxService {
   }
 
   async getWorkflow(procedureId: string) {
-    return await this.inboxModel.find({ 'procedure.ref': procedureId }).lean();
+    return await this.inboxModel
+      .find({ 'procedure.ref': procedureId })
+      .populate([
+        {
+          path: 'sender.dependency',
+          select: 'nombre',
+        },
+        {
+          path: 'sender.institution',
+          select: 'nombre',
+        },
+        {
+          path: 'recipient.dependency',
+          select: 'nombre',
+        },
+        {
+          path: 'recipient.institution',
+          select: 'nombre',
+        },
+      ])
+      .lean();
   }
 
   async accept(account: Account, { ids }: SelectedCommunicationsDto) {

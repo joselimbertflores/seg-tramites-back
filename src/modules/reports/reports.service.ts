@@ -40,6 +40,7 @@ export class ReportsService {
     { by, typeProcedure, properties }: SearchProcedureByApplicantDto,
     { limit, offset }: PaginationDto,
   ) {
+    console.log(typeProcedure);
     const query: mongoose.FilterQuery<ExternalProcedure>[] = [
       // * aplicant props
       ...Object.entries(properties).map(([key, value]) => {
