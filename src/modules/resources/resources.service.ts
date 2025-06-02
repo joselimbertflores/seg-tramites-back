@@ -3,8 +3,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 
 import { ResourceFile, ResourceFileDocument } from './schemas/resource.schema';
-import { CreateResourceFileDto } from './dto/resource-file.dto';
+import { CreateResourceFileDto } from './dtos/resource-file.dto';
 import { FilesService } from '../files/files.service';
+import { FileGroup } from '../files/file-group.enum';
 
 @Injectable()
 export class ResourcesService {
@@ -13,16 +14,39 @@ export class ResourcesService {
     private fileService: FilesService,
   ) {}
 
-  async findAll() {
-    const resources = await this.resourceFileModel.find({}).lean();
-    return resources.map((item) => this.plainResource(item));
+  async findAllGroupedByCategory() {
+    const grouped = await this.resourceFileModel.aggregate([
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $group: {
+          _id: '$category',
+          files: { $push: '$$ROOT' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          files: 1,
+        },
+      },
+    ]);
+    return grouped.map((group) => ({
+      category: group.category,
+      files: group.files.map((item: ResourceFileDocument) => this.plainResource(item)),
+    }));
   }
 
   async create({ category, items }: CreateResourceFileDto) {
     try {
       const createdResourceItems = items.map((item) => new this.resourceFileModel({ category, ...item }));
       await this.resourceFileModel.insertMany(createdResourceItems);
-      return createdResourceItems.map((item) => this.plainResource(item));
+      return {
+        category,
+        files: createdResourceItems.map((item) => this.plainResource(item)),
+      };
     } catch (error) {
       console.log(error);
     }
@@ -32,7 +56,7 @@ export class ResourcesService {
     const resource = await this.resourceFileModel.findById(id);
     if (!resource) throw new BadRequestException(`Resource ${id} not found`);
     await this.resourceFileModel.deleteOne({ id });
-    return { message: 'Resource removed' };
+    return { message: 'Resource removed', originalName: resource.originalName };
   }
 
   async getCategories() {
@@ -43,7 +67,7 @@ export class ResourcesService {
     const plain = resource instanceof Document ? resource.toObject() : resource;
     const { fileName, ...props } = plain;
     return {
-      attachments: this.fileService.buildFileUrl(fileName, 'post'),
+      fileName: this.fileService.buildFileUrl(fileName, FileGroup.RESOURCES),
       ...props,
     };
   }

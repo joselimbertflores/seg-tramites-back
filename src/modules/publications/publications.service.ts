@@ -7,6 +7,7 @@ import { CreatePublicationDto } from './dtos/post.dto';
 import { FilesService } from '../files/files.service';
 import { Publication, PublicationPriority } from './schemas/publication.schema';
 import { User } from '../users/schemas';
+import { FileGroup } from '../files/file-group.enum';
 
 
 @Injectable()
@@ -79,7 +80,7 @@ export class PublicationsService {
     return {
       attachments: attachments.map((file) => ({
         title: file.title,
-        filename: this.fileService.buildFileUrl(file.filename, 'post'),
+        filename: this.fileService.buildFileUrl(file.filename, FileGroup.POSTS),
       })),
       ...props,
     };

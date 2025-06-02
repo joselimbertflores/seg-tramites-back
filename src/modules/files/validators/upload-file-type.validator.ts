@@ -10,13 +10,11 @@ export class CustomUploadFileTypeValidator extends FileValidator {
     const fileTypeProps = parse(file.buffer);
     if (!fileTypeProps) return false;
     if (file.mimetype !== fileTypeProps.mime) return false;
-    const extension = fileTypeProps.mime.split('/')[1];
-    return this.validExtensions.includes(extension);
+    return this.validExtensions.includes(fileTypeProps.ext);
   }
 
   buildErrorMessage(file: Express.Multer.File): string {
-    return `${
-      file.mimetype.split('/')[1]
-    } is not valid. Only files allowed: ${this.validExtensions.join(', ')}`;
+    const mimeType = file?.mimetype?.split('/')[1] ?? 'unknown';
+    return `${mimeType} extension is not valid or mimetype is not equal to extension`;
   }
 }

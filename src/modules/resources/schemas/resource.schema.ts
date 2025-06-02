@@ -5,7 +5,7 @@ export type ResourceFileDocument = HydratedDocument<ResourceFile>;
 
 @Schema({ timestamps: true })
 export class ResourceFile {
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   originalName: string;
 
   @Prop({ required: true, unique: true })

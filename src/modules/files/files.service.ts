@@ -1,51 +1,87 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+import { mkdir, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
-import { EnvVars } from 'src/config';
+import { extname, join } from 'path';
 import { v4 as uuid } from 'uuid';
+
+import { EnvVars } from 'src/config';
+import { FileGroup } from './file-group.enum';
+import { GetFileDto } from './dtos/get-file.dto';
+
+export interface savedFile {
+  fileName: string;
+  originalName: string;
+}
 
 @Injectable()
 export class FilesService {
-  private readonly folders: Record<string, string[]> = {
+  private readonly BASE_UPLOAD_PATH = join(__dirname, '..', '..', '..', 'static', 'uploads');
+
+  private readonly FOLDERS: Record<string, string[]> = {
     images: ['jpg', 'png', 'jpeg'],
-    documents: ['pdf'],
+    documents: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ods', 'ppt'],
   };
+
   constructor(private configService: ConfigService<EnvVars>) {}
 
-  async savePostFile(file: Express.Multer.File): Promise<{ filename: string; title: string }> {
-    const fileExtension = file.mimetype.split('/')[1];
+  public buildFileUrl(filename: string, group: FileGroup): string {
+    const host = this.configService.get('HOST');
+    return `${host}/files/${group}/${filename}`;
+  }
+
+  async saveFile(file: Express.Multer.File, group: FileGroup): Promise<savedFile> {
+    const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
+
+    const subfolder = this.getFolderByExtension(fileExtension);
+
+    const folderPath = join(this.BASE_UPLOAD_PATH, group, subfolder);
+
+    await this.ensureFolderExists(folderPath);
+
     const savedFileName = `${uuid()}.${fileExtension}`;
-    const folder = this._getUploadFileFolder(fileExtension);
-    const path = join(__dirname, '..', '..', '..', 'static', 'uploads', 'posts', folder, savedFileName);
+
+    const filePath = join(folderPath, savedFileName);
+
     try {
-      await writeFile(path, file.buffer);
-      return { filename: savedFileName, title: file.originalname };
+      await writeFile(filePath, file.buffer);
+
+      const decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+
+      return {
+        fileName: savedFileName,
+        originalName: decodedOriginalName,
+      };
     } catch (error) {
       throw new InternalServerErrorException('Error saving file');
     }
   }
 
-  getStaticFile(filename: string) {
-    const extension = filename.split('.')[1];
-    if (!extension) throw new BadRequestException('File extension not found');
-    const folder = this._getUploadFileFolder(extension);
-    const path = join(__dirname, '..', '..', '..', 'static', 'uploads', 'posts', folder, filename);
-    if (!existsSync(path)) {
-      throw new BadRequestException(`No file found with ${filename}`);
+  getStaticFilePath({ fileName, group }: GetFileDto): string {
+    const extension = extname(fileName).replace('.', '');
+    const subfolder = this.getFolderByExtension(extension);
+    const filePath = join(this.BASE_UPLOAD_PATH, group, subfolder, fileName);
+
+    if (!existsSync(filePath)) {
+      throw new BadRequestException(`No file found with name ${fileName}`);
     }
-    return path;
+    return filePath;
   }
 
-  public buildFileUrl(filename: string, group: string): string {
-    const host = this.configService.get('HOST');
-    return `${host}/files/${group}/${filename}`;
+  private getFolderByExtension(ext: string): string {
+    ext = ext.toLowerCase();
+    for (const [folder, extensions] of Object.entries(this.FOLDERS)) {
+      if (extensions.includes(ext)) {
+        return folder;
+      }
+    }
+    return 'others';
   }
 
-  private _getUploadFileFolder(extension: string): string {
-    const folder = Object.entries(this.folders).find((folder) => folder[1].includes(extension));
-    if (!folder) throw new InternalServerErrorException('Error upload file');
-    return folder[0];
+  private async ensureFolderExists(path: string): Promise<void> {
+    if (!existsSync(path)) {
+      await mkdir(path, { recursive: true });
+    }
   }
 }

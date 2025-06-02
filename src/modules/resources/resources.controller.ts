@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 
 import { ResourcesService } from './resources.service';
-import { CreateResourceFileDto } from './dto/resource-file.dto';
+import { CreateResourceFileDto } from './dtos/resource-file.dto';
 
 @Controller('resources')
 export class ResourcesController {
@@ -12,9 +12,9 @@ export class ResourcesController {
     return this.resourcesService.create(resourceDto);
   }
 
-  @Get()
+  @Get("grouped")
   findAll() {
-    return this.resourcesService.findAll();
+    return this.resourcesService.findAllGroupedByCategory();
   }
 
   @Delete(':id')
@@ -23,7 +23,7 @@ export class ResourcesController {
   }
 
   @Get('categories')
-  gwetCategoreis() {
+  getCategories() {
     return this.resourcesService.getCategories();
   }
 }

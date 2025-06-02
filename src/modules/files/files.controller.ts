@@ -2,8 +2,10 @@ import { Controller, Get, Param, ParseFilePipeBuilder, Post, Res, UploadedFile, 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 
-import { FilesService } from './files.service';
 import { CustomUploadFileTypeValidator } from './validators/upload-file-type.validator';
+import { GetFileDto } from './dtos/get-file.dto';
+import { FilesService } from './files.service';
+import { FileGroup } from './file-group.enum';
 
 @Controller('files')
 export class FilesController {
@@ -11,7 +13,7 @@ export class FilesController {
 
   @Post('post')
   @UseInterceptors(FileInterceptor('file'))
-  uploadFile(
+  uploadPostFile(
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addValidator(new CustomUploadFileTypeValidator(['png', 'jpg', 'jpeg', 'pdf']))
@@ -20,7 +22,7 @@ export class FilesController {
     )
     file: Express.Multer.File,
   ) {
-    return this.filesService.savePostFile(file);
+    return this.filesService.saveFile(file, FileGroup.POSTS);
   }
 
   @Post('resource')
@@ -28,18 +30,35 @@ export class FilesController {
   uploadResourceFile(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addValidator(new CustomUploadFileTypeValidator(['png', 'jpg', 'jpeg', 'pdf']))
+        .addValidator(
+          new CustomUploadFileTypeValidator([
+            'png',
+            'jpeg',
+            'jpg',
+            'mp4',
+            'ppt',
+            'pptx',
+            'odp',
+            'xls',
+            'xlsx',
+            'ods',
+            'doc',
+            'docx',
+            'odt',
+            'pdf',
+          ]),
+        )
         .addMaxSizeValidator({ maxSize: 5 * 1000000 })
         .build(),
     )
     file: Express.Multer.File,
   ) {
-    return this.filesService.savePostFile(file);
+    return this.filesService.saveFile(file, FileGroup.RESOURCES);
   }
 
-  @Get('post/:filename')
-  findBranchVideo(@Res() res: Response, @Param('filename') filename: string) {
-    const path = this.filesService.getStaticFile(filename);
+  @Get(':group/:fileName')
+  getFile(@Res() res: Response, @Param() requestParams: GetFileDto) {
+    const path = this.filesService.getStaticFilePath(requestParams);
     res.sendFile(path);
   }
 }
