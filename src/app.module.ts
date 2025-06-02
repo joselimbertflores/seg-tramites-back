@@ -17,6 +17,7 @@ import { FilesModule } from './modules/files/files.module';
 import { AuthModule } from './modules/auth/auth.module';
 
 import { EnvVars, validate } from './config';
+import { ResourcesModule } from './modules/resources/resources.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { EnvVars, validate } from './config';
     PublicationsModule,
     CommunicationsModule,
     SchedulerModule,
+    ResourcesModule,
   ],
   controllers: [],
   providers: [],
