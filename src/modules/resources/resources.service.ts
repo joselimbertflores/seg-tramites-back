@@ -56,6 +56,7 @@ export class ResourcesService {
     const resource = await this.resourceFileModel.findById(id);
     if (!resource) throw new BadRequestException(`Resource ${id} not found`);
     await this.resourceFileModel.deleteOne({ id });
+    await this.fileService.remove(resource.fileName, FileGroup.RESOURCES);
     return { message: 'Resource removed', originalName: resource.originalName };
   }
 

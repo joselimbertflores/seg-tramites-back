@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, unlink, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { extname, join } from 'path';
 import { v4 as uuid } from 'uuid';
@@ -56,6 +56,12 @@ export class FilesService {
     } catch (error) {
       throw new InternalServerErrorException('Error saving file');
     }
+  }
+
+  async remove(fileName: string, group: FileGroup) {
+    const subfolder = this.getFolderByExtension(fileName.split('.').pop());
+    const filePath = join(this.BASE_UPLOAD_PATH, group, subfolder, fileName);
+    await unlink(filePath);
   }
 
   getStaticFilePath({ fileName, group }: GetFileDto): string {
