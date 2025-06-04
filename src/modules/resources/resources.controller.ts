@@ -2,7 +2,10 @@ import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 
 import { ResourcesService } from './resources.service';
 import { CreateResourceFileDto } from './dtos/resource-file.dto';
+import { ResourceProtected } from '../auth/decorators';
+import { SystemResource } from '../auth/constants';
 
+@ResourceProtected(SystemResource.RESOURCES)
 @Controller('resources')
 export class ResourcesController {
   constructor(private readonly resourcesService: ResourcesService) {}
@@ -12,7 +15,7 @@ export class ResourcesController {
     return this.resourcesService.create(resourceDto);
   }
 
-  @Get("grouped")
+  @Get('grouped')
   findAll() {
     return this.resourcesService.findAllGroupedByCategory();
   }

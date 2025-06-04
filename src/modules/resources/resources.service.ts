@@ -7,6 +7,10 @@ import { CreateResourceFileDto } from './dtos/resource-file.dto';
 import { FilesService } from '../files/files.service';
 import { FileGroup } from '../files/file-group.enum';
 
+interface groupedResources {
+  category: string;
+  files: ResourceFileDocument[];
+}
 @Injectable()
 export class ResourcesService {
   constructor(
@@ -15,7 +19,7 @@ export class ResourcesService {
   ) {}
 
   async findAllGroupedByCategory() {
-    const grouped = await this.resourceFileModel.aggregate([
+    const grouped: groupedResources[] = await this.resourceFileModel.aggregate([
       {
         $sort: { createdAt: -1 },
       },
@@ -33,10 +37,10 @@ export class ResourcesService {
         },
       },
     ]);
-    return grouped.map((group) => ({
-      category: group.category,
-      files: group.files.map((item: ResourceFileDocument) => this.plainResource(item)),
-    }));
+    return grouped.reduce((acc, curr) => {
+      acc[curr.category] = curr.files.map((item) => this.plainResource(item));
+      return acc;
+    }, {});
   }
 
   async create({ category, items }: CreateResourceFileDto) {
@@ -54,9 +58,13 @@ export class ResourcesService {
 
   async remove(id: string) {
     const resource = await this.resourceFileModel.findById(id);
+
     if (!resource) throw new BadRequestException(`Resource ${id} not found`);
-    await this.resourceFileModel.deleteOne({ id });
+
+    await this.resourceFileModel.deleteOne({ _id: id });
+
     await this.fileService.remove(resource.fileName, FileGroup.RESOURCES);
+
     return { message: 'Resource removed', originalName: resource.originalName };
   }
 

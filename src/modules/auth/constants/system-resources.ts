@@ -16,6 +16,8 @@ export enum SystemResource {
 
   REPORTS = 'reports',
 
+  RESOURCES = 'resources',
+
   communication = 'communication',
   groupware = 'groupware',
   archived = 'archived',
@@ -24,6 +26,15 @@ export enum SystemResource {
 }
 
 export const SYSTEM_RESOURCES = [
+  {
+    value: SystemResource.RESOURCES,
+    label: 'RECURSOS',
+    actions: [
+      { value: 'read', label: 'Ver' },
+      { value: 'create', label: 'Crear' },
+      { value: 'delete', label: 'Eliminar' },
+    ],
+  },
   {
     value: SystemResource.INSTITUTIONS,
     label: 'Instituciones',

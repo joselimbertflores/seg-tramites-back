@@ -28,9 +28,9 @@ import { ResourcesModule } from './modules/resources/resources.module';
       }),
       inject: [ConfigService],
     }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
-    }),
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, '..', 'public'),
+    // }),
     ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,

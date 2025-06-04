@@ -59,9 +59,16 @@ export class FilesService {
   }
 
   async remove(fileName: string, group: FileGroup) {
-    const subfolder = this.getFolderByExtension(fileName.split('.').pop());
-    const filePath = join(this.BASE_UPLOAD_PATH, group, subfolder, fileName);
-    await unlink(filePath);
+    try {
+      const subfolder = this.getFolderByExtension(fileName.split('.').pop());
+      const filePath = join(this.BASE_UPLOAD_PATH, group, subfolder, fileName);
+      await unlink(filePath);
+    } catch (error) {
+      console.log(error);
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
   }
 
   getStaticFilePath({ fileName, group }: GetFileDto): string {
