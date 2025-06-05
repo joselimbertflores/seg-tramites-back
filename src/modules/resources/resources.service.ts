@@ -37,23 +37,16 @@ export class ResourcesService {
         },
       },
     ]);
-    return grouped.reduce((acc, curr) => {
-      acc[curr.category] = curr.files.map((item) => this.plainResource(item));
-      return acc;
-    }, {});
+    return grouped.map(({ category, files }) => ({ category, files: files.map((item) => this.plainResource(item)) }));
   }
 
   async create({ category, items }: CreateResourceFileDto) {
-    try {
-      const createdResourceItems = items.map((item) => new this.resourceFileModel({ category, ...item }));
-      await this.resourceFileModel.insertMany(createdResourceItems);
-      return {
-        category,
-        files: createdResourceItems.map((item) => this.plainResource(item)),
-      };
-    } catch (error) {
-      console.log(error);
-    }
+    const createdResourceItems = items.map((item) => new this.resourceFileModel({ category, ...item }));
+    await this.resourceFileModel.insertMany(createdResourceItems);
+    return {
+      category,
+      files: createdResourceItems.map((item) => this.plainResource(item)),
+    };
   }
 
   async remove(id: string) {

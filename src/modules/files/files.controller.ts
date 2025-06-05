@@ -59,7 +59,6 @@ export class FilesController {
   @Get(':group/:fileName')
   getFile(@Res() res: Response, @Param() requestParams: GetFileDto) {
     const path = this.filesService.getStaticFilePath(requestParams);
-    console.log(path);
     res.sendFile(path);
   }
 }
