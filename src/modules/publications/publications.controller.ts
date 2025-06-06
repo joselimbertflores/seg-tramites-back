@@ -1,29 +1,30 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
-import { PublicationsService } from './publications.service';
-import { CreatePublicationDto } from './dtos/post.dto';
-import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
-import { GetUserRequest } from 'src/modules/auth/decorators';
-import { PublicationPriority } from './schemas/publication.schema';
+import { Controller, Get, Post, Body, Query, Patch, Param } from '@nestjs/common';
+
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
+import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
+
+import { CreatePublicationDto, UpdatePublicationDto } from './dtos';
+import { PublicationPriority } from './schemas/publication.schema';
+import { GetUserRequest } from 'src/modules/auth/decorators';
+import { PublicationsService } from './publications.service';
 import { User } from '../users/schemas';
 
 @Controller('posts')
 export class PostsController {
-  constructor(
-    private readonly postsService: PublicationsService,
-    private groupwareGateway: GroupwareGateway,
-  ) {}
+  constructor(private readonly postsService: PublicationsService, private groupwareGateway: GroupwareGateway) {}
 
   @Post()
-  async create(
-    @Body() publicationDto: CreatePublicationDto,
-    @GetUserRequest() user: User,
-  ) {
+  async create(@Body() publicationDto: CreatePublicationDto, @GetUserRequest() user: User) {
     const publication = await this.postsService.create(publicationDto, user);
     if (publication.priority === PublicationPriority.HIGH) {
       this.groupwareGateway.notifyNew(publication);
     }
     return publication;
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() publicationDto: UpdatePublicationDto) {
+    return this.postsService.update(id, publicationDto);
   }
 
   @Get()
@@ -32,10 +33,7 @@ export class PostsController {
   }
 
   @Get('user')
-  findByUser(
-    @GetUserRequest() user: User,
-    @Query() pagination: PaginationDto,
-  ) {
+  findByUser(@GetUserRequest() user: User, @Query() pagination: PaginationDto) {
     return this.postsService.findByUser(user._id, pagination);
   }
 

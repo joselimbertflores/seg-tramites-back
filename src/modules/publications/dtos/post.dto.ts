@@ -37,7 +37,7 @@ export class CreatePublicationDto {
 
   @IsString()
   @IsOptional()
-  image?: string;
+  image?: string | null;
 
   @Type(() => Date)
   @IsDate()

@@ -64,11 +64,14 @@ export class FilesService {
       const filePath = join(this.BASE_UPLOAD_PATH, group, subfolder, fileName);
       await unlink(filePath);
     } catch (error) {
-      console.log(error);
       if (error.code !== 'ENOENT') {
         throw error;
       }
     }
+  }
+
+  async removeMany(fileNames: string[], group: FileGroup) {
+    await Promise.all(fileNames.map((fileName) => this.remove(fileName, group)));
   }
 
   getStaticFilePath({ fileName, group }: GetFileDto): string {
@@ -79,6 +82,7 @@ export class FilesService {
     if (!existsSync(filePath)) {
       throw new BadRequestException(`No file found with name ${fileName}`);
     }
+    console.log(fileName);
     return filePath;
   }
 
