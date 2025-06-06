@@ -9,7 +9,6 @@ import { Publication, PublicationPriority } from './schemas/publication.schema';
 import { User } from '../users/schemas';
 import { FileGroup } from '../files/file-group.enum';
 
-
 @Injectable()
 export class PublicationsService {
   constructor(
@@ -23,32 +22,23 @@ export class PublicationsService {
       user,
     });
     await createdPublications.save();
-    return this._plainPublication(createdPublications);
+    return this.plainPublication(createdPublications);
   }
 
   async findByUser(userId: string, { limit, offset }: PaginationDto) {
     const [publications, length] = await Promise.all([
-      this.publicationModel
-        .find({ user: userId })
-        .skip(offset)
-        .limit(limit)
-        .sort({ _id: -1 })
-        .lean(),
+      this.publicationModel.find({ user: userId }).skip(offset).limit(limit).sort({ _id: -1 }).lean(),
       this.publicationModel.count({ user: userId }),
     ]);
     return {
-      publications: publications.map((post) => this._plainPublication(post)),
+      publications: publications.map((post) => this.plainPublication(post)),
       length,
     };
   }
 
   async findAll({ limit, offset }: PaginationDto) {
-    const posts = await this.publicationModel
-      .find({})
-      .skip(offset)
-      .limit(limit)
-      .sort({ _id: -1 });
-    return posts.map((post) => this._plainPublication(post));
+    const posts = await this.publicationModel.find({}).skip(offset).limit(limit).sort({ _id: -1 });
+    return posts.map((post) => this.plainPublication(post));
   }
 
   async getNews({ limit, offset }: PaginationDto) {
@@ -69,18 +59,17 @@ export class PublicationsService {
       .skip(offset)
       .limit(limit)
       .sort({ _id: -1, priority: -1 });
-    return news.map((publication) => this._plainPublication(publication));
+    return news.map((publication) => this.plainPublication(publication));
   }
 
-  private _plainPublication(publication: Publication) {
-    if (publication instanceof Document) {
-      publication = publication.toObject();
-    }
-    const { attachments, ...props } = publication;
+  private plainPublication(publication: Publication) {
+    const plain: Publication = publication instanceof Document ? publication.toObject() : publication;
+    const { attachments, image, ...props } = plain;
     return {
+      image: image ? this.fileService.buildFileUrl(image, FileGroup.POSTS) : null,
       attachments: attachments.map((file) => ({
-        title: file.title,
-        filename: this.fileService.buildFileUrl(file.filename, FileGroup.POSTS),
+        originalName: file.originalName,
+        fileName: this.fileService.buildFileUrl(file.fileName, FileGroup.POSTS),
       })),
       ...props,
     };

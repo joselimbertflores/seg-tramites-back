@@ -11,10 +11,10 @@ export enum PublicationPriority {
 @Schema({ _id: false })
 class Attachment extends Document {
   @Prop({ type: String, required: true })
-  title: string;
+  originalName: string;
 
   @Prop({ type: String, required: true })
-  filename: string;
+  fileName: string;
 }
 const AttachmentSchema = SchemaFactory.createForClass(Attachment);
 
@@ -39,6 +39,9 @@ export class Publication extends Document {
   })
   content: string;
 
+  @Prop()
+  image: string | null;
+
   @Prop({
     type: [AttachmentSchema],
     default: [],
@@ -47,6 +50,9 @@ export class Publication extends Document {
 
   @Prop({ enum: PublicationPriority })
   priority: PublicationPriority;
+
+  @Prop({ type: Date, default: Date.now })
+  startDate: Date;
 
   @Prop({ type: Date })
   expirationDate: Date;
