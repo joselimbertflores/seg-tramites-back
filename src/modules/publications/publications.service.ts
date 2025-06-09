@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Document } from 'mongoose';
+import { Model, Document, FilterQuery } from 'mongoose';
 
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { CreatePublicationDto, UpdatePublicationDto } from './dtos/post.dto';
@@ -57,10 +57,14 @@ export class PublicationsService {
     return this.plainPublication(updated);
   }
 
-  async findByUser(userId: string, { limit, offset }: PaginationDto) {
+  async findByUser(userId: string, { limit, offset, term }: PaginationDto) {
+    const query: FilterQuery<Publication> = {
+      user: userId,
+      ...(term && { title: new RegExp(term, 'i') }),
+    };
     const [publications, length] = await Promise.all([
-      this.publicationModel.find({ user: userId }).skip(offset).limit(limit).sort({ _id: -1 }).lean(),
-      this.publicationModel.count({ user: userId }),
+      this.publicationModel.find(query).skip(offset).limit(limit).sort({ _id: -1 }).lean(),
+      this.publicationModel.count(query),
     ]);
     return {
       publications: publications.map((post) => this.plainPublication(post)),
@@ -69,8 +73,13 @@ export class PublicationsService {
   }
 
   async findAll({ limit, offset }: PaginationDto) {
-    const posts = await this.publicationModel.find({}).skip(offset).limit(limit).sort({ _id: -1 });
-    return posts.map((post) => this.plainPublication(post));
+    const publications = await this.publicationModel
+      .find({})
+      .populate({ path: 'user', select: 'fullname' })
+      .skip(offset)
+      .limit(limit)
+      .sort({ _id: -1 });
+    return publications.map((item) => this.plainPublication(item));
   }
 
   async getNews({ limit, offset }: PaginationDto) {
@@ -81,17 +90,18 @@ export class PublicationsService {
         priority: { $ne: PublicationPriority.Low },
         expirationDate: { $gte: today },
       })
-      .populate({
-        path: 'user',
-        populate: {
-          path: 'funcionario',
-          select: 'nombre paterno materno',
-        },
-      })
       .skip(offset)
       .limit(limit)
       .sort({ _id: -1, priority: -1 });
     return news.map((publication) => this.plainPublication(publication));
+  }
+
+  async delete(id: string) {
+    const deleted = await this.publicationModel.findByIdAndDelete(id);
+    if (!deleted) throw new NotFoundException(`Publication ${id} not found`);
+    const filesToDelete = deleted.attachments.map(({ fileName }) => fileName);
+    this.fileService.removeMany(filesToDelete, FileGroup.POSTS);
+    return { message: 'Deleted publication' };
   }
 
   private plainPublication(publication: Publication) {

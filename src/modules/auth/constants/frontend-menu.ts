@@ -117,6 +117,13 @@ export const FRONTEND_MENU: Menu[] = [
     routerLink: 'reports',
   },
 
+  {
+    resource: [SystemResource.PUBLICATIONS],
+    text: 'Publicaciones',
+    icon: 'newspaper',
+    routerLink: 'posts/manage',
+  },
+
   // {
   //   resource: 'archived',
   //   text: 'Archivos',

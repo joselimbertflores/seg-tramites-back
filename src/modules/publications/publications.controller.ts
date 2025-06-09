@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, Patch, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Patch, Param, Delete } from '@nestjs/common';
 
 import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
@@ -25,6 +25,11 @@ export class PostsController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() publicationDto: UpdatePublicationDto) {
     return this.postsService.update(id, publicationDto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.postsService.delete(id);
   }
 
   @Get()

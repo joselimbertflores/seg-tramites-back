@@ -29,13 +29,11 @@ export class Publication extends Document {
 
   @Prop({
     type: String,
-    required: true,
   })
   title: string;
 
   @Prop({
     type: String,
-    required: true,
   })
   content: string;
 

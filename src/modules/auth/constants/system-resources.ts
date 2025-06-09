@@ -13,16 +13,13 @@ export enum SystemResource {
   EXTERNAL = 'external',
   INTERNAL = 'internal',
   PROCUREMENT = 'procurement',
-
   REPORTS = 'reports',
-
   RESOURCES = 'resources',
-
+  PUBLICATIONS = 'publications',
   communication = 'communication',
   groupware = 'groupware',
   archived = 'archived',
   jobs = 'jobs',
-  publications = 'publications',
 }
 
 export const SYSTEM_RESOURCES = [
@@ -110,9 +107,14 @@ export const SYSTEM_RESOURCES = [
     actions: [{ value: 'manage', label: 'Administrar' }],
   },
   {
-    value: SystemResource.publications,
+    value: SystemResource.PUBLICATIONS,
     label: 'PUBLICACIONES',
-    actions: [{ value: 'manage', label: 'Administrar' }],
+    actions: [
+      { value: 'create', label: 'Crear' },
+      { value: 'read', label: 'Ver' },
+      { value: 'update', label: 'Editar' },
+      { value: 'delete', label: 'Eliminar' },
+    ],
   },
   {
     value: SystemResource.archived,
