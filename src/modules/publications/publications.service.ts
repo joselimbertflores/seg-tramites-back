@@ -5,24 +5,25 @@ import { Model, Document, FilterQuery } from 'mongoose';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { CreatePublicationDto, UpdatePublicationDto } from './dtos/post.dto';
 import { FilesService } from '../files/files.service';
-import { Publication, PublicationPriority } from './schemas/publication.schema';
+import { Publication, PublicationDocument, PublicationPriority } from './schemas/publication.schema';
 import { User } from '../users/schemas';
 import { FileGroup } from '../files/file-group.enum';
 
 @Injectable()
 export class PublicationsService {
   constructor(
-    @InjectModel(Publication.name) private publicationModel: Model<Publication>,
+    @InjectModel(Publication.name) private publicationModel: Model<PublicationDocument>,
     private fileService: FilesService,
   ) {}
 
   async create(publicationDto: CreatePublicationDto, user: User) {
-    const createdPublications = new this.publicationModel({
+    const createdPublication = new this.publicationModel({
       ...publicationDto,
       user,
     });
-    await createdPublications.save();
-    return this.plainPublication(createdPublications);
+    await createdPublication.save();
+    createdPublication.populate({ path: 'user', select: 'fullname' });
+    return this.plainPublication(createdPublication);
   }
 
   async update(id: string, publicationDto: UpdatePublicationDto) {
@@ -48,7 +49,9 @@ export class PublicationsService {
       }
     }
 
-    const updated = await this.publicationModel.findByIdAndUpdate(id, { ...toUpdate, image }, { new: true });
+    const updated = await this.publicationModel
+      .findByIdAndUpdate(id, { ...toUpdate, image }, { new: true })
+      .populate({ path: 'user', select: 'fullname' });
 
     if (filesToDelete.length > 0) {
       await this.fileService.removeMany(filesToDelete, FileGroup.POSTS);
@@ -63,7 +66,13 @@ export class PublicationsService {
       ...(term && { title: new RegExp(term, 'i') }),
     };
     const [publications, length] = await Promise.all([
-      this.publicationModel.find(query).skip(offset).limit(limit).sort({ _id: -1 }).lean(),
+      this.publicationModel
+        .find(query)
+        .populate({ path: 'user', select: 'fullname' })
+        .skip(offset)
+        .limit(limit)
+        .sort({ _id: -1 })
+        .lean(),
       this.publicationModel.count(query),
     ]);
     return {
@@ -90,6 +99,7 @@ export class PublicationsService {
         priority: { $ne: PublicationPriority.Low },
         expirationDate: { $gte: today },
       })
+      .populate({ path: 'user', select: 'fullname' })
       .skip(offset)
       .limit(limit)
       .sort({ _id: -1, priority: -1 });

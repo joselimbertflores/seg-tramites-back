@@ -82,7 +82,6 @@ export class FilesService {
     if (!existsSync(filePath)) {
       throw new BadRequestException(`No file found with name ${fileName}`);
     }
-    console.log(fileName);
     return filePath;
   }
 

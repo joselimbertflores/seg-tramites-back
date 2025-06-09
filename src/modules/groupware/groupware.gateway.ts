@@ -63,7 +63,7 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.to(id_dependency).emit('unarchive-mail', id_mail);
   }
 
-  notifyNew(publication: any) {
+  notifyNew(publication: object) {
     this.server.emit('news', publication);
   }
 
