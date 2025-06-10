@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { FilterQuery, Model } from 'mongoose';
+import mongoose, { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 
 import { Account, Dependency } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
-import { SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
 import { ExternalProcedure, ExternalProcedureDocument, Procedure, ProcedureDocument } from '../procedures/schemas';
+import { GetTotalCommunicationsByUnit, SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
+import { Communication, CommunicationDocument } from '../communications/schemas';
 
 @Injectable()
 export class ReportsService {
@@ -13,7 +14,8 @@ export class ReportsService {
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
     @InjectModel(Procedure.name) private procedureModel: Model<ProcedureDocument>,
-    @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>, // @InjectModel(Communication.name) private communicationModel: Model<Communication>,
+    @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>,
+    @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
   ) {}
 
   async searchProcedureByProperties({ limit, offset }: PaginationDto, dto: SearchProcedureDto) {
@@ -58,6 +60,101 @@ export class ReportsService {
       this.externalModel.countDocuments({ $and: query }),
     ]);
     return { procedures, length };
+  }
+
+  async getTotalCommunicationsByUnit(params: GetTotalCommunicationsByUnit, dependencyId: string) {
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          [`${params.participant}.dependency`]: new Types.ObjectId(dependencyId),
+          sentDate: {
+            $gte: new Date(params.startDate),
+            $lte: new Date(params.endDate),
+          },
+          ...(params.group && { group: params.group }),
+        },
+      },
+      {
+        $group: {
+          _id: {
+            account: `$${params.participant}.account`,
+            status: '$status',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.account',
+          statusCounts: {
+            $push: {
+              status: '$_id.status',
+              count: '$count',
+            },
+          },
+          total: { $sum: '$count' },
+        },
+      },
+      {
+        $sort: { total: -1 },
+      },
+      {
+        $lookup: {
+          from: 'cuentas',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'accountData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$accountData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'funcionarios',
+          localField: 'accountData.officer',
+          foreignField: '_id',
+          as: 'officerData',
+        },
+      },
+      {
+        $unwind: {
+          path: '$officerData',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          accountId: '$_id',
+          statusCounts: 1,
+          total: 1,
+          officer: {
+            $cond: [
+              { $ifNull: ['$officerData', false] },
+              {
+                $trim: {
+                  input: {
+                    $concat: [
+                      { $ifNull: ['$officerData.nombre', ''] },
+                      ' ',
+                      { $ifNull: ['$officerData.paterno', ''] },
+                      ' ',
+                      { $ifNull: ['$officerData.materno', ''] },
+                    ],
+                  },
+                },
+              },
+              null,
+            ],
+          },
+          jobTitle: '$accountData.jobtitle',
+        },
+      },
+    ];
+    return await this.communicationModel.aggregate(pipeline);
   }
 
   async getUnlinkData(account: Account) {

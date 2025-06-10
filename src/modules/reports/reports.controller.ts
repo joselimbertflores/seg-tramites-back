@@ -1,16 +1,18 @@
-import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { ReportsService } from './reports.service';
-import { SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
+import { GetTotalCommunicationsByUnit, SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { DependencieService, InstitutionService, TypeProcedureService } from 'src/modules/administration/services';
 
 import { IsMongoidPipe } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
-import { RequirePermissions } from '../auth/decorators';
+import { GetUserRequest, RequirePermissions } from '../auth/decorators';
 import { SystemResource } from '../auth/constants';
 import { reportType } from './report-types.enum';
+import { onlyAssignedAccount } from '../administration/decorators';
 
+@onlyAssignedAccount()
 @Controller('reports')
 export class ReportsController {
   constructor(
@@ -45,6 +47,13 @@ export class ReportsController {
   @Post('applicant')
   searchProcedureByApplicant(@Body() body: SearchProcedureByApplicantDto, @Query() queryParams: PaginationDto) {
     return this.reportsService.searchProcedureByApplicant(body, queryParams);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(SystemResource.REPORTS, [reportType.UNIT])
+  @Post('unit')
+  getTotalCommunicationsByUnit(@Body() body: GetTotalCommunicationsByUnit, @GetAccountRequest() account: Account) {
+    return this.reportsService.getTotalCommunicationsByUnit(body, account.dependencia.id);
   }
 
   @Get('unlink')

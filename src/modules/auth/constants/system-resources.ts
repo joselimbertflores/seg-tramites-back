@@ -163,6 +163,7 @@ export const SYSTEM_RESOURCES = [
     actions: [
       { value: reportType.APPLICANT, label: 'Solicitante' },
       { value: reportType.SEARCH, label: 'Busquedas' },
+      { value: reportType.UNIT, label: 'Unidad' },
     ],
   },
 ];
