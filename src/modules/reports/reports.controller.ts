@@ -1,6 +1,11 @@
 import { Controller, Get, Post, Body, Query, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { ReportsService } from './reports.service';
-import { GetTotalCommunicationsByUnit, SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
+import {
+  GetTotalCommunicationsByUnit,
+  GetTotalProceduresByStateDto,
+  SearchProcedureByApplicantDto,
+  SearchProcedureDto,
+} from './dtos';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { DependencieService, InstitutionService, TypeProcedureService } from 'src/modules/administration/services';
 
@@ -54,6 +59,13 @@ export class ReportsController {
   @Post('unit')
   getTotalCommunicationsByUnit(@Body() body: GetTotalCommunicationsByUnit, @GetAccountRequest() account: Account) {
     return this.reportsService.getTotalCommunicationsByUnit(body, account.dependencia.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  // @RequirePermissions(SystemResource.REPORTS, [reportType.UNIT])
+  @Post('procedures/state')
+  getTotalProceduresByState(@Body() body: GetTotalProceduresByStateDto) {
+    return this.reportsService.getTotalProceduresByState(body);
   }
 
   @Get('unlink')

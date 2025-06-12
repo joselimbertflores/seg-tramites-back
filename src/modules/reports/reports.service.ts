@@ -5,7 +5,12 @@ import mongoose, { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 import { Account, Dependency } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { ExternalProcedure, ExternalProcedureDocument, Procedure, ProcedureDocument } from '../procedures/schemas';
-import { GetTotalCommunicationsByUnit, SearchProcedureByApplicantDto, SearchProcedureDto } from './dtos';
+import {
+  GetTotalCommunicationsByUnit,
+  GetTotalProceduresByStateDto,
+  SearchProcedureByApplicantDto,
+  SearchProcedureDto,
+} from './dtos';
 import { Communication, CommunicationDocument } from '../communications/schemas';
 
 @Injectable()
@@ -71,7 +76,7 @@ export class ReportsService {
             $gte: new Date(params.startDate),
             $lte: new Date(params.endDate),
           },
-          ...(params.group && { group: params.group }),
+          ...(params.group && { ['procedure.group']: params.group }),
         },
       },
       {
@@ -155,6 +160,66 @@ export class ReportsService {
       },
     ];
     return await this.communicationModel.aggregate(pipeline);
+  }
+
+  async getTotalProceduresByState(params: GetTotalProceduresByStateDto) {
+    console.log(params);
+    const { startDate, endDate, institutionId } = params;
+    const pipeline = [
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+          ...(institutionId && { institution: new Types.ObjectId(institutionId) }),
+        },
+      },
+      {
+        $addFields: {
+          category: '$status',
+        },
+      },
+      {
+        $group: {
+          _id: {
+            dependency: '$dependency',
+            state: '$state',
+            category: '$category',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      // {
+      //   $group: {
+      //     _id: '$_id.dependency',
+      //     states: {
+      //       $push: {
+      //         state: '$_id.state',
+      //         category: '$_id.category',
+      //         count: '$count',
+      //       },
+      //     },
+      //     total: { $sum: '$count' },
+      //   },
+      // },
+      // {
+      //   $lookup: {
+      //     from: 'dependencies',
+      //     localField: '_id',
+      //     foreignField: '_id',
+      //     as: 'dependency',
+      //   },
+      // },
+      // {
+      //   $unwind: '$dependency',
+      // },
+      // {
+      //   $project: {
+      //     dependency: { name: '$dependency.name', _id: 1 },
+      //     states: 1,
+      //     total: 1,
+      //   },
+      // },
+    ];
+    return await this.procedureModel.aggregate(pipeline);
   }
 
   async getUnlinkData(account: Account) {

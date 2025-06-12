@@ -1,16 +1,6 @@
-import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsIn, IsOptional } from 'class-validator';
+import { IsEnum, IsIn, IsOptional } from 'class-validator';
 import { procedureGroup } from 'src/modules/procedures/schemas';
-
-class RangeReportProps {
-  @IsDate()
-  @Type(() => Date)
-  startDate: Date;
-
-  @IsDate()
-  @Type(() => Date)
-  endDate: Date;
-}
+import { RangeReportProps } from './filter-report-props.dto';
 
 export class GetTotalProceduresByUnit extends RangeReportProps {
   @IsEnum(procedureGroup)
