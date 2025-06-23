@@ -71,7 +71,8 @@ export class ReportsService {
     const pipeline: PipelineStage[] = [
       {
         $match: {
-          [`${params.participant}.dependency`]: new Types.ObjectId(dependencyId),
+          'recipient.dependency': new Types.ObjectId(dependencyId),
+          status: { $in: ['pending', 'received', 'rejected', 'auto-rejected', 'archived'] },
           sentDate: {
             $gte: new Date(params.startDate),
             $lte: new Date(params.endDate),
@@ -79,15 +80,17 @@ export class ReportsService {
           ...(params.group && { ['procedure.group']: params.group }),
         },
       },
+      // 2. Agrupar por cuenta (funcionario) y estado
       {
         $group: {
           _id: {
-            account: `$${params.participant}.account`,
+            account: `$recipient.account`,
             status: '$status',
           },
           count: { $sum: 1 },
         },
       },
+      // 3. Agrupar por cuenta y acumular statusCounts + total
       {
         $group: {
           _id: '$_id.account',
@@ -100,9 +103,11 @@ export class ReportsService {
           total: { $sum: '$count' },
         },
       },
+      // 4. Ordenar por total descendente
       {
         $sort: { total: -1 },
       },
+      // 5. Obtener datos de la cuenta
       {
         $lookup: {
           from: 'cuentas',
@@ -116,6 +121,7 @@ export class ReportsService {
           path: '$accountData',
         },
       },
+      // 6. Obtener nombre del funcionario
       {
         $lookup: {
           from: 'funcionarios',
@@ -130,6 +136,7 @@ export class ReportsService {
           preserveNullAndEmptyArrays: true,
         },
       },
+      // 7. Formatear salida
       {
         $project: {
           _id: 0,
