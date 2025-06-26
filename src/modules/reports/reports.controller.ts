@@ -42,23 +42,16 @@ export class ReportsController {
     return await this.dependencyService.getActiveDependenciesOfInstitution(id_institution);
   }
 
-  @RequirePermissions(SystemResource.REPORTS, [reportType.SEARCH])
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.SEARCH] })
   @Post('procedure')
   searchProcedureByProperties(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
     return this.reportsService.searchProcedureByProperties(queryParams, body);
   }
 
-  @RequirePermissions(SystemResource.REPORTS, [reportType.APPLICANT])
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.APPLICANT] })
   @Post('applicant')
   searchProcedureByApplicant(@Body() body: SearchProcedureByApplicantDto, @Query() queryParams: PaginationDto) {
     return this.reportsService.searchProcedureByApplicant(body, queryParams);
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @RequirePermissions(SystemResource.REPORTS, [reportType.UNIT])
-  @Post('unit')
-  getTotalCommunicationsByUnit(@Body() body: GetTotalCommunicationsByUnit, @GetAccountRequest() account: Account) {
-    return this.reportsService.getTotalCommunicationsByUnit(body, account.dependencia.id);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -86,10 +79,5 @@ export class ReportsController {
   @Get('pending/:id_account')
   getPendingsByAccount(@Param('id_account') id: string) {
     return this.reportsService.getPendingsByAccount(id);
-  }
-
-  @Get('inbox/:accountId')
-  getInbox(@Param('accountId') id: string) {
-    return this.reportsService.getImboxByAccount(id);
   }
 }

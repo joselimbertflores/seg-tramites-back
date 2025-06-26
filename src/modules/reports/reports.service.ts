@@ -68,10 +68,15 @@ export class ReportsService {
   }
 
   async getTotalCommunicationsByUnit(params: GetTotalCommunicationsByUnit, dependencyId: string) {
+    const unit = await this.accountModel
+      .find({ dependencia: dependencyId })
+      .populate({ path: 'officer', select: 'nombre paterno materno' })
+      .select('officer jobtitle');
+
     const pipeline: PipelineStage[] = [
       {
         $match: {
-          'recipient.dependency': new Types.ObjectId(dependencyId),
+          'recipient.account': { $in: unit.map((account) => account._id) },
           status: { $in: ['pending', 'received', 'rejected', 'auto-rejected', 'archived'] },
           sentDate: {
             $gte: new Date(params.startDate),
@@ -103,70 +108,27 @@ export class ReportsService {
           total: { $sum: '$count' },
         },
       },
-      // 4. Ordenar por total descendente
       {
         $sort: { total: -1 },
       },
-      // 5. Obtener datos de la cuenta
-      {
-        $lookup: {
-          from: 'cuentas',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'accountData',
-        },
-      },
-      {
-        $unwind: {
-          path: '$accountData',
-        },
-      },
-      // 6. Obtener nombre del funcionario
-      {
-        $lookup: {
-          from: 'funcionarios',
-          localField: 'accountData.officer',
-          foreignField: '_id',
-          as: 'officerData',
-        },
-      },
-      {
-        $unwind: {
-          path: '$officerData',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      // 7. Formatear salida
-      {
-        $project: {
-          _id: 0,
-          accountId: '$_id',
-          statusCounts: 1,
-          total: 1,
-          officer: {
-            $cond: [
-              { $ifNull: ['$officerData', false] },
-              {
-                $trim: {
-                  input: {
-                    $concat: [
-                      { $ifNull: ['$officerData.nombre', ''] },
-                      ' ',
-                      { $ifNull: ['$officerData.paterno', ''] },
-                      ' ',
-                      { $ifNull: ['$officerData.materno', ''] },
-                    ],
-                  },
-                },
-              },
-              null,
-            ],
-          },
-          jobTitle: '$accountData.jobtitle',
-        },
-      },
     ];
-    return await this.communicationModel.aggregate(pipeline);
+    const result = await this.communicationModel.aggregate(pipeline);
+    const mapResult = new Map(result.map(({ _id, ...props }) => [String(_id), props]));
+    return unit.map((account) => ({
+      id: account._id,
+      fullName: account.officer?.fullName,
+      jobTitle: account.jobtitle,
+      ...(mapResult.get(String(account._id)) || { statusCounts: [], total: 0 }),
+    }));
+  }
+
+  async getInboxByAccount(accountId: string) {
+    return await this.communicationModel
+      .find({
+        'recipient.account': accountId,
+        status: { $in: ['received', 'pending'] },
+      })
+      .lean();
   }
 
   async getTotalProceduresByState(params: GetTotalProceduresByStateDto) {
@@ -308,13 +270,5 @@ export class ReportsService {
     // return await this.communicationModel
     //   .find({ 'receiver.cuenta': id_account })
     //   .populate('procedure', 'code, reference state');
-  }
-
-  async getImboxByAccount(accountId: string) {
-    // const inbox = await this.communicationModel
-    //   .find({ 'receiver.cuenta': accountId, status: { $in: [StatusMail.Received, StatusMail.Pending] } })
-    //   .lean()
-    //   .populate('procedure');
-    // return inbox;
   }
 }

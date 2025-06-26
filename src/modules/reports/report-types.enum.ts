@@ -1,5 +1,6 @@
 export enum reportType {
+  UNIT = 'unit',
   SEARCH = 'search',
   APPLICANT = 'applicant',
-  UNIT = 'unit',
+  DEPENDENTS = 'dependents',
 }

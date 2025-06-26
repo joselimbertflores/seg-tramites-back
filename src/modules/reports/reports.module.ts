@@ -5,11 +5,15 @@ import { ProceduresModule } from 'src/modules/procedures/procedures.module';
 import { AdministrationModule } from 'src/modules/administration/administration.module';
 import { UsersModule } from 'src/modules/users/users.module';
 import { CommunicationsModule } from '../communications/communications.module';
+import { ReportProceduresController } from './controllers/report-procedures.controller';
+import { ReportCommunicationsController } from './controllers/report-communications.controller';
+import { ReportCommunicationsService } from './services/report-communications.service';
+import { ReportCommomController } from './controllers/report-commom.controller';
 
 
 @Module({
-  controllers: [ReportsController],
-  providers: [ReportsService],
+  controllers: [ReportsController, ReportProceduresController, ReportCommunicationsController, ReportCommomController],
+  providers: [ReportsService, ReportCommunicationsService],
   imports: [ProceduresModule, UsersModule, AdministrationModule, CommunicationsModule],
 })
 export class ReportsModule {}
