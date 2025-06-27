@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { DependencieService, InstitutionService, TypeProcedureService } from 'src/modules/administration/services';
 import { IsMongoidPipe } from 'src/modules/common';
 
-@Controller('report-commom')
+@Controller('report-common')
 export class ReportCommomController {
   constructor(
     private typeProcedureService: TypeProcedureService,

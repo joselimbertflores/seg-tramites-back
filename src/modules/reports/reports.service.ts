@@ -47,7 +47,6 @@ export class ReportsService {
     { by, typeProcedure, properties }: SearchProcedureByApplicantDto,
     { limit, offset }: PaginationDto,
   ) {
-    console.log(typeProcedure);
     const query: mongoose.FilterQuery<ExternalProcedure>[] = [
       // * aplicant props
       ...Object.entries(properties).map(([key, value]) => {
@@ -132,7 +131,6 @@ export class ReportsService {
   }
 
   async getTotalProceduresByState(params: GetTotalProceduresByStateDto) {
-    console.log(params);
     const { startDate, endDate, institutionId } = params;
     const pipeline = [
       {
