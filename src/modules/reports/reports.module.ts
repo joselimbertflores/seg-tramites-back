@@ -9,11 +9,12 @@ import { ReportProceduresController } from './controllers/report-procedures.cont
 import { ReportCommunicationsController } from './controllers/report-communications.controller';
 import { ReportCommunicationsService } from './services/report-communications.service';
 import { ReportCommomController } from './controllers/report-commom.controller';
+import { ReportProcedureService } from './services/report-procedure.service';
 
 
 @Module({
   controllers: [ReportsController, ReportProceduresController, ReportCommunicationsController, ReportCommomController],
-  providers: [ReportsService, ReportCommunicationsService],
+  providers: [ReportsService, ReportCommunicationsService, ReportProcedureService],
   imports: [ProceduresModule, UsersModule, AdministrationModule, CommunicationsModule],
 })
 export class ReportsModule {}
