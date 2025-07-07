@@ -84,7 +84,6 @@ export class ReportProcedureService {
     ];
 
     const segments = await this.procedureModel.aggregate(pipeline);
-    console.log(segments);
 
     const globalTotals = segments.reduce(
       (acc, segment) => {
