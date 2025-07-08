@@ -3,10 +3,12 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsInt,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -39,6 +41,11 @@ export class CreateCommunicationDto {
   @ArrayMinSize(1)
   @Type(() => RecipientDto)
   recipients: RecipientDto[];
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  priority?: number;
 }
 
 export class ReplyCommunicationDto extends CreateCommunicationDto {

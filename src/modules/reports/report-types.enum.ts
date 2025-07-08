@@ -3,4 +3,5 @@ export enum reportType {
   SEARCH = 'search',
   UNIT = 'unit',
   SEGMENTS = 'segments',
+  UNLINK = 'unlink',
 }

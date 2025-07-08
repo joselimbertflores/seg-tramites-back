@@ -165,6 +165,7 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.SEARCH, label: 'Busquedas' },
       { value: reportType.UNIT, label: 'Unidad' },
       { value: reportType.SEGMENTS, label: 'Segmentos' },
+      { value: reportType.UNLINK, label: 'Desvinculacion' },
     ],
   },
 ];

@@ -36,7 +36,7 @@ export class InboxService {
       }),
     };
     const [communications, length] = await Promise.all([
-      this.inboxModel.find(filterQuery).lean().limit(limit).skip(offset).sort({ sentDate: 'desc' }),
+      this.inboxModel.find(filterQuery).lean().limit(limit).skip(offset).sort({ priority: 'desc', sentDate: 'desc' }),
       this.inboxModel.countDocuments(filterQuery),
     ]);
     return { communications, length };

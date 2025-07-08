@@ -119,6 +119,9 @@ export class Communication {
     ref: Communication.name,
   })
   parentId?: CommunicationDocument;
+
+  @Prop({ type: Number, default: 0 })
+  priority: number;
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);

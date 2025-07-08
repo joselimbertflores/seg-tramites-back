@@ -167,7 +167,7 @@ export class ReportCommunicationsService {
         fullname: account.officer.fullName,
         jobtitle: account.jobtitle,
         dependency: account.dependencia.nombre,
-        user: account.user.login,
+        institution: account.institution.nombre,
       },
       summary: {
         inbox: inboxSummary,

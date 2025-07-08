@@ -1,13 +1,14 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 
-import { RequirePermissions } from 'src/modules/auth/decorators';
-import { SystemResource } from 'src/modules/auth/constants';
-import { ReportCommunicationsService } from '../services';
-import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit, RangeReportProps } from '../dtos';
-import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
-import { reportType } from '../report-types.enum';
 import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
+import { RequirePermissions } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
+import { SystemResource } from 'src/modules/auth/constants';
+
+import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
+import { ReportCommunicationsService } from '../services';
+import { reportType } from '../report-types.enum';
 
 @Controller('report-communications')
 export class ReportCommunicationsController {
@@ -47,8 +48,13 @@ export class ReportCommunicationsController {
     return this.reportService.getHistory(account.id, queryParams, rangeProps);
   }
 
+  @HttpCode(HttpStatus.OK)
   @onlyAssignedAccount()
-  @Get("unlink")
+  @RequirePermissions({
+    resource: SystemResource.REPORTS,
+    actions: [reportType.UNLINK],
+  })
+  @Get('unlink')
   getUnlinkData(@GetAccountRequest() account: Account) {
     return this.reportService.getUnlinkData(account);
   }
