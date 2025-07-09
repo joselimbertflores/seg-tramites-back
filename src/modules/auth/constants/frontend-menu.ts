@@ -107,7 +107,7 @@ export const FRONTEND_MENU: Menu[] = [
   {
     resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Archivos',
-    icon: 'home_storage',
+    icon: 'shelves',
     routerLink: 'manage/folders',
   },
   {

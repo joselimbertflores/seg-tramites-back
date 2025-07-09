@@ -87,15 +87,14 @@ export class ReportProcedureService {
 
     const globalTotals = segments.reduce(
       (acc, segment) => {
-        acc.pending += segment.totals.pending || 0;
-        acc.completed += segment.totals.completed || 0;
+        acc['totalPending'] += segment.totals.pending || 0;
+        acc['totalCompleted'] += segment.totals.completed || 0;
+        acc['total'] += segment.total;
         return acc;
       },
-      { pending: 0, completed: 0 },
+      { totalPending: 0, totalCompleted: 0, total: 0 },
     );
-
     return {
-      institutionId,
       segments,
       globalTotals,
     };
