@@ -78,11 +78,9 @@ export class ReportCommunicationsService {
       .lean();
   }
 
-  async getHistory(
-    accountId: string,
-    { limit, offset, term }: PaginationDto,
-    { startDate, endDate }: GetCommunicationHistoryDto,
-  ) {
+  async getHistory(accountId: string, paginationParams: PaginationDto, filterParams: GetCommunicationHistoryDto) {
+    const { term, limit, offset } = paginationParams;
+    const { startDate, endDate } = filterParams;
     const regex = new RegExp(term, 'i');
     const interval = { ...(startDate && { $gte: startDate }), ...(endDate && { $lte: endDate }) };
     const query: FilterQuery<Communication> = {

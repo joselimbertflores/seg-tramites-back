@@ -8,7 +8,7 @@ import { SystemResource } from 'src/modules/auth/constants';
 
 import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
 import { ReportCommunicationsService } from '../services';
-import { reportType } from '../report-types.enum';
+import { reportType } from '../enums/report-types.enum';
 
 @Controller('report-communications')
 export class ReportCommunicationsController {
@@ -25,19 +25,17 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({
-    resource: SystemResource.REPORTS,
-    actions: [reportType.UNIT],
-  })
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.UNIT] })
   @Get('inbox/:accountId')
   getInboxByAccount(@Param('accountId', IsMongoidPipe) accountId: string) {
     return this.reportService.getInboxByAccount(accountId);
   }
 
+  @HttpCode(HttpStatus.OK)
   @onlyAssignedAccount()
   @RequirePermissions({
     resource: SystemResource.REPORTS,
-    actions: [reportType.UNIT],
+    actions: [reportType.HISTORY],
   })
   @Post('history')
   getHistory(

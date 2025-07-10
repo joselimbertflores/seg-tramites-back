@@ -1,4 +1,4 @@
-import { reportType } from 'src/modules/reports/report-types.enum';
+import { reportType } from 'src/modules/reports/enums/report-types.enum';
 
 export enum SystemResource {
   USERS = 'user',
@@ -166,6 +166,7 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.UNIT, label: 'Unidad' },
       { value: reportType.SEGMENTS, label: 'Segmentos' },
       { value: reportType.UNLINK, label: 'Desvinculacion' },
+      { value: reportType.HISTORY, label: 'Historial' },
     ],
   },
 ];
