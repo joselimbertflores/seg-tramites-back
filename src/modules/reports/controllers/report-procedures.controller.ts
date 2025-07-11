@@ -1,6 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 
-import { SearchProcedureByApplicantDto, SearchProcedureDto, TotalProceduresBySegmentParamsDto } from '../dtos';
+import {
+  GetProceduresEficiencyParamsDto,
+  SearchProcedureByApplicantDto,
+  SearchProcedureDto,
+  TotalProceduresBySegmentParamsDto,
+} from '../dtos';
 import { TypeProcedureService } from 'src/modules/administration/services';
 import { RequirePermissions } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
@@ -35,5 +40,11 @@ export class ReportProceduresController {
   @Post('search')
   searcProcedureByProperties(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
     return this.reportService.searchProcedureByProperties(body, queryParams);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('eficiency')
+  getProceduresEnficiency(@Body() body: GetProceduresEficiencyParamsDto) {
+    return this.reportService.getProceduresEnficiency(body);
   }
 }

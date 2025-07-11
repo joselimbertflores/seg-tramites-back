@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { RangeReportProps } from './filter-report-props.dto';
 import { procedureGroup } from 'src/modules/procedures/schemas';
 
@@ -15,4 +15,14 @@ export class TotalProceduresBySegmentParamsDto extends RangeReportProps {
 
   @IsEnum(procedureGroup)
   group: procedureGroup;
+}
+
+export class GetProceduresEficiencyParamsDto extends RangeReportProps {
+  @IsArray()
+  @IsString({ each: true })
+  types: string[];
+
+  @IsString()
+  @IsNotEmpty()
+  institution: string;
 }

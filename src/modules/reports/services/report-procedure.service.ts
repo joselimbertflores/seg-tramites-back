@@ -7,9 +7,16 @@ import {
   ExternalProcedure,
   ProcedureDocument,
   ExternalProcedureDocument,
+  procedureStatus,
 } from 'src/modules/procedures/schemas';
 import { PaginationDto } from 'src/modules/common';
-import { SearchProcedureByApplicantDto, SearchProcedureDto, TotalProceduresBySegmentParamsDto } from '../dtos';
+import {
+  GetProceduresEficiencyParamsDto,
+  SearchProcedureByApplicantDto,
+  SearchProcedureDto,
+  TotalProceduresBySegmentParamsDto,
+} from '../dtos';
+import { eachDayOfInterval, isWeekend } from 'date-fns';
 
 @Injectable()
 export class ReportProcedureService {
@@ -111,8 +118,6 @@ export class ReportProcedureService {
   }
 
   async searchProcedureByApplicant(filterProps: SearchProcedureByApplicantDto, { limit, offset }: PaginationDto) {
-    console.log(filterProps);
-    console.log('SEARCH PROCEDURE BY PROPERTIES');
     const { typeProcedure, by, properties } = filterProps;
     const query: mongoose.FilterQuery<ExternalProcedure>[] = [
       ...Object.entries(properties).map(([key, value]) => {
@@ -150,5 +155,76 @@ export class ReportProcedureService {
       this.procedureModel.countDocuments({ $and: query }),
     ]);
     return { procedures, length };
+  }
+
+  async getProceduresEnficiency(params: GetProceduresEficiencyParamsDto) {
+    const { startDate, endDate, institution } = params;
+
+    const results = await this.externalModel.aggregate([
+      {
+        $match: {
+          type: {
+            $in: ['63b066cd570a689f46020a2d', '63b063b4570a689f46020773', '63b048b5570a689f4601f2f3'].map(
+              (item) => new Types.ObjectId(item),
+            ),
+          },
+          institution: new Types.ObjectId(institution),
+          createdAt: { $gte: startDate, $lte: endDate },
+          status: procedureStatus.COMPLETED,
+        },
+      },
+      {
+        $group: {
+          _id: '$type',
+          procedures: {
+            $push: {
+              createdAt: '$createdAt',
+              completedAt: '$completedAt',
+            },
+          },
+          total: { $sum: 1 },
+        },
+      },
+
+      {
+        $lookup: {
+          from: 'tipos_tramites',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'type',
+        },
+      },
+      {
+        $unwind: '$type',
+      },
+      {
+        $project: {
+          type: '$_id',
+          name: '$type.nombre',
+          procedures: 1,
+          total: 1,
+        },
+      },
+    ]);
+
+    const reporte = results.map((grupo) => {
+      const totalDias = grupo.procedures.reduce((sum, t) => {
+        return sum + this.calcularDiasHabiles(new Date(t.createdAt), new Date(t.completedAt));
+      }, 0);
+
+      const promedio = totalDias / grupo.total;
+      return {
+        type: grupo.type,
+        name: grupo.name,
+        quantity: grupo.total,
+        promedioDiasHabiles: +promedio.toFixed(2),
+      };
+    });
+    return reporte;
+  }
+
+  calcularDiasHabiles(start: Date, end: Date): number {
+    const days = eachDayOfInterval({ start, end });
+    return days.filter((d) => !isWeekend(d)).length;
   }
 }
