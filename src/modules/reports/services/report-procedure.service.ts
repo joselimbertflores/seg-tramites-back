@@ -158,15 +158,12 @@ export class ReportProcedureService {
   }
 
   async getProceduresEnficiency(params: GetProceduresEficiencyParamsDto) {
-    const { startDate, endDate, institution } = params;
-
-    const results = await this.externalModel.aggregate([
+    const { startDate, endDate, institution, types } = params;
+    const pipeResult = await this.externalModel.aggregate([
       {
         $match: {
           type: {
-            $in: ['63b066cd570a689f46020a2d', '63b063b4570a689f46020773', '63b048b5570a689f4601f2f3'].map(
-              (item) => new Types.ObjectId(item),
-            ),
+            $in: types.map((item) => new Types.ObjectId(item)),
           },
           institution: new Types.ObjectId(institution),
           createdAt: { $gte: startDate, $lte: endDate },
@@ -206,24 +203,21 @@ export class ReportProcedureService {
         },
       },
     ]);
-
-    const reporte = results.map((grupo) => {
-      const totalDias = grupo.procedures.reduce((sum, t) => {
-        return sum + this.calcularDiasHabiles(new Date(t.createdAt), new Date(t.completedAt));
+    return pipeResult.map((group) => {
+      const totalWorkingDays = group.procedures.reduce((sum, p) => {
+        return sum + this.calculateWorkingDays(new Date(p.createdAt), new Date(p.completedAt));
       }, 0);
-
-      const promedio = totalDias / grupo.total;
+      const average = totalWorkingDays / group.total;
       return {
-        type: grupo.type,
-        name: grupo.name,
-        quantity: grupo.total,
-        promedioDiasHabiles: +promedio.toFixed(2),
+        typeId: group.type,
+        typeName: group.name,
+        count: group.total,
+        averageWorkingDays: +average.toFixed(2),
       };
     });
-    return reporte;
   }
 
-  calcularDiasHabiles(start: Date, end: Date): number {
+  calculateWorkingDays(start: Date, end: Date): number {
     const days = eachDayOfInterval({ start, end });
     return days.filter((d) => !isWeekend(d)).length;
   }

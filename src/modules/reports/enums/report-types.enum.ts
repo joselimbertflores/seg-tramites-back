@@ -5,4 +5,5 @@ export enum reportType {
   SEGMENTS = 'segments',
   UNLINK = 'unlink',
   HISTORY = 'history',
+  EFFICIENCY = 'efficiency',
 }

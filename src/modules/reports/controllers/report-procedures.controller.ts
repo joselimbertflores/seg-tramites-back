@@ -43,6 +43,7 @@ export class ReportProceduresController {
   }
 
   @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.EFFICIENCY] })
   @Post('eficiency')
   getProceduresEnficiency(@Body() body: GetProceduresEficiencyParamsDto) {
     return this.reportService.getProceduresEnficiency(body);

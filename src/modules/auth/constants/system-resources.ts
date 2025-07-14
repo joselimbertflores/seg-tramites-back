@@ -167,6 +167,7 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.SEGMENTS, label: 'Segmentos' },
       { value: reportType.UNLINK, label: 'Desvinculacion' },
       { value: reportType.HISTORY, label: 'Historial' },
+      { value: reportType.EFFICIENCY, label: 'Eficiencia' },
     ],
   },
 ];
