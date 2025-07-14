@@ -162,12 +162,12 @@ export class ReportProcedureService {
     const pipeResult = await this.externalModel.aggregate([
       {
         $match: {
+          status: procedureStatus.COMPLETED,
+          institution: new Types.ObjectId(institution),
+          createdAt: { $gte: startDate, $lte: endDate },
           type: {
             $in: types.map((item) => new Types.ObjectId(item)),
           },
-          institution: new Types.ObjectId(institution),
-          createdAt: { $gte: startDate, $lte: endDate },
-          status: procedureStatus.COMPLETED,
         },
       },
       {

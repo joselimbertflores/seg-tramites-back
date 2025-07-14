@@ -24,15 +24,6 @@ export enum SystemResource {
 
 export const SYSTEM_RESOURCES = [
   {
-    value: SystemResource.RESOURCES,
-    label: 'RECURSOS',
-    actions: [
-      { value: 'read', label: 'Ver' },
-      { value: 'create', label: 'Crear' },
-      { value: 'delete', label: 'Eliminar' },
-    ],
-  },
-  {
     value: SystemResource.INSTITUTIONS,
     label: 'Instituciones',
     actions: [
@@ -60,7 +51,16 @@ export const SYSTEM_RESOURCES = [
       { value: 'delete', label: 'Eliminar' },
     ],
   },
-
+  {
+    value: SystemResource.TYPES_PROCEDURES,
+    label: 'TIPOS DE TRAMITES',
+    actions: [
+      { value: 'create', label: 'Crear' },
+      { value: 'read', label: 'Ver' },
+      { value: 'update', label: 'Editar' },
+      { value: 'delete', label: 'Eliminar' },
+    ],
+  },
   {
     value: SystemResource.ACCOUNTS,
     label: 'Cuentas',
@@ -91,16 +91,7 @@ export const SYSTEM_RESOURCES = [
       { value: 'delete', label: 'Eliminar' },
     ],
   },
-  {
-    value: SystemResource.TYPES_PROCEDURES,
-    label: 'TIPOS DE TRAMITES',
-    actions: [
-      { value: 'create', label: 'Crear' },
-      { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar' },
-      { value: 'delete', label: 'Eliminar' },
-    ],
-  },
+
   {
     value: SystemResource.groupware,
     label: 'GRUPO DE TRABAJO',
@@ -118,7 +109,6 @@ export const SYSTEM_RESOURCES = [
   },
   {
     value: SystemResource.archived,
-
     label: 'ARCHIVOS',
     actions: [
       { value: 'create', label: 'Crear' },
@@ -168,6 +158,15 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.UNLINK, label: 'Desvinculacion' },
       { value: reportType.HISTORY, label: 'Historial' },
       { value: reportType.EFFICIENCY, label: 'Eficiencia' },
+    ],
+  },
+  {
+    value: SystemResource.RESOURCES,
+    label: 'RECURSOS',
+    actions: [
+      { value: 'read', label: 'Ver' },
+      { value: 'create', label: 'Crear' },
+      { value: 'delete', label: 'Eliminar' },
     ],
   },
 ];

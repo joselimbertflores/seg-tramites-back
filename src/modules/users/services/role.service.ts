@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import { Role } from '../../users/schemas';
+
 import { CreateRoleDto, UpdateRoleDto } from '../dtos';
 import { PaginationDto } from 'src/modules/common';
+import { Role } from '../../users/schemas';
 
 @Injectable()
 export class RoleService {
@@ -14,7 +15,7 @@ export class RoleService {
       ...(term && { name: new RegExp(term, 'i') }),
     };
     const [roles, length] = await Promise.all([
-      this.roleModel.find(query).limit(limit).skip(offset).sort({ _id: -1 }),
+      this.roleModel.find(query).limit(limit).skip(offset).sort({ _id: 'descending' }),
       this.roleModel.count(query),
     ]);
     return { roles, length };
