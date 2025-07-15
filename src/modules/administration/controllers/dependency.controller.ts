@@ -24,9 +24,9 @@ export class DependencyController {
     return this.dependencyService.getAccountsInDependency(id);
   }
 
-  @Put('assign-area')
-  assingDependencyArea(@Body() data: AssignDependencyAreasDto) {
-    return this.dependencyService.assignDependencyAreas(data);
+  @Put('areas')
+  assinAreas(@Body() data: AssignDependencyAreasDto) {
+    return this.dependencyService.assignAreas(data);
   }
 
   @Get()
@@ -35,12 +35,12 @@ export class DependencyController {
   }
 
   @Patch('/:id')
-  edit(@Param('id') id: string, @Body() dependency: UpdateDependencyDto) {
+  update(@Param('id') id: string, @Body() dependency: UpdateDependencyDto) {
     return this.dependencyService.update(id, dependency);
   }
 
   @Post()
-  add(@Body() dependency: CreateDependencyDto) {
+  create(@Body() dependency: CreateDependencyDto) {
     return this.dependencyService.create(dependency);
   }
 }

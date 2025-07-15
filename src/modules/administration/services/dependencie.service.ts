@@ -35,13 +35,13 @@ export class DependencieService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const dependency = await this.dependencyModel.findById(id, null, { session });
-      if (!dependency) throw new BadRequestException(`Dependency ${id} dont exist`);
+      const dependencyDB = await this.dependencyModel.findById(id, null, { session });
+      if (!dependencyDB) throw new BadRequestException(`Dependency ${id} dont exist`);
       const newCodes = dependencyDto.areas.map((area) => area.code);
-      for (const { code } of dependency.areas) {
+      for (const { code } of dependencyDB.areas) {
         if (!newCodes.includes(code)) {
           await this.accountModel.updateMany(
-            { dependencia: dependency._id, area: code },
+            { dependencia: dependencyDB, area: code },
             { $unset: { area: '' } },
             { session },
           );
@@ -62,10 +62,10 @@ export class DependencieService {
   }
 
   async getAccountsInDependency(dependencyId: string) {
-    return await this.accountModel.find({ dependencia: dependencyId }).populate('officer');
+    return await this.accountModel.find({ dependencia: dependencyId }).populate('dependencia').populate('officer');
   }
 
-  async assignDependencyAreas({ personnel }: AssignDependencyAreasDto) {
+  async assignAreas({ personnel }: AssignDependencyAreasDto) {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();

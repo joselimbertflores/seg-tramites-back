@@ -1,31 +1,26 @@
 import { reportType } from 'src/modules/reports/enums/report-types.enum';
 
 export enum SystemResource {
-  USERS = 'user',
-  ROLES = 'roles',
-
   INSTITUTIONS = 'institutions',
   DEPENDENCIES = 'dependencies',
+  TYPES_PROCEDURES = 'types-procedures',
   OFFICERS = 'officers',
   ACCOUNTS = 'accounts',
-  TYPES_PROCEDURES = 'types-procedures',
-
+  USERS = 'user',
+  ROLES = 'roles',
   EXTERNAL = 'external',
   INTERNAL = 'internal',
   PROCUREMENT = 'procurement',
   REPORTS = 'reports',
   RESOURCES = 'resources',
   PUBLICATIONS = 'publications',
-  communication = 'communication',
   groupware = 'groupware',
-  archived = 'archived',
-  jobs = 'jobs',
 }
 
 export const SYSTEM_RESOURCES = [
   {
     value: SystemResource.INSTITUTIONS,
-    label: 'Instituciones',
+    label: 'INSTITUCIONES',
     actions: [
       { value: 'read', label: 'Ver' },
       { value: 'create', label: 'Crear' },
@@ -34,36 +29,37 @@ export const SYSTEM_RESOURCES = [
   },
   {
     value: SystemResource.DEPENDENCIES,
-    label: 'Dependencias',
+    label: 'DEPENDENCIAS',
     actions: [
-      { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar' },
-    ],
-  },
-  {
-    value: SystemResource.OFFICERS,
-    label: 'Funcionarios',
-    actions: [
       { value: 'create', label: 'Crear' },
-      { value: 'read', label: 'Ver' },
       { value: 'update', label: 'Editar' },
-      { value: 'delete', label: 'Eliminar' },
     ],
   },
   {
     value: SystemResource.TYPES_PROCEDURES,
     label: 'TIPOS DE TRAMITES',
     actions: [
+      { value: 'read', label: 'Ver' },
+      { value: 'create', label: 'Crear' },
+      { value: 'update', label: 'Editar' },
+      { value: 'delete', label: 'Eliminar' },
+    ],
+  },
+  {
+    value: SystemResource.OFFICERS,
+    label: 'FUNCIONARIOS',
+    actions: [
       { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
       { value: 'update', label: 'Editar' },
       { value: 'delete', label: 'Eliminar' },
     ],
   },
+
   {
     value: SystemResource.ACCOUNTS,
-    label: 'Cuentas',
+    label: 'CUENTAS',
     actions: [
       { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
@@ -73,7 +69,7 @@ export const SYSTEM_RESOURCES = [
   },
   {
     value: SystemResource.USERS,
-    label: 'Usuarios',
+    label: 'USUARIOS',
     actions: [
       { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
@@ -83,7 +79,7 @@ export const SYSTEM_RESOURCES = [
   },
   {
     value: SystemResource.ROLES,
-    label: 'Roles',
+    label: 'ROLES',
     actions: [
       { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
@@ -108,12 +104,11 @@ export const SYSTEM_RESOURCES = [
     ],
   },
   {
-    value: SystemResource.archived,
-    label: 'ARCHIVOS',
+    value: SystemResource.RESOURCES,
+    label: 'RECURSOS',
     actions: [
-      { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar' },
+      { value: 'create', label: 'Crear' },
       { value: 'delete', label: 'Eliminar' },
     ],
   },
@@ -138,13 +133,13 @@ export const SYSTEM_RESOURCES = [
     ],
   },
   {
-    value: SystemResource.communication,
-    label: 'BANDEJAS',
+    value: SystemResource.PROCUREMENT,
+    label: 'TRAMITES CONTRATACIONES',
     actions: [
       { value: 'create', label: 'Crear' },
       { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar ' },
-      { value: 'delete', label: 'Actualizar' },
+      { value: 'update', label: 'Editar' },
+      { value: 'delete', label: 'Eliminar' },
     ],
   },
   {
@@ -158,37 +153,6 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.UNLINK, label: 'Desvinculacion' },
       { value: reportType.HISTORY, label: 'Historial' },
       { value: reportType.EFFICIENCY, label: 'Eficiencia' },
-    ],
-  },
-  {
-    value: SystemResource.RESOURCES,
-    label: 'RECURSOS',
-    actions: [
-      { value: 'read', label: 'Ver' },
-      { value: 'create', label: 'Crear' },
-      { value: 'delete', label: 'Eliminar' },
-    ],
-  },
-];
-export const PROCEDURES = [
-  {
-    value: SystemResource.EXTERNAL,
-    label: 'TRAMITES EXTERNOS',
-    actions: [
-      { value: 'create', label: 'Crear' },
-      { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar' },
-      { value: 'delete', label: 'Eliminar' },
-    ],
-  },
-  {
-    value: SystemResource.INTERNAL,
-    label: 'TRAMITES INTERNOS',
-    actions: [
-      { value: 'create', label: 'Crear' },
-      { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar' },
-      { value: 'delete', label: 'Eliminar' },
     ],
   },
 ];

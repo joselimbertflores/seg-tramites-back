@@ -18,12 +18,12 @@ export class InstitutionController {
 
   @Post()
   add(@Body() institution: CreateInstitutionDto) {
-    return this.institutionService.add(institution);
+    return this.institutionService.create(institution);
   }
 
   @Patch(':id')
   edit(@Param('id') id: string, @Body() institution: UpdateInstitutionDto) {
-    return this.institutionService.edit(id, institution);
+    return this.institutionService.update(id, institution);
   }
 
 }

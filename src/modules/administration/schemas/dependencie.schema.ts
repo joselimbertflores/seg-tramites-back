@@ -44,6 +44,12 @@ export class Dependency extends Document {
     },
   })
   areas: Area[];
+
+  @Prop({
+    type: Boolean,
+    default: true,
+  })
+  activo: boolean;
 }
 
 export const DependencySchema = SchemaFactory.createForClass(Dependency);

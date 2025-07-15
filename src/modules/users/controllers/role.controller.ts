@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { SYSTEM_RESOURCES, SystemResource } from 'src/modules/auth/constants';
 import { ResourceProtected } from 'src/modules/auth/decorators';
@@ -31,12 +23,12 @@ export class RoleController {
   }
 
   @Post()
-  add(@Body() role: CreateRoleDto) {
-    return this.roleService.add(role);
+  create(@Body() role: CreateRoleDto) {
+    return this.roleService.create(role);
   }
 
   @Patch(':id')
-   edit(@Param('id') id: string, @Body() role: UpdateRoleDto) {
-    return  this.roleService.edit(id, role);
+  update(@Param('id') id: string, @Body() role: UpdateRoleDto) {
+    return this.roleService.update(id, role);
   }
 }

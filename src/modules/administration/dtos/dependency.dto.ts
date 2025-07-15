@@ -1,8 +1,8 @@
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
@@ -12,13 +12,11 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-
 class AreaDto {
   @IsNotEmpty()
   @IsString()
   name: string;
 
-  @IsNotEmpty()
   @Type(() => Number)
   code: number;
 }
@@ -51,8 +49,11 @@ export class CreateDependencyDto {
   @ValidateNested({ each: true })
   @Type(() => AreaDto)
   @Validate(UniqueAreaCodes)
-  @ArrayMaxSize(6)
   areas: AreaDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  activo?: boolean;
 }
 
 export class UpdateDependencyDto extends PartialType(OmitType(CreateDependencyDto, ['institucion'] as const)) {}
@@ -61,7 +62,6 @@ class PersonnelDto {
   @IsMongoId()
   accountId: string;
 
-  @IsNotEmpty()
   @Type(() => Number)
   @IsOptional()
   area?: number;
