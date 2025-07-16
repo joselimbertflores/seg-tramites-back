@@ -34,7 +34,7 @@ export class DependencyController {
     return this.dependencyService.findAll(params);
   }
 
-  @Patch('/:id')
+  @Patch(':id')
   update(@Param('id') id: string, @Body() dependency: UpdateDependencyDto) {
     return this.dependencyService.update(id, dependency);
   }

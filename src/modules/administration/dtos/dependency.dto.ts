@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsMongoId,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Validate,
@@ -17,6 +18,7 @@ class AreaDto {
   @IsString()
   name: string;
 
+  @IsNumber()
   @Type(() => Number)
   code: number;
 }
@@ -63,6 +65,7 @@ class PersonnelDto {
   accountId: string;
 
   @Type(() => Number)
+  @IsNumber()
   @IsOptional()
   area?: number;
 }

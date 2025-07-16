@@ -1,13 +1,10 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import mongoose, { ClientSession, Model } from 'mongoose';
+import mongoose, { ClientSession, Model, MongooseError } from 'mongoose';
 import { CreateOfficerDto, UpdateOfficerDto } from '../dtos';
 import { Officer } from '../schemas';
 import { PaginationDto } from 'src/modules/common';
+import { MongoServerError } from 'mongodb';
 
 @Injectable()
 export class OfficerService {
@@ -23,13 +20,7 @@ export class OfficerService {
       .match({ activo: true })
       .addFields({
         fullname: {
-          $concat: [
-            '$nombre',
-            ' ',
-            { $ifNull: ['$paterno', ''] },
-            ' ',
-            { $ifNull: ['$materno', ''] },
-          ],
+          $concat: ['$nombre', ' ', { $ifNull: ['$paterno', ''] }, ' ', { $ifNull: ['$materno', ''] }],
         },
       })
       .match({ fullname: regex })
@@ -75,16 +66,24 @@ export class OfficerService {
         ],
       });
     const officers = dataPaginated[0].paginatedResults;
-    const length = dataPaginated[0].totalCount[0]
-      ? dataPaginated[0].totalCount[0].count
-      : 0;
+    const length = dataPaginated[0].totalCount[0] ? dataPaginated[0].totalCount[0].count : 0;
     return { officers, length };
   }
 
   async create(officer: CreateOfficerDto, session?: ClientSession) {
-    await this.checkDuplicateDni(officer.dni);
-    const createdOfficer = new this.officerModel(officer);
-    return createdOfficer.save({ session });
+    try {
+      // await this.checkDuplicateDni(officer.dni);
+      console.log(officer);
+      const createdOfficer = new this.officerModel(officer);
+      return createdOfficer.save({ session });
+    } catch (error) {
+      console.log("paso ub erro");
+      console.log('object');
+      if (error instanceof MongoServerError) {
+      }
+      // console.log(typeof error);
+      throw new InternalServerErrorException();
+    }
   }
 
   async edit(id: string, data: UpdateOfficerDto, session?: ClientSession) {
@@ -130,6 +129,6 @@ export class OfficerService {
 
   private async checkDuplicateDni(dni: string): Promise<void> {
     const officer = await this.officerModel.findOne({ dni });
-    if (officer) throw new BadRequestException('El dni introducido ya existe');
+    if (officer) throw new BadRequestException(`El numero de CI ${dni} ya ha sido registrado`);
   }
 }

@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
@@ -20,8 +12,8 @@ export class OfficerController {
   constructor(private readonly officerService: OfficerService) {}
 
   @Get()
-  async findAll(@Query() params: PaginationDto) {
-    return await this.officerService.findAll(params);
+  findAll(@Query() params: PaginationDto) {
+    return this.officerService.findAll(params);
   }
 
   @Post()

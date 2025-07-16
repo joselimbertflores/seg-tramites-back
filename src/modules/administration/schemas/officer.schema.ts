@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory, Virtual } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
-import { Job } from './job.schema';
+import { Document } from 'mongoose';
 
 @Schema({ collection: 'funcionarios' })
 export class Officer extends Document {
@@ -33,14 +32,9 @@ export class Officer extends Document {
     type: String,
     required: true,
     unique: true,
+    trim: true,
   })
   dni: string;
-
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: Job.name,
-  })
-  cargo?: Job;
 
   @Prop({
     type: Boolean,
