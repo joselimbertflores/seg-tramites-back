@@ -24,7 +24,6 @@ export class Officer extends Document {
 
   @Prop({
     type: Number,
-    required: true,
   })
   telefono: number;
 

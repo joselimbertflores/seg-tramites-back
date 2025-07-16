@@ -16,6 +16,7 @@ export class User extends Document {
     type: String,
     required: true,
     unique: true,
+    trim: true,
   })
   login: string;
 

@@ -56,7 +56,7 @@ export const FRONTEND_MENU: Menu[] = [
       {
         resource: [SystemResource.ACCOUNTS],
         text: 'Cuentas',
-        icon: 'assignment_ind',
+        icon: 'account_circle',
         routerLink: 'accounts',
       },
       {

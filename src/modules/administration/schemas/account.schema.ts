@@ -8,22 +8,6 @@ import { Officer } from './officer.schema';
 export type AccountDocument = HydratedDocument<Account>;
 @Schema({ collection: 'cuentas' })
 export class Account extends Document {
-  // @Prop({
-  //   type: String,
-  // })
-  // login: string;
-
-  // @Prop({
-  //   type: String,
-  // })
-  // password: string;
-
-  // @Prop({
-  //   type: Boolean,
-  //   default: true,
-  // })
-  // activo: boolean;
-
   @Prop({
     type: Boolean,
     default: true,
@@ -52,16 +36,10 @@ export class Account extends Document {
     type: mongoose.Schema.Types.ObjectId,
     ref: Officer.name,
   })
-  officer?: Officer;
+  officer: Officer;
 
   @Prop({ type: String })
   jobtitle: string;
-
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: Role.name,
-  })
-  rol: Role;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
@@ -69,8 +47,16 @@ export class Account extends Document {
   })
   user: User;
 
-  @Prop()
+  @Prop({ type: Number })
   area?: number;
 }
 
 export const AccountSchema = SchemaFactory.createForClass(Account);
+
+AccountSchema.index(
+  { officer: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { officer: { $type: 'objectId' } },
+  },
+);

@@ -1,12 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateOfficerDto {
   @IsNotEmpty()
@@ -21,6 +15,7 @@ export class CreateOfficerDto {
   @IsString()
   materno?: string;
 
+  @Transform(({ value }) => value.toString())
   @IsString()
   @IsNotEmpty()
   dni: string;
@@ -31,7 +26,7 @@ export class CreateOfficerDto {
 
   @IsBoolean()
   @IsOptional()
-  activo: boolean;
+  activo?: boolean;
 }
 
 export class UpdateOfficerDto extends PartialType(CreateOfficerDto) {}

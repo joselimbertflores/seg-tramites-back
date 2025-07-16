@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { RoleService } from '../../users/services';
 import {
   AccountService,
@@ -18,7 +10,7 @@ import { Public, ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
 
-import { CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
+import { CreateAccountDto, CreateAccountWithUserDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
 import { IsMongoidPipe } from 'src/modules/common';
 
 @Controller('accounts')
@@ -44,20 +36,17 @@ export class AccountController {
   }
 
   @Post()
-  create(
-    @Body('account') account: CreateAccountDto,
-    @Body('user') user: CreateUserDto,
-  ) {
-    return this.accountService.create(user, account);
+  create(@Body() accountDto: CreateAccountWithUserDto) {
+    return this.accountService.create(accountDto);
   }
 
   @Patch(':id')
   update(
     @Param('id') id: string,
-    @Body('user') user: UpdateUserDto,
+    @Body('user') accountDto: CreateAccountWithUserDto,
     @Body('account') account: UpdateAccountDto,
   ) {
-    return this.accountService.update(id, user, account);
+    // return this.accountService.update(id, user, account);
   }
 
   @Get('institutions')
@@ -66,12 +55,8 @@ export class AccountController {
   }
 
   @Get('dependencies/:institutionId')
-  getDependencies(
-    @Param('institutionId', IsMongoidPipe) institutionId: string,
-  ) {
-    return this.dependencieService.getActiveDependenciesOfInstitution(
-      institutionId,
-    );
+  getDependencies(@Param('institutionId', IsMongoidPipe) institutionId: string) {
+    return this.dependencieService.getActiveDependenciesOfInstitution(institutionId);
   }
 
   @Get('assign')

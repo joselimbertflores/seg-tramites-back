@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, FilterQuery, Model, ClientSession } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -14,6 +10,14 @@ import { CreateUserDto, UpdateUserDto } from '../dtos';
 @Injectable()
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+
+  public async createWithTransaction(userDto: CreateUserDto, session: ClientSession) {
+    await this.checkDuplicateLogin(userDto.login);
+    const { password, ...userProps } = userDto;
+    const encryptPassword = this._encryptPassword(password);
+    const createdUser = new this.userModel({ ...userProps, password: encryptPassword });
+    return await createdUser.save({ session });
+  }
 
   async findAll({ limit, offset, term }: PaginationDto) {
     const query: FilterQuery<User> = {
@@ -28,7 +32,7 @@ export class UserService {
 
   async create(userDto: CreateUserDto, session?: ClientSession) {
     const createdUser = new this.userModel(userDto);
-    await this._checkDuplicateLogin(userDto.login);
+    await this.checkDuplicateLogin(userDto.login);
     userDto.password = this._encryptPassword(userDto.password);
     await createdUser.save({ session });
     return this._plainUser(createdUser);
@@ -38,7 +42,7 @@ export class UserService {
     const userDb = await this.userModel.findById(id);
     if (!userDb) throw new NotFoundException(`El usuario ${id} no existe`);
     if (userDto.login && userDb.login !== userDto.login) {
-      await this._checkDuplicateLogin(userDto.login);
+      await this.checkDuplicateLogin(userDto.login);
     }
     if (userDto.password) {
       userDto.password = this._encryptPassword(userDto.password);
@@ -50,7 +54,7 @@ export class UserService {
     return this._plainUser(updatedUser);
   }
 
-  private async _checkDuplicateLogin(login: string): Promise<void> {
+  private async checkDuplicateLogin(login: string): Promise<void> {
     const duplicate = await this.userModel.findOne({ login });
     if (duplicate) {
       throw new BadRequestException(`El login ${login} ya existe`);

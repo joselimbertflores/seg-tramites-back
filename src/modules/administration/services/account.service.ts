@@ -1,10 +1,22 @@
-import { Injectable, InternalServerErrorException, NotFoundException, HttpException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+  HttpException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, isValidObjectId, Model, Types } from 'mongoose';
 
 import { OfficerService } from './officer.service';
-import { Account } from '../schemas';
-import { CreateAccountDto, CreateOfficerDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
+import { Account, Dependency, Officer } from '../schemas';
+import {
+  CreateAccountDto,
+  CreateAccountWithUserDto,
+  CreateOfficerDto,
+  FilterAccountDto,
+  UpdateAccountDto,
+} from '../dtos';
 import { User, UserDocument } from 'src/modules/users/schemas';
 import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
 import { UserService } from 'src/modules/users/services';
@@ -13,7 +25,9 @@ import { UserService } from 'src/modules/users/services';
 export class AccountService {
   constructor(
     @InjectModel(Account.name) private accountModel: Model<Account>,
+    @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Officer.name) private officerModel: Model<User>,
 
     // !Delete after update
     @InjectConnection() private connection: mongoose.Connection,
@@ -79,11 +93,15 @@ export class AccountService {
     // }
   }
 
-  async findAll({ dependency, limit, offset, term }: FilterAccountDto) {
+  async findAll(filterParams: FilterAccountDto) {
+    const { dependency, institution, limit, offset, term } = filterParams;
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<Account> = {
       ...(dependency && {
         dependencia: new mongoose.Types.ObjectId(dependency),
+      }),
+      ...(institution && {
+        institution: new mongoose.Types.ObjectId(institution),
       }),
       ...(term && {
         $or: [{ fullname: regex }, { 'officer.dni': regex }, { jobtitle: regex }],
@@ -149,23 +167,30 @@ export class AccountService {
     }
   }
 
-  async create(userDto: CreateUserDto, accountDto: CreateAccountDto) {
+  async create({ user, account }: CreateAccountWithUserDto) {
+    const { officer, dependency } = await this.loadRequiredAccountProps(account);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const userDb = await this.userService.create(userDto, session);
+      const createdUser = await this.userService.createWithTransaction(user, session);
       const createdAccount = new this.accountModel({
-        ...accountDto,
-        user: userDb._id,
+        user: createdUser,
+        officer: officer,
+        dependencia: dependency,
+        institution: dependency.institucion,
+        jobtitle: account.jobtitle,
+        isVisible: account.isVisible,
       });
       await createdAccount.save({ session });
       await session.commitTransaction();
+      console.log(createdAccount);
       return await createdAccount.populate([
         { path: 'funcionario' },
         { path: 'dependencia' },
-        { path: 'user', select: 'login role isActive' },
+        { path: 'user', select: '-password' },
       ]);
     } catch (error) {
+      console.log(error);
       await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException('Error al crear cuenta');
@@ -241,5 +266,17 @@ export class AccountService {
     query.project({ fullname: 0 });
     const docs = await query;
     return await this.accountModel.populate(docs, { path: 'user', select: '-password' });
+  }
+
+  private async loadRequiredAccountProps({ officerId, dependencyId }: CreateAccountDto) {
+    const [officer, dependency] = await Promise.all([
+      this.officerModel.findById(officerId),
+      this.dependencyModel.findById(dependencyId),
+    ]);
+
+    if (!officer || dependency) {
+      throw new BadRequestException(`Parametros incorrectos Funcionario / Dependencia`);
+    }
+    return { officer, dependency };
   }
 }

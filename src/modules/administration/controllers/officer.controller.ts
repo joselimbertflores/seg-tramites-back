@@ -23,6 +23,6 @@ export class OfficerController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() officer: UpdateOfficerDto) {
-    return this.officerService.edit(id, officer);
+    return this.officerService.update(id, officer);
   }
 }

@@ -1,17 +1,14 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import mongoose, { ClientSession, Model, MongooseError } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+
 import { CreateOfficerDto, UpdateOfficerDto } from '../dtos';
-import { Officer } from '../schemas';
 import { PaginationDto } from 'src/modules/common';
-import { MongoServerError } from 'mongodb';
+import { Officer } from '../schemas';
 
 @Injectable()
 export class OfficerService {
-  constructor(
-    @InjectModel(Officer.name) private officerModel: Model<Officer>,
-    @InjectConnection() private readonly connection: mongoose.Connection,
-  ) {}
+  constructor(@InjectModel(Officer.name) private officerModel: Model<Officer>) {}
 
   public async findOfficersForProcess(text: string, limit = 7) {
     const regex = new RegExp(text, 'i');
@@ -36,6 +33,32 @@ export class OfficerService {
         path: '$cargo',
         preserveNullAndEmptyArrays: true,
       });
+  }
+  async searchOfficersWithoutAccount(text: string, limit = 5) {
+    const regex = new RegExp(text, 'i');
+    return await this.officerModel
+      .aggregate()
+      .addFields({
+        fullname: {
+          $concat: [
+            { $ifNull: ['$nombre', ''] },
+            ' ',
+            { $ifNull: ['$paterno', ''] },
+            ' ',
+            { $ifNull: ['$materno', ''] },
+          ],
+        },
+      })
+      .match({ fullname: regex, activo: true })
+      .lookup({
+        from: 'accounts',
+        localField: '_id',
+        foreignField: 'funcionario',
+        as: 'account',
+      })
+      .match({ account: { $size: 0 } })
+      .project({ account: 0, fullname: 0 })
+      .limit(limit);
   }
 
   async findAll({ limit, offset, term }: PaginationDto) {
@@ -70,65 +93,41 @@ export class OfficerService {
     return { officers, length };
   }
 
-  async create(officer: CreateOfficerDto, session?: ClientSession) {
+  async create(officer: CreateOfficerDto) {
     try {
-      // await this.checkDuplicateDni(officer.dni);
-      console.log(officer);
       const createdOfficer = new this.officerModel(officer);
-      return createdOfficer.save({ session });
+      return await createdOfficer.save();
     } catch (error) {
-      console.log("paso ub erro");
-      console.log('object');
-      if (error instanceof MongoServerError) {
+      if (error['code'] === 11000) {
+        throw new BadRequestException(`El numero de CI ${officer.dni} ya ha sido registrado`);
       }
-      // console.log(typeof error);
-      throw new InternalServerErrorException();
+      throw new InternalServerErrorException('Error create officer');
     }
   }
 
-  async edit(id: string, data: UpdateOfficerDto, session?: ClientSession) {
-    const officerDB = await this.officerModel.findById(id);
-    if (!officerDB) {
-      throw new NotFoundException(`El funcionario ${id} no existe`);
+  async update(id: string, data: UpdateOfficerDto) {
+    try {
+      const officerDB = await this.officerModel.findById(id);
+      if (!officerDB) throw new NotFoundException(`El funcionario ${id} no existe`);
+      return await this.officerModel.findByIdAndUpdate(id, data, { new: true });
+    } catch (error) {
+      if (error['code'] === 11000) {
+        throw new BadRequestException(`El numero de CI ${data.dni} ya ha sido registrado`);
+      }
+      throw new InternalServerErrorException('Error update officer');
     }
-    if (data.dni && data.dni != officerDB.dni) {
-      await this.checkDuplicateDni(data.dni);
-    }
-    return await this.officerModel.findByIdAndUpdate(id, data, {
-      new: true,
-      session,
-    });
-  }
 
-  async searchOfficersWithoutAccount(text: string, limit = 5) {
-    const regex = new RegExp(text, 'i');
-    return await this.officerModel
-      .aggregate()
-      .addFields({
-        fullname: {
-          $concat: [
-            { $ifNull: ['$nombre', ''] },
-            ' ',
-            { $ifNull: ['$paterno', ''] },
-            ' ',
-            { $ifNull: ['$materno', ''] },
-          ],
-        },
-      })
-      .match({ fullname: regex, activo: true })
-      .lookup({
-        from: 'accounts',
-        localField: '_id',
-        foreignField: 'funcionario',
-        as: 'account',
-      })
-      .match({ account: { $size: 0 } })
-      .project({ account: 0, fullname: 0 })
-      .limit(limit);
-  }
-
-  private async checkDuplicateDni(dni: string): Promise<void> {
-    const officer = await this.officerModel.findOne({ dni });
-    if (officer) throw new BadRequestException(`El numero de CI ${dni} ya ha sido registrado`);
+    // TODO repairt number dnti to string
+    // const officers = await this.officerModel.find();
+    // console.log(`Procesando ${officers.length} funcionarios...`);
+    // for (const officer of officers) {
+    //   const dni = officer.dni;
+    //   const stringDni = dni.toString().trim();
+    //   await this.officerModel.updateOne({ _id: officer._id }, { $set: { dni: stringDni } });
+    //     console.log(`✅ _id: ${officer._id} - DNI convertido a string: "${stringDni}"`);
+    // }
+    // TODO: Repair ConflictException, check dni_1
+    // db.officers.dropIndex('dni_1');
+    // db.officers.createIndex({ dni: 1 }, { unique: true });
   }
 }
