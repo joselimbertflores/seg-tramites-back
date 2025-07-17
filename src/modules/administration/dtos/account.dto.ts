@@ -20,18 +20,47 @@ export class CreateAccountDto {
   isVisible?: boolean;
 }
 
-export class UpdateAccountDto extends PartialType(OmitType(CreateAccountDto, ['dependencyId'] as const)) {}
+export class UpdateAccountDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  jobtitle: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isVisible?: boolean;
+
+  @IsMongoId()
+  @IsOptional()
+  officerId?: string;
+}
+
+class UserDto extends OmitType(CreateUserDto, ['fullName'] as const) {}
 
 export class CreateAccountWithUserDto {
   @ValidateNested()
-  @Type(() => CreateUserDto)
+  @Type(() => UserDto)
   @IsDefined()
-  user: CreateUserDto;
+  user: UserDto;
 
   @ValidateNested()
   @Type(() => CreateAccountDto)
   @IsDefined()
   account: CreateAccountDto;
+}
+
+export class UpdateAccountWithUserDto {
+  @ValidateNested()
+  @Type(() => UserDto)
+  @IsDefined()
+  @IsOptional()
+  user?: UserDto;
+
+  @ValidateNested()
+  @Type(() => UpdateAccountDto)
+  @IsDefined()
+  @IsOptional()
+  account?: UpdateAccountDto;
 }
 
 export class FilterAccountDto extends PaginationDto {

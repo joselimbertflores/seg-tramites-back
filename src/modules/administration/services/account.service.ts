@@ -1,97 +1,33 @@
 import {
   Injectable,
-  InternalServerErrorException,
-  NotFoundException,
   HttpException,
+  NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, isValidObjectId, Model, Types } from 'mongoose';
 
 import { OfficerService } from './officer.service';
 import { Account, Dependency, Officer } from '../schemas';
-import {
-  CreateAccountDto,
-  CreateAccountWithUserDto,
-  CreateOfficerDto,
-  FilterAccountDto,
-  UpdateAccountDto,
-} from '../dtos';
-import { User, UserDocument } from 'src/modules/users/schemas';
-import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
+import { CreateAccountDto, CreateAccountWithUserDto, FilterAccountDto, UpdateAccountWithUserDto } from '../dtos';
+import { getAccountAssignmentReport } from 'src/modules/printer/templates';
+import { PrinterService } from 'src/modules/printer/printer.service';
+import { MailService } from 'src/modules/mail/mail.service';
 import { UserService } from 'src/modules/users/services';
 
 @Injectable()
 export class AccountService {
   constructor(
+    @InjectConnection() private connection: mongoose.Connection,
+    @InjectModel(Officer.name) private officerModel: Model<Officer>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
-    @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Officer.name) private officerModel: Model<User>,
-
-    // !Delete after update
-    @InjectConnection() private connection: mongoose.Connection,
+    private printerService: PrinterService,
     private userService: UserService,
     private officerService: OfficerService,
+    private mailService: MailService,
   ) {}
-
-  async repairColection() {
-    // const accounts = await this.accountModel.find({}).populate({
-    //   path: 'funcionario',
-    //   populate: {
-    //     path: 'cargo',
-    //   },
-    // });
-    // for (const account of accounts) {
-    //   let newJob = '';
-    //   if (!account.funcionario) {
-    //     newJob = 'SIN DESIGNAR';
-    //   } else {
-    //     if (!account.funcionario.cargo) {
-    //       newJob = 'SIN DESIGNAR';
-    //     } else {
-    //       newJob = account.funcionario.cargo.nombre;
-    //     }
-    //   }
-    //   await this.accountModel.updateOne(
-    //     { _id: account._id },
-    //     { jobtitle: newJob },
-    //   );
-    // }
-  }
-
-  async generate() {
-    // const accounts = await this.accountModel.find({}).populate('funcionario');
-    // for (const element of accounts) {
-    //   const { login, password, updatedPassword, activo, rol } = element;
-    //   const fullname = element.funcionario
-    //     ? [
-    //         element.funcionario.nombre,
-    //         element.funcionario.paterno,
-    //         element.funcionario.materno,
-    //       ]
-    //         .filter(Boolean)
-    //         .join(' ')
-    //     : 'Unknown';
-    //   const user = new this.userModel({
-    //     fullname,
-    //     login,
-    //     password,
-    //     updatedPassword,
-    //     isActive: activo,
-    //     role: rol,
-    //   });
-    //   await user.save();
-    //   if (!element.isRoot) {
-    //     await this.accountModel.updateOne(
-    //       { _id: element._id },
-    //       { user: user._id },
-    //     );
-    //   } else {
-    //     console.log('un usuario root', element);
-    //   }
-    // }
-  }
 
   async findAll(filterParams: FilterAccountDto) {
     const { dependency, institution, limit, offset, term } = filterParams;
@@ -146,33 +82,15 @@ export class AccountService {
     return { accounts, length };
   }
 
-  async update(id: string, userDto: UpdateUserDto, accountDto: UpdateAccountDto) {
-    const accountDB = await this.accountModel.findById(id);
-    if (!accountDB) throw new NotFoundException(`La cuenta ${id} no existe`);
-    const session = await this.connection.startSession();
-    try {
-      session.startTransaction();
-      await this.userService.update(accountDB.user._id, userDto, session);
-      const updatedAccount = await this.accountModel
-        .findByIdAndUpdate(id, accountDto, { new: true, session })
-        .populate([{ path: 'dependencia' }, { path: 'officer' }, { path: 'user', select: '-password' }]);
-      await session.commitTransaction();
-      return updatedAccount;
-    } catch (error) {
-      await session.abortTransaction();
-      if (error instanceof HttpException) throw error;
-      throw new InternalServerErrorException();
-    } finally {
-      session.endSession();
-    }
-  }
-
   async create({ user, account }: CreateAccountWithUserDto) {
     const { officer, dependency } = await this.loadRequiredAccountProps(account);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const createdUser = await this.userService.createWithTransaction(user, session);
+      const createdUser = await this.userService.createWithTransaction(
+        { ...user, fullname: officer.fullName },
+        session,
+      );
       const createdAccount = new this.accountModel({
         user: createdUser,
         officer: officer,
@@ -183,17 +101,57 @@ export class AccountService {
       });
       await createdAccount.save({ session });
       await session.commitTransaction();
-      console.log(createdAccount);
       return await createdAccount.populate([
-        { path: 'funcionario' },
+        { path: 'officer' },
         { path: 'dependencia' },
-        { path: 'user', select: '-password' },
+        { path: 'user', select: '-password -login' },
       ]);
     } catch (error) {
-      console.log(error);
       await session.abortTransaction();
-      if (error instanceof HttpException) throw error;
-      throw new InternalServerErrorException('Error al crear cuenta');
+      this.handleErrors(error, 'Error creating account');
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async update(id: string, { user, account }: UpdateAccountWithUserDto) {
+    let { officerId } = account;
+    const accountDB = await this.accountModel.findById(id).populate('officer');
+
+    if (!accountDB) throw new NotFoundException(`Account ${id} not found`);
+
+    const session = await this.connection.startSession();
+    try {
+      session.startTransaction();
+      if (officerId === null) {
+        // * Unlink account: Disable access in user and reset fullname
+        await this.userService.updateWithTransaction({
+          id: accountDB.user._id,
+          user: { isActive: false, fullname: 'SIN ASIGNAR' },
+          session,
+        });
+      } else if (officerId && officerId !== accountDB.officer?.id) {
+        // * Assign account: Restart crendetials
+        const newOfficer = await this.officerModel.findById(officerId);
+        if (!newOfficer) throw new BadRequestException(`Officer with ${id} not found`);
+        officerId = newOfficer.id;
+        await this.userService.updateWithTransaction({
+          id: accountDB.user._id,
+          user: { fullname: newOfficer.fullName, ...user },
+          updateCrendentials: true,
+          session,
+        });
+      }
+      console.log(account);
+      const updatedAccount = await this.accountModel
+        .findByIdAndUpdate(id, { ...account, officer: officerId }, { new: true, session })
+        .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password -login' }]);
+
+      await session.commitTransaction();
+      return updatedAccount;
+    } catch (error) {
+      await session.abortTransaction();
+      this.handleErrors(error, 'Error updating account');
     } finally {
       session.endSession();
     }
@@ -268,15 +226,58 @@ export class AccountService {
     return await this.accountModel.populate(docs, { path: 'user', select: '-password' });
   }
 
+  async resetAccountAccess(accountId: string) {
+    const account = await this.accountModel.findById(accountId).populate('officer dependencia user');
+    if (!account) {
+      throw new NotFoundException(`Account ${accountId} not found`);
+    }
+    if (!account.officer) {
+      throw new BadRequestException(`La cuenta no tiene funcionario asignado`);
+    }
+    const crendetials = await this.userService.resetCredentials(account.user, account.officer.fullName);
+
+    const pdfContent = getAccountAssignmentReport({
+      dependency: account.dependencia.nombre,
+      fullName: account.officer.fullName,
+      jobTitle: account.jobtitle,
+      login: crendetials.login,
+      password: crendetials.password,
+    });
+
+    const pdf = await this.printerService.createPdfBuffer(pdfContent);
+
+    // if (account.officer.email) {
+    //   await this.mailService.sendUserAssignment(
+    //     account.officer.email,
+    //     crendetials.newLogin,
+    //     crendetials.newPassword,
+    //     pdf,
+    //   );
+    // }
+    return { pdf, newLogin: crendetials.login };
+  }
+
   private async loadRequiredAccountProps({ officerId, dependencyId }: CreateAccountDto) {
     const [officer, dependency] = await Promise.all([
       this.officerModel.findById(officerId),
       this.dependencyModel.findById(dependencyId),
     ]);
 
-    if (!officer || dependency) {
+    if (!officer || !dependency) {
       throw new BadRequestException(`Parametros incorrectos Funcionario / Dependencia`);
     }
     return { officer, dependency };
+  }
+
+  private handleErrors(error: unknown, originMessage: string) {
+    console.log(error);
+    if (error instanceof HttpException) throw error;
+    if (error['code'] === 11000) {
+      const key = Object.keys(error['keyPattern'])[0];
+      throw new BadRequestException(
+        key === 'officer' ? 'Officer selected is assigned in another account' : 'Duplicate properties',
+      );
+    }
+    throw new InternalServerErrorException(originMessage);
   }
 }

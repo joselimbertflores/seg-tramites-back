@@ -6,17 +6,52 @@ import * as bcrypt from 'bcrypt';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { User, UserDocument } from '../schemas';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
+import { generateLogin, generatePassword } from 'src/helpers';
+
+interface UserTransactionProps {
+  fullname: string;
+  role: string;
+  isActive?: boolean;
+}
+
+interface UpdateUserTransactionProps {
+  id: string;
+  user: Partial<UserTransactionProps>;
+  updateCrendentials?: boolean;
+  session: ClientSession;
+}
 
 @Injectable()
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
-  public async createWithTransaction(userDto: CreateUserDto, session: ClientSession) {
-    await this.checkDuplicateLogin(userDto.login);
-    const { password, ...userProps } = userDto;
-    const encryptPassword = this._encryptPassword(password);
-    const createdUser = new this.userModel({ ...userProps, password: encryptPassword });
-    return await createdUser.save({ session });
+  public async createWithTransaction(user: UserTransactionProps, session: ClientSession) {
+    const password = generatePassword();
+    const login = generateLogin(user.fullname);
+
+    const encryptPassword = this.encryptPassword(password);
+    const createdUser = new this.userModel({ ...user, login, password: encryptPassword });
+    await createdUser.save({ session });
+
+    return { user: this.plainUser(createdUser), password };
+  }
+
+  public async updateWithTransaction({ id, user, session, updateCrendentials = false }: UpdateUserTransactionProps) {
+    const userDB = await this.userModel.findById(id);
+
+    if (!userDB) throw new NotFoundException(`User ${id} not found`);
+
+    let password: string | null = null;
+
+    if (updateCrendentials) {
+      console.log('reset crendentials');
+      const credentials = await this.resetCredentials(userDB, user.fullname, session);
+      password = credentials.password;
+    }
+
+    const updatedUser = await this.userModel.findByIdAndUpdate(id, user, { session, new: true });
+
+    return { user: this.plainUser(updatedUser), password };
   }
 
   async findAll({ limit, offset, term }: PaginationDto) {
@@ -27,46 +62,44 @@ export class UserService {
       this.userModel.find(query).skip(offset).limit(limit).sort({ _id: -1 }),
       this.userModel.count(query),
     ]);
-    return { users: users.map((user) => this._plainUser(user)), length };
+    return { users: users.map((user) => this.plainUser(user)), length };
   }
 
-  async create(userDto: CreateUserDto, session?: ClientSession) {
-    const createdUser = new this.userModel(userDto);
-    await this.checkDuplicateLogin(userDto.login);
-    userDto.password = this._encryptPassword(userDto.password);
-    await createdUser.save({ session });
-    return this._plainUser(createdUser);
+  async create(userDto: CreateUserDto) {
+    const password = generatePassword();
+    const login = generateLogin(userDto.fullName);
+    const encryptPassword = this.encryptPassword(password);
+    const createdUser = new this.userModel({ ...userDto, login, password: encryptPassword });
+    await createdUser.save();
+    return this.plainUser(createdUser);
   }
 
-  async update(id: string, userDto: UpdateUserDto, session?: ClientSession) {
+  async update(id: string, userDto: UpdateUserDto) {
     const userDb = await this.userModel.findById(id);
-    if (!userDb) throw new NotFoundException(`El usuario ${id} no existe`);
-    if (userDto.login && userDb.login !== userDto.login) {
-      await this.checkDuplicateLogin(userDto.login);
-    }
-    if (userDto.password) {
-      userDto.password = this._encryptPassword(userDto.password);
-    }
-    const updatedUser = await this.userModel.findByIdAndUpdate(id, userDto, {
-      new: true,
-      session,
-    });
-    return this._plainUser(updatedUser);
+    if (!userDb) throw new NotFoundException(`User ${id} not found`);
+    const updatedUser = await this.userModel.findByIdAndUpdate(id, userDto, { new: true });
+    return this.plainUser(updatedUser);
   }
 
-  private async checkDuplicateLogin(login: string): Promise<void> {
-    const duplicate = await this.userModel.findOne({ login });
-    if (duplicate) {
-      throw new BadRequestException(`El login ${login} ya existe`);
-    }
+  async resetCredentials(user: User, newFullName?: string, session?: ClientSession) {
+    const login = generateLogin(newFullName ?? user.fullname);
+    const password = generatePassword();
+    const encryptPassword = this.encryptPassword(password);
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      { login, password: encryptPassword, updatedPassword: false },
+      session ? { session } : undefined,
+    );
+    return { login, password };
   }
 
-  private _encryptPassword(password: string): string {
+  private encryptPassword(password: string): string {
     const salt = bcrypt.genSaltSync();
     return bcrypt.hashSync(password, salt);
   }
 
-  private _plainUser(user: User): User {
+  private plainUser(user: UserDocument): User {
     const result = user instanceof Document ? user.toObject() : user;
     delete result.password;
     return result;

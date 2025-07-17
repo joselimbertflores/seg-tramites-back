@@ -35,6 +35,7 @@ export class OfficerService {
       });
   }
   async searchOfficersWithoutAccount(text: string, limit = 5) {
+    console.log(text);
     const regex = new RegExp(text, 'i');
     return await this.officerModel
       .aggregate()
@@ -51,9 +52,9 @@ export class OfficerService {
       })
       .match({ fullname: regex, activo: true })
       .lookup({
-        from: 'accounts',
+        from: 'cuentas',
         localField: '_id',
-        foreignField: 'funcionario',
+        foreignField: 'officer',
         as: 'account',
       })
       .match({ account: { $size: 0 } })

@@ -8,7 +8,6 @@ import { RoleService, UserService } from './services';
   controllers: [RoleController, UserController],
   providers: [RoleService, UserService],
   imports: [
-    // TODO delete after update
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Role.name, schema: RoleSchema },

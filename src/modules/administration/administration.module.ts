@@ -30,6 +30,8 @@ import {
   TypeProcedureService,
 } from './services';
 import { UsersModule } from '../users/users.module';
+import { PrinterModule } from '../printer/printer.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   controllers: [
@@ -42,7 +44,6 @@ import { UsersModule } from '../users/users.module';
   ],
   providers: [DependencieService, InstitutionService, TypeProcedureService, OfficerService, AccountService],
   imports: [
-    UsersModule,
     MongooseModule.forFeature([
       { name: Account.name, schema: AccountSchema },
       { name: Officer.name, schema: OfficerSchema },
@@ -50,6 +51,9 @@ import { UsersModule } from '../users/users.module';
       { name: Institution.name, schema: InstitutionSchema },
       { name: TypeProcedure.name, schema: TypeProcedureSchema },
     ]),
+    UsersModule,
+    PrinterModule,
+    MailModule,
   ],
   exports: [
     MongooseModule,

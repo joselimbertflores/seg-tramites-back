@@ -10,7 +10,13 @@ import { Public, ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
 
-import { CreateAccountDto, CreateAccountWithUserDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
+import {
+  CreateAccountDto,
+  CreateAccountWithUserDto,
+  FilterAccountDto,
+  UpdateAccountDto,
+  UpdateAccountWithUserDto,
+} from '../dtos';
 import { IsMongoidPipe } from 'src/modules/common';
 
 @Controller('accounts')
@@ -24,12 +30,6 @@ export class AccountController {
     private readonly roleService: RoleService,
   ) {}
 
-  @Get('repair')
-  @Public()
-  repair() {
-    return this.accountService.repairColection();
-  }
-
   @Get()
   findAll(@Query() params: FilterAccountDto) {
     return this.accountService.findAll(params);
@@ -41,12 +41,8 @@ export class AccountController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body('user') accountDto: CreateAccountWithUserDto,
-    @Body('account') account: UpdateAccountDto,
-  ) {
-    // return this.accountService.update(id, user, account);
+  update(@Param('id') id: string, @Body() body: UpdateAccountWithUserDto) {
+    return this.accountService.update(id, body);
   }
 
   @Get('institutions')
@@ -67,5 +63,14 @@ export class AccountController {
   @Get('roles')
   getRoles() {
     return this.roleService.getActiveRoles();
+  }
+
+  @Get('reset-credentials/:accountId')
+  async resetCrendtials(@Param('accountId') accountId: string) {
+    const { newLogin, pdf } = await this.accountService.resetAccountAccess(accountId);
+    return {
+      newLogin,
+      pdfBase64: pdf.toString('base64'),
+    };
   }
 }

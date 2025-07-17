@@ -41,9 +41,19 @@ export class Officer extends Document {
   })
   activo: boolean;
 
+  @Prop({
+    type: String,
+    required: false,
+  })
+  email?: string;
+
   @Virtual({
     get: function (this: Officer) {
-      return `${this.nombre} ${this.paterno} ${this.materno}`;
+      return [this.nombre, this.paterno, this.materno]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ');
     },
   })
   fullName: string;

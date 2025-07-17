@@ -15,12 +15,6 @@ export class Account extends Document {
   isVisible: boolean;
 
   @Prop({
-    type: Boolean,
-    default: false,
-  })
-  updatedPassword: boolean;
-
-  @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: Dependency.name,
   })
@@ -36,7 +30,7 @@ export class Account extends Document {
     type: mongoose.Schema.Types.ObjectId,
     ref: Officer.name,
   })
-  officer: Officer;
+  officer: Officer | null;
 
   @Prop({ type: String })
   jobtitle: string;
@@ -44,6 +38,7 @@ export class Account extends Document {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: User.name,
+    required: true,
   })
   user: User;
 

@@ -18,6 +18,8 @@ import { AuthModule } from './modules/auth/auth.module';
 
 import { EnvVars, validate } from './config';
 import { ResourcesModule } from './modules/resources/resources.module';
+import { PrinterModule } from './modules/printer/printer.module';
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { ResourcesModule } from './modules/resources/resources.module';
     CommunicationsModule,
     SchedulerModule,
     ResourcesModule,
+    PrinterModule,
+    MailModule,
   ],
   controllers: [],
   providers: [],

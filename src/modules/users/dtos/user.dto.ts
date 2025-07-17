@@ -10,15 +10,7 @@ import {
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
-  fullname: string;
-
-  @IsString()
-  @IsNotEmpty()
-  login: string;
-
-  @IsString()
-  @IsNotEmpty()
-  password: string;
+  fullName: string;
 
   @IsMongoId()
   role: string;

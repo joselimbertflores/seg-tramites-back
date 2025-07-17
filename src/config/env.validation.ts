@@ -20,6 +20,18 @@ export class EnvVars {
 
   @IsNumber()
   YEAR: number;
+
+  @IsString()
+  MAIL_HOST: string;
+
+  @IsNumber()
+  MAIL_PORT: number;
+
+  @IsString()
+  MAIL_USER: string;
+
+  @IsString()
+  MAIL_PASSWORD: string;
 }
 
 export function validate(config: Record<string, unknown>): EnvVars {
