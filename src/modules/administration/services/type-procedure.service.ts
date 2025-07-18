@@ -1,23 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
+
 import { TypeProcedure } from '../schemas/type-procedure.schema';
 import { PaginationDto } from 'src/modules/common';
 import { CreateTypeProcedureDto, UpdateTypeProcedureDto } from '../dtos';
 
 @Injectable()
 export class TypeProcedureService {
-  constructor(
-    @InjectModel(TypeProcedure.name)
-    private typeProcedureModel: Model<TypeProcedure>,
-  ) {}
+  constructor(@InjectModel(TypeProcedure.name) private typeProcedureModel: Model<TypeProcedure>) {}
 
   async findAll({ limit, offset, term }: PaginationDto) {
     const query: FilterQuery<TypeProcedure> = {
       ...(term && { nombre: new RegExp(term, 'i') }),
     };
     const [types, length] = await Promise.all([
-      this.typeProcedureModel.find(query).lean().skip(offset).limit(limit).sort({ _id: -1 }),
+      this.typeProcedureModel.find(query).lean().skip(offset).limit(limit).sort({ _id: "descending" }),
       this.typeProcedureModel.count(query),
     ]);
     return { types, length };
@@ -58,7 +56,7 @@ export class TypeProcedureService {
       .limit(5);
   }
 
-  public async getSegments(type?: 'EXTERNO' | 'INTERNO'): Promise<string[]> {
-    return await this.typeProcedureModel.find(type ? { tipo: type } : {}).distinct('segmento');
+  public async getSegments(): Promise<string[]> {
+    return await this.typeProcedureModel.find({}).distinct('segmento');
   }
 }

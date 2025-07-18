@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { TypeProcedureService } from '../services/type-procedure.service';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+
 import { CreateTypeProcedureDto, UpdateTypeProcedureDto } from '../dtos';
 import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { PaginationDto } from 'src/modules/common';
+import { TypeProcedureService } from '../services';
 
 @ResourceProtected(SystemResource.TYPES_PROCEDURES)
 @Controller('types-procedures')
@@ -25,7 +26,7 @@ export class TypeProcedureController {
     return this.typeProcedureService.create(typeProcedure);
   }
 
-  @Put(':id')
+  @Patch(':id')
   update(
     @Param('id') id: string,
     @Body() typeProcedure: UpdateTypeProcedureDto,

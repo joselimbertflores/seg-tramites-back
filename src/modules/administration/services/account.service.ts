@@ -91,6 +91,7 @@ export class AccountService {
         { ...user, fullname: officer.fullName },
         session,
       );
+      console.log(resultTransaction);
       const createdAccount = new this.accountModel({
         user: resultTransaction.user,
         officer: officer,
@@ -101,12 +102,25 @@ export class AccountService {
       });
       await createdAccount.save({ session });
       await session.commitTransaction();
-      return await createdAccount.populate([
+
+      await createdAccount.populate([
         { path: 'officer' },
         { path: 'dependencia' },
         { path: 'user', select: '-password -login' },
       ]);
+
+      // const pdfContent = getAccountAssignmentReport({
+      //   dependency: createdAccount.dependencia.nombre,
+      //   fullName: createdAccount.officer.fullName,
+      //   jobTitle: createdAccount.jobtitle,
+      //   login: resultTransaction.user.login,
+      //   password: resultTransaction.generatedPassword,
+      // });
+
+      // const pdf = await this.printerService.createPdfBuffer(pdfContent);
+      return { account: createdAccount };
     } catch (error) {
+      console.log(error);
       await session.abortTransaction();
       this.handleErrors(error, 'Error creating account');
     } finally {
@@ -116,6 +130,7 @@ export class AccountService {
 
   async update(id: string, { user, account }: UpdateAccountWithUserDto) {
     let { officerId } = account ?? {};
+
     const accountDB = await this.accountModel.findById(id).populate('officer');
 
     if (!accountDB) throw new NotFoundException(`Account ${id} not found`);
@@ -123,38 +138,33 @@ export class AccountService {
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      // let updateUSer = user;
-      // if (officerId === null) {
-      //   updateUSer = { isActive: false, fullname: 'SIN ASIGNAR' };
-      //   console.log('Unlink account');
-      //   // * Unlink account: Disable access in user and reset fullname
-      //   await this.userService.updateWithTransaction({
-      //     id: accountDB.user._id,
-      //     user: { isActive: false, fullname: 'SIN ASIGNAR' },
-      //     session,
-      //   });
-      // } else if (officerId && officerId !== accountDB.officer?.id) {
-      //   // * Assign account: Restart crendetials
-      //   console.log('Assign account');
-      //   updateUSer = { fullname: newOfficer.fullName, ...user };
 
-      //   const newOfficer = await this.officerModel.findById(officerId);
-      //   if (!newOfficer) throw new BadRequestException(`Officer with ${id} not found`);
-      //   officerId = newOfficer.id;
-      //   await this.userService.updateWithTransaction({
-      //     id: accountDB.user._id,
-      //     user: { fullname: newOfficer.fullName, ...user },
-      //     updateCrendentials: true,
-      //     session,
-      //   });
-      // }
-      // await this.userService.updateWithTransaction({
-      //   id: accountDB.user._id,
-      //   user: { fullname: newOfficer.fullName, ...user },
-      //   updateCrendentials: true,
-      //   session,
-      // });
-      console.log('update');
+      if (officerId === null) {
+        // * Unlink account: Disable access in user and reset fullname
+        await this.userService.updateWithTransaction({
+          id: accountDB.user._id,
+          user: { ...user, isActive: false, fullname: 'SIN ASIGNAR' },
+          session,
+        });
+      } else if (officerId && officerId !== accountDB.officer?.id) {
+        // * Assign account: Restart crendetials
+
+        const newOfficer = await this.officerModel.findById(officerId,null, {session});
+
+        if (!newOfficer) throw new BadRequestException(`Officer with ${id} not found`);
+
+        officerId = newOfficer.id;
+
+        await this.userService.updateWithTransaction({
+          id: accountDB.user._id,
+          user: { ...user, fullname: newOfficer.fullName },
+          updateCredentials: true,
+          session,
+        });
+      } else {
+        await this.userService.updateWithTransaction({ id: accountDB.user._id, user, session });
+      }
+
       const updatedAccount = await this.accountModel
         .findByIdAndUpdate(id, { ...account, officer: officerId }, { new: true, session })
         .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password -login' }]);
@@ -162,6 +172,7 @@ export class AccountService {
       await session.commitTransaction();
       return updatedAccount;
     } catch (error) {
+      console.log(error);
       await session.abortTransaction();
       this.handleErrors(error, 'Error updating account');
     } finally {
@@ -246,7 +257,7 @@ export class AccountService {
     if (!account.officer) {
       throw new BadRequestException(`La cuenta no tiene funcionario asignado`);
     }
-    const crendetials = await this.userService.resetCredentials(account.user, account.officer.fullName);
+    const crendetials = await this.userService.resetCredentials(account.user);
 
     const pdfContent = getAccountAssignmentReport({
       dependency: account.dependencia.nombre,
@@ -258,15 +269,7 @@ export class AccountService {
 
     const pdf = await this.printerService.createPdfBuffer(pdfContent);
 
-    // if (account.officer.email) {
-    //   await this.mailService.sendUserAssignment(
-    //     account.officer.email,
-    //     crendetials.newLogin,
-    //     crendetials.newPassword,
-    //     pdf,
-    //   );
-    // }
-    return { pdf, newLogin: crendetials.login };
+    return { pdfBase64: pdf.toString('base64'), newLogin: crendetials.login };
   }
 
   private async loadRequiredAccountProps({ officerId, dependencyId }: CreateAccountDto) {
@@ -282,7 +285,6 @@ export class AccountService {
   }
 
   private handleErrors(error: unknown, originMessage: string) {
-    console.log(error);
     if (error instanceof HttpException) throw error;
     if (error['code'] === 11000) {
       const key = Object.keys(error['keyPattern'])[0];

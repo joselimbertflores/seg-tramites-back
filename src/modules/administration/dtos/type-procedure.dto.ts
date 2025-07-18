@@ -3,7 +3,6 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
-  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -28,10 +27,6 @@ export class CreateTypeProcedureDto {
   @IsString()
   segmento: string;
 
-  @IsNotEmpty()
-  @IsEnum(['EXTERNO', 'INTERNO'])
-  tipo: 'EXTERNO' | 'INTERNO';
-
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateRequirementDto)
@@ -43,5 +38,5 @@ export class CreateTypeProcedureDto {
 }
 
 export class UpdateTypeProcedureDto extends PartialType(
-  OmitType(CreateTypeProcedureDto, ['segmento', 'tipo'] as const),
+  OmitType(CreateTypeProcedureDto, ['segmento'] as const),
 ) {}

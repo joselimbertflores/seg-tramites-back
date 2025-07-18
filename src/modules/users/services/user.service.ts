@@ -1,12 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Document, FilterQuery, Model, ClientSession } from 'mongoose';
+import { FilterQuery, Model, ClientSession, UpdateQuery, Document } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
-import { User, UserDocument } from '../schemas';
-import { CreateUserDto, UpdateUserDto } from '../dtos';
 import { generateLogin, generatePassword } from 'src/helpers';
+import { CreateUserDto, UpdateUserDto } from '../dtos';
+import { User, UserDocument } from '../schemas';
 
 interface UserTransactionProps {
   fullname: string;
@@ -17,8 +17,13 @@ interface UserTransactionProps {
 interface UpdateUserTransactionProps {
   id: string;
   user: Partial<UserTransactionProps>;
-  updateCrendentials?: boolean;
   session: ClientSession;
+  updateCredentials?: boolean;
+}
+
+interface UserTransactionResult {
+  user: UserDocument;
+  generatedPassword: string | null;
 }
 
 @Injectable()
@@ -28,33 +33,30 @@ export class UserService {
   public async createWithTransaction(
     user: UserTransactionProps,
     session: ClientSession,
-  ): Promise<{ user: UserDocument; generatedPassword: string }> {
-    const password = generatePassword();
-    const login = generateLogin(user.fullname);
+  ): Promise<UserTransactionResult> {
+    const { login, password } = this.generateCrendentials(user.fullname);
 
     const encryptPassword = this.encryptPassword(password);
+
     const createdUser = new this.userModel({ ...user, login, password: encryptPassword });
+
     await createdUser.save({ session });
 
     return { user: createdUser, generatedPassword: password };
   }
 
-  public async updateWithTransaction({ id, user, session, updateCrendentials = false }: UpdateUserTransactionProps) {
-    console.log('udate values', user);
-    const userDB = await this.userModel.findById(id);
-
-    if (!userDB) throw new NotFoundException(`User ${id} not found`);
-
-    let password: string | null = null;
-
-    if (updateCrendentials) {
-      const credentials = await this.resetCredentials(userDB, user.fullname, session);
-      password = credentials.password;
-    }
-
+  public async updateWithTransaction({ id, user, session, updateCredentials = false }: UpdateUserTransactionProps) {
     const updatedUser = await this.userModel.findByIdAndUpdate(id, user, { session, new: true });
 
-    return { user: updatedUser, generatedPassword: password };
+    if (!updatedUser) throw new NotFoundException(`User ${id} not found`);
+
+    let generatedPassword: string | null = null;
+
+    if (updateCredentials) {
+      const { password } = await this.resetCredentials(updatedUser);
+      generatedPassword = password;
+    }
+    return { user: updatedUser, generatedPassword };
   }
 
   async findAll({ limit, offset, term }: PaginationDto) {
@@ -69,8 +71,7 @@ export class UserService {
   }
 
   async create(userDto: CreateUserDto) {
-    const password = generatePassword();
-    const login = generateLogin(userDto.fullName);
+    const { login, password } = this.generateCrendentials(userDto.fullName);
     const encryptPassword = this.encryptPassword(password);
     const createdUser = new this.userModel({ ...userDto, login, password: encryptPassword });
     await createdUser.save();
@@ -84,16 +85,10 @@ export class UserService {
     return this.plainUser(updatedUser);
   }
 
-  async resetCredentials(user: User, newFullName?: string, session?: ClientSession) {
-    const login = generateLogin(newFullName ?? user.fullname);
-    const password = generatePassword();
+  async resetCredentials(user: User) {
+    const { login, password } = this.generateCrendentials(user.fullname);
     const encryptPassword = this.encryptPassword(password);
-
-    await this.userModel.updateOne(
-      { _id: user._id },
-      { login, password: encryptPassword, updatedPassword: false },
-      session ? { session } : undefined,
-    );
+    await this.userModel.updateOne({ _id: user._id }, { login, password: encryptPassword, updatedPassword: false });
     return { login, password };
   }
 
@@ -106,5 +101,11 @@ export class UserService {
     const result = user instanceof Document ? user.toObject() : user;
     delete result.password;
     return result;
+  }
+
+  private generateCrendentials(fullName: string) {
+    const login = generateLogin(fullName);
+    const password = generatePassword();
+    return { login, password };
   }
 }

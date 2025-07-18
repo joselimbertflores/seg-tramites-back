@@ -23,7 +23,7 @@ export class ExternalController {
 
   @Get('segments')
   getSegments() {
-    return this.typeProcedure.getSegments('EXTERNO');
+    return this.typeProcedure.getSegments();
   }
 
   @Get('types-procedures/:segment')

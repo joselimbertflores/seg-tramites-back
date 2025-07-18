@@ -21,7 +21,7 @@ export const FRONTEND_MENU: Menu[] = [
       {
         resource: [SystemResource.ROLES],
         text: 'Roles',
-        icon: 'verified_user',
+        icon: 'admin_panel_settings',
         routerLink: 'roles',
       },
       {
@@ -61,7 +61,7 @@ export const FRONTEND_MENU: Menu[] = [
       },
       {
         resource: [SystemResource.TYPES_PROCEDURES],
-        text: 'Tramites',
+        text: 'Tipos de tramite',
         icon: 'summarize',
         routerLink: 'types-procedures',
       },

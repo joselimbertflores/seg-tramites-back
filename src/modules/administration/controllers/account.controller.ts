@@ -66,11 +66,7 @@ export class AccountController {
   }
 
   @Get('reset-credentials/:accountId')
-  async resetCrendtials(@Param('accountId') accountId: string) {
-    const { newLogin, pdf } = await this.accountService.resetAccountAccess(accountId);
-    return {
-      newLogin,
-      pdfBase64: pdf.toString('base64'),
-    };
+  resetCrendtials(@Param('accountId') accountId: string) {
+    return this.accountService.resetAccountAccess(accountId);
   }
 }

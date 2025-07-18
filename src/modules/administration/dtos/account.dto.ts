@@ -1,8 +1,9 @@
 import { IsBoolean, IsDefined, IsMongoId, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
-import { IntersectionType, OmitType, PartialType, PickType } from '@nestjs/mapped-types';
-import { PaginationDto } from 'src/modules/common';
+import { OmitType, PartialType, PickType } from '@nestjs/mapped-types';
 import { Type } from 'class-transformer';
+
 import { CreateUserDto } from 'src/modules/users/dtos';
+import { PaginationDto } from 'src/modules/common';
 
 export class CreateAccountDto {
   @IsString()

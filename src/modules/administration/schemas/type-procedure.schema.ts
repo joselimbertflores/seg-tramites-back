@@ -34,13 +34,6 @@ export class TypeProcedure extends Document {
   segmento: string;
 
   @Prop({
-    type: String,
-    required: true,
-    enum: ['EXTERNO', 'INTERNO'],
-  })
-  tipo: string;
-
-  @Prop({
     type: Boolean,
     default: true,
   })
@@ -50,3 +43,8 @@ export class TypeProcedure extends Document {
   requerimientos: Requirement[];
 }
 export const TypeProcedureSchema = SchemaFactory.createForClass(TypeProcedure);
+
+TypeProcedureSchema.pre<TypeProcedure>('save', function (next) {
+  this.segmento = this.segmento.trim().replace(/\s/g, '').toUpperCase();
+  next();
+});
