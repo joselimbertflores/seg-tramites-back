@@ -25,7 +25,10 @@ interface UpdateUserTransactionProps {
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
-  public async createWithTransaction(user: UserTransactionProps, session: ClientSession) {
+  public async createWithTransaction(
+    user: UserTransactionProps,
+    session: ClientSession,
+  ): Promise<{ user: UserDocument; generatedPassword: string }> {
     const password = generatePassword();
     const login = generateLogin(user.fullname);
 
@@ -33,10 +36,11 @@ export class UserService {
     const createdUser = new this.userModel({ ...user, login, password: encryptPassword });
     await createdUser.save({ session });
 
-    return { user: this.plainUser(createdUser), password };
+    return { user: createdUser, generatedPassword: password };
   }
 
   public async updateWithTransaction({ id, user, session, updateCrendentials = false }: UpdateUserTransactionProps) {
+    console.log('udate values', user);
     const userDB = await this.userModel.findById(id);
 
     if (!userDB) throw new NotFoundException(`User ${id} not found`);
@@ -44,14 +48,13 @@ export class UserService {
     let password: string | null = null;
 
     if (updateCrendentials) {
-      console.log('reset crendentials');
       const credentials = await this.resetCredentials(userDB, user.fullname, session);
       password = credentials.password;
     }
 
     const updatedUser = await this.userModel.findByIdAndUpdate(id, user, { session, new: true });
 
-    return { user: this.plainUser(updatedUser), password };
+    return { user: updatedUser, generatedPassword: password };
   }
 
   async findAll({ limit, offset, term }: PaginationDto) {

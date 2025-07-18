@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, FilterQuery, Model } from 'mongoose';
 
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
+import { Communication, communicationStatus } from '../schemas';
 import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
 
@@ -19,7 +19,7 @@ interface archiveCommunicationsProps {
 @Injectable()
 export class InboxService {
   constructor(
-    @InjectModel(Communication.name) private inboxModel: Model<CommunicationDocument>,
+    @InjectModel(Communication.name) private inboxModel: Model<Communication>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
   ) {}
 
@@ -147,7 +147,7 @@ export class InboxService {
     return this.validateStatusOrThrow(communications, expectedStatus);
   }
 
-  private validateStatusOrThrow(communications: CommunicationDocument[], validStatus: communicationStatus) {
+  private validateStatusOrThrow(communications: Communication[], validStatus: communicationStatus) {
     const invalidItems = communications
       .filter(({ status }) => status !== validStatus)
       .map(({ id, procedure: { code }, status }) => ({ id, status, code }));

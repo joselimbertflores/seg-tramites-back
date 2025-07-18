@@ -7,14 +7,14 @@ import { Model } from 'mongoose';
 import { isWeekend, subDays } from 'date-fns';
 
 import { EnvVars } from 'src/config';
-import { Communication, CommunicationDocument, communicationStatus } from '../communications/schemas';
+import { Communication, communicationStatus } from '../communications/schemas';
 
 @Injectable()
 export class SchedulerService {
   private readonly AUTO_REJECT_DAYS = this.configService.get<number>('AUTO_REJECT_DAYS');
 
   constructor(
-    @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
+    @InjectModel(Communication.name) private communicationModel: Model<Communication>,
     private configService: ConfigService<EnvVars>,
   ) {}
 

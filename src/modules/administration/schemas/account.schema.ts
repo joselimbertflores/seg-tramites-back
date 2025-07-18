@@ -1,11 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, HydratedDocument } from 'mongoose';
-import { Role, User } from 'src/modules/users/schemas';
+import mongoose, { Document } from 'mongoose';
+import { User } from 'src/modules/users/schemas';
 import { Institution } from './institution.schema';
 import { Dependency } from './dependencie.schema';
 import { Officer } from './officer.schema';
 
-export type AccountDocument = HydratedDocument<Account>;
 @Schema({ collection: 'cuentas' })
 export class Account extends Document {
   @Prop({

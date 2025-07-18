@@ -14,7 +14,7 @@ import { ClientSession, Connection, Document, FilterQuery, Model, mongo } from '
 import { addDays, isWeekend } from 'date-fns';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
-import { Communication, CommunicationDocument, communicationStatus } from '../schemas';
+import { Communication, communicationStatus } from '../schemas';
 import { Account } from 'src/modules/administration/schemas';
 
 import { PaginationDto } from 'src/modules/common';
@@ -43,7 +43,7 @@ export class OutboxService {
   private readonly AUTO_REJECT_DAYS = this.configService.get<number>('AUTO_REJECT_DAYS');
 
   constructor(
-    @InjectModel(Communication.name) private outboxModel: Model<CommunicationDocument>,
+    @InjectModel(Communication.name) private outboxModel: Model<Communication>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectConnection() private connection: Connection,
@@ -286,7 +286,7 @@ export class OutboxService {
     }
   }
 
-  private async restoreStages(items: CommunicationDocument[], sender: Account, session: ClientSession) {
+  private async restoreStages(items: Communication[], sender: Account, session: ClientSession) {
     const procedureIds = [...new Set(items.map(({ procedure }) => procedure.ref._id))];
 
     const lastStages = await this.outboxModel
@@ -353,7 +353,7 @@ export class OutboxService {
     });
   }
 
-  private plainCommunication(item: CommunicationDocument) {
+  private plainCommunication(item: Communication) {
     const plainObject = item instanceof Document ? item.toObject() : item;
     return {
       ...plainObject,
@@ -387,7 +387,7 @@ export class OutboxService {
     return this.validateStatusOrThrow(communications, expectedStatus);
   }
 
-  private validateStatusOrThrow(communications: CommunicationDocument[], validStatus: communicationStatus) {
+  private validateStatusOrThrow(communications: Communication[], validStatus: communicationStatus) {
     const invalidItems = communications
       .filter(({ status }) => status !== validStatus)
       .map(({ id, procedure: { code }, status }) => ({ id, status, code }));

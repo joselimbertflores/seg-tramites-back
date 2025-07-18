@@ -1,5 +1,5 @@
 import { IsBoolean, IsDefined, IsMongoId, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
-import { OmitType, PartialType } from '@nestjs/mapped-types';
+import { IntersectionType, OmitType, PartialType, PickType } from '@nestjs/mapped-types';
 import { PaginationDto } from 'src/modules/common';
 import { Type } from 'class-transformer';
 import { CreateUserDto } from 'src/modules/users/dtos';
@@ -20,28 +20,20 @@ export class CreateAccountDto {
   isVisible?: boolean;
 }
 
-export class UpdateAccountDto {
-  @IsString()
-  @IsNotEmpty()
-  @IsOptional()
-  jobtitle: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isVisible?: boolean;
-
+export class UpdateAccountDto extends PartialType(PickType(CreateAccountDto, ['isVisible', 'jobtitle'] as const)) {
   @IsMongoId()
   @IsOptional()
   officerId?: string;
 }
 
-class UserDto extends OmitType(CreateUserDto, ['fullName'] as const) {}
+export class CreatePartialUserDto extends OmitType(CreateUserDto, ['fullName'] as const) {}
+export class UpdatePartialUserDto extends PartialType(CreatePartialUserDto) {}
 
 export class CreateAccountWithUserDto {
   @ValidateNested()
-  @Type(() => UserDto)
+  @Type(() => CreatePartialUserDto)
   @IsDefined()
-  user: UserDto;
+  user: CreatePartialUserDto;
 
   @ValidateNested()
   @Type(() => CreateAccountDto)
@@ -51,10 +43,10 @@ export class CreateAccountWithUserDto {
 
 export class UpdateAccountWithUserDto {
   @ValidateNested()
-  @Type(() => UserDto)
+  @Type(() => UpdatePartialUserDto)
   @IsDefined()
   @IsOptional()
-  user?: UserDto;
+  user?: UpdatePartialUserDto;
 
   @ValidateNested()
   @Type(() => UpdateAccountDto)

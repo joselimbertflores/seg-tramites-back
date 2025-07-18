@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 
 import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
 import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
@@ -76,7 +76,7 @@ class ProcedureProps {
 const ProcedurePropsSchema = SchemaFactory.createForClass(ProcedureProps);
 
 @Schema({ collection: 'newcommunications' })
-export class Communication {
+export class Communication extends Document {
   @Prop({ type: ParticipantSchema })
   sender: Participant;
 
@@ -118,11 +118,10 @@ export class Communication {
     type: mongoose.Schema.Types.ObjectId,
     ref: Communication.name,
   })
-  parentId?: CommunicationDocument;
+  parentId?: Communication;
 
   @Prop({ type: Number, default: 0 })
   priority: number;
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);
-export type CommunicationDocument = HydratedDocument<Communication>;

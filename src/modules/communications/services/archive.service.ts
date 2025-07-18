@@ -14,20 +14,12 @@ import mongoose, { FilterQuery, Model } from 'mongoose';
 import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
 
-import {
-  Folder,
-  Archive,
-  Communication,
-  FolderDocument,
-  ArchiveDocument,
-  communicationStatus,
-  CommunicationDocument,
-} from '../schemas';
+import { Folder, Archive, Communication, FolderDocument, ArchiveDocument, communicationStatus } from '../schemas';
 import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { InboxService } from './inbox.service';
 
 interface buildArchiveInstanteProps {
-  item: CommunicationDocument;
+  item: Communication;
   account: Account;
   folder: Folder | null;
   description: string;
@@ -169,7 +161,7 @@ export class ArchiveService {
     });
   }
 
-  private createNewCommunication(current: CommunicationDocument, account: Account) {
+  private createNewCommunication(current: Communication, account: Account) {
     const { recipient, procedure } = current;
     const currentDate = new Date();
     return new this.communicationModel({

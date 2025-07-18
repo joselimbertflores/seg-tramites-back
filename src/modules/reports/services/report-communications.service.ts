@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 
-import { Communication, CommunicationDocument, communicationStatus } from 'src/modules/communications/schemas';
+import { Communication, communicationStatus } from 'src/modules/communications/schemas';
 import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
@@ -10,7 +10,7 @@ import { PaginationDto } from 'src/modules/common';
 @Injectable()
 export class ReportCommunicationsService {
   constructor(
-    @InjectModel(Communication.name) private communicationModel: Model<CommunicationDocument>,
+    @InjectModel(Communication.name) private communicationModel: Model<Communication>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
   ) {}
 
