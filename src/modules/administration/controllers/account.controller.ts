@@ -1,23 +1,16 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { RoleService } from '../../users/services';
+
 import {
   AccountService,
   DependencieService,
   InstitutionService,
   OfficerService,
 } from 'src/modules/administration/services';
-import { Public, ResourceProtected } from 'src/modules/auth/decorators';
+import { CreateAccountWithUserDto, FilterAccountDto, UpdateAccountWithUserDto } from '../dtos';
+import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
-import { CreateUserDto, UpdateUserDto } from 'src/modules/users/dtos';
-
-import {
-  CreateAccountDto,
-  CreateAccountWithUserDto,
-  FilterAccountDto,
-  UpdateAccountDto,
-  UpdateAccountWithUserDto,
-} from '../dtos';
 import { IsMongoidPipe } from 'src/modules/common';
+import { RoleService } from '../../users/services';
 
 @Controller('accounts')
 @ResourceProtected(SystemResource.ACCOUNTS)
@@ -65,8 +58,8 @@ export class AccountController {
     return this.roleService.getActiveRoles();
   }
 
-  @Get('reset-credentials/:accountId')
+  @Get('reset-password/:accountId')
   resetCrendtials(@Param('accountId') accountId: string) {
-    return this.accountService.resetAccountAccess(accountId);
+    return this.accountService.resetAccountPassword(accountId);
   }
 }

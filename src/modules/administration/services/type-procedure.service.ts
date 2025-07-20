@@ -32,12 +32,11 @@ export class TypeProcedureService {
     });
   }
 
-  async getEnabledTypesBySegment(segment: string, type?: 'INTERNO' | 'EXTERNO') {
+  async getEnabledTypesBySegment(segment: string) {
     return await this.typeProcedureModel
       .find({
         segmento: segment.toUpperCase(),
         activo: true,
-        ...(type ? { tipo: type } : {}),
       })
       .lean();
   }

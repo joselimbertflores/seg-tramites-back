@@ -8,13 +8,13 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, isValidObjectId, Model, Types } from 'mongoose';
 
-import { OfficerService } from './officer.service';
-import { Account, Dependency, Officer } from '../schemas';
 import { CreateAccountDto, CreateAccountWithUserDto, FilterAccountDto, UpdateAccountWithUserDto } from '../dtos';
 import { getAccountAssignmentReport } from 'src/modules/printer/templates';
 import { PrinterService } from 'src/modules/printer/printer.service';
 import { MailService } from 'src/modules/mail/mail.service';
 import { UserService } from 'src/modules/users/services';
+import { UpdateUserDto } from 'src/modules/users/dtos';
+import { Account, Dependency, Officer } from '../schemas';
 
 @Injectable()
 export class AccountService {
@@ -25,7 +25,6 @@ export class AccountService {
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
     private printerService: PrinterService,
     private userService: UserService,
-    private officerService: OfficerService,
     private mailService: MailService,
   ) {}
 
@@ -83,53 +82,48 @@ export class AccountService {
   }
 
   async create({ user, account }: CreateAccountWithUserDto) {
-    const { officer, dependency } = await this.loadRequiredAccountProps(account);
+    const { officer, dependency } = await this.loadAccountProps(account);
     const session = await this.connection.startSession();
     try {
       session.startTransaction();
-      const resultTransaction = await this.userService.createWithTransaction(
-        { ...user, fullname: officer.fullName },
-        session,
-      );
-      console.log(resultTransaction);
+
+      const userResult = await this.userService.create({ ...user, fullname: officer.fullName }, session);
+
       const createdAccount = new this.accountModel({
-        user: resultTransaction.user,
+        user: userResult.user,
         officer: officer,
         dependencia: dependency,
         institution: dependency.institucion,
         jobtitle: account.jobtitle,
         isVisible: account.isVisible,
       });
+
       await createdAccount.save({ session });
+
       await session.commitTransaction();
 
       await createdAccount.populate([
         { path: 'officer' },
         { path: 'dependencia' },
-        { path: 'user', select: '-password -login' },
+        { path: 'user', select: '-password' },
       ]);
 
-      // const pdfContent = getAccountAssignmentReport({
-      //   dependency: createdAccount.dependencia.nombre,
-      //   fullName: createdAccount.officer.fullName,
-      //   jobTitle: createdAccount.jobtitle,
-      //   login: resultTransaction.user.login,
-      //   password: resultTransaction.generatedPassword,
-      // });
+      const pdfBase64 = await this.generateAccountPdf(createdAccount, {
+        login: userResult.user.login,
+        password: userResult.generatedPassword,
+      });
 
-      // const pdf = await this.printerService.createPdfBuffer(pdfContent);
-      return { account: createdAccount };
+      return { account: createdAccount, pdfBase64 };
     } catch (error) {
-      console.log(error);
       await session.abortTransaction();
-      this.handleErrors(error, 'Error creating account');
+      this.handleAccountErrors(error, 'Error creating account');
     } finally {
       session.endSession();
     }
   }
 
   async update(id: string, { user, account }: UpdateAccountWithUserDto) {
-    let { officerId } = account ?? {};
+    const { officerId, ...toUpdateAccount } = account;
 
     const accountDB = await this.accountModel.findById(id).populate('officer');
 
@@ -139,42 +133,44 @@ export class AccountService {
     try {
       session.startTransaction();
 
+      // * Update user props
+      const updateUserDto: UpdateUserDto = { ...user };
+      let resetPassword = false;
+
       if (officerId === null) {
-        // * Unlink account: Disable access in user and reset fullname
-        await this.userService.updateWithTransaction({
-          id: accountDB.user._id,
-          user: { ...user, isActive: false, fullname: 'SIN ASIGNAR' },
-          session,
-        });
+        updateUserDto.fullname = 'SIN ASIGNAR';
+        updateUserDto.isActive = false;
       } else if (officerId && officerId !== accountDB.officer?.id) {
-        // * Assign account: Restart crendetials
-
-        const newOfficer = await this.officerModel.findById(officerId,null, {session});
-
-        if (!newOfficer) throw new BadRequestException(`Officer with ${id} not found`);
-
-        officerId = newOfficer.id;
-
-        await this.userService.updateWithTransaction({
-          id: accountDB.user._id,
-          user: { ...user, fullname: newOfficer.fullName },
-          updateCredentials: true,
-          session,
-        });
-      } else {
-        await this.userService.updateWithTransaction({ id: accountDB.user._id, user, session });
+        const newOfficer = await this.officerModel.findById(officerId, null, { session });
+        if (!newOfficer) throw new NotFoundException(`Officer with ${officerId} not found`);
+        updateUserDto.fullname = newOfficer.fullName;
+        resetPassword = true;
       }
 
+      const userUpdateResult = await this.userService.updateWithTransaction({
+        id: accountDB.user._id,
+        user: updateUserDto,
+        resetPassword,
+        session,
+      });
+
       const updatedAccount = await this.accountModel
-        .findByIdAndUpdate(id, { ...account, officer: officerId }, { new: true, session })
-        .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password -login' }]);
+        .findByIdAndUpdate(id, { ...toUpdateAccount, officer: officerId }, { new: true, session })
+        .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password' }]);
 
       await session.commitTransaction();
-      return updatedAccount;
+
+      const pdfBase64 = userUpdateResult.generatedPassword
+        ? await this.generateAccountPdf(updatedAccount, {
+            login: updatedAccount.user.login,
+            password: userUpdateResult.generatedPassword,
+          })
+        : null;
+
+      return { account: updatedAccount, pdfBase64 };
     } catch (error) {
-      console.log(error);
-      await session.abortTransaction();
-      this.handleErrors(error, 'Error updating account');
+      if (session.inTransaction()) await session.abortTransaction();
+      this.handleAccountErrors(error, 'Error updating account');
     } finally {
       session.endSession();
     }
@@ -249,30 +245,23 @@ export class AccountService {
     return await this.accountModel.populate(docs, { path: 'user', select: '-password' });
   }
 
-  async resetAccountAccess(accountId: string) {
-    const account = await this.accountModel.findById(accountId).populate('officer dependencia user');
+  async resetAccountPassword(accountId: string) {
+    const account = await this.accountModel
+      .findById(accountId)
+      .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password' }]);
+
     if (!account) {
       throw new NotFoundException(`Account ${accountId} not found`);
     }
-    if (!account.officer) {
-      throw new BadRequestException(`La cuenta no tiene funcionario asignado`);
-    }
-    const crendetials = await this.userService.resetCredentials(account.user);
 
-    const pdfContent = getAccountAssignmentReport({
-      dependency: account.dependencia.nombre,
-      fullName: account.officer.fullName,
-      jobTitle: account.jobtitle,
-      login: crendetials.login,
-      password: crendetials.password,
-    });
+    const { password } = await this.userService.resetPassword(account.user);
 
-    const pdf = await this.printerService.createPdfBuffer(pdfContent);
-
-    return { pdfBase64: pdf.toString('base64'), newLogin: crendetials.login };
+    const pdfBase64 = await this.generateAccountPdf(account, { login: account.user.login, password });
+    // this.mailService.sendUserAssignment('work000100@gmail.com', "");
+    return { pdfBase64 };
   }
 
-  private async loadRequiredAccountProps({ officerId, dependencyId }: CreateAccountDto) {
+  private async loadAccountProps({ officerId, dependencyId }: CreateAccountDto) {
     const [officer, dependency] = await Promise.all([
       this.officerModel.findById(officerId),
       this.dependencyModel.findById(dependencyId),
@@ -284,14 +273,23 @@ export class AccountService {
     return { officer, dependency };
   }
 
-  private handleErrors(error: unknown, originMessage: string) {
+  private handleAccountErrors(error: unknown, originMessage: string) {
     if (error instanceof HttpException) throw error;
     if (error['code'] === 11000) {
       const key = Object.keys(error['keyPattern'])[0];
       throw new BadRequestException(
-        key === 'officer' ? 'Officer selected is assigned in another account' : 'Duplicate properties',
+        key === 'officer' ? 'El funcionario seleccionado ya tiene una cuenta asignada' : 'Duplicate properties',
       );
     }
     throw new InternalServerErrorException(originMessage);
+  }
+
+  private async generateAccountPdf(account: Account, crendetials: { login: string; password: string }) {
+    const pdfContent = getAccountAssignmentReport(account, {
+      login: crendetials.login,
+      password: crendetials.password,
+    });
+    const pdf = await this.printerService.createPdfBuffer(pdfContent);
+    return pdf.toString('base64');
   }
 }

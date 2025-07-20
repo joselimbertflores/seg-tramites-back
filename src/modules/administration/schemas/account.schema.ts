@@ -31,7 +31,7 @@ export class Account extends Document {
   })
   officer: Officer | null;
 
-  @Prop({ type: String })
+  @Prop({ type: String, uppercase:true })
   jobtitle: string;
 
   @Prop({

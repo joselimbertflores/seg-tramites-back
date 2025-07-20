@@ -60,14 +60,21 @@ export class InternalService implements validProcedureService {
     return procedureDB;
   }
 
-  async generateCode(account: Account) {
-    const prefix = `HR-${account.institution.sigla}`.trim().toUpperCase();
-    const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
+  async generateCode({ institution }: Account) {
+    const prefix = 'HR';
+    const year = this.configService.get('YEAR') || new Date().getFullYear();
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year + 1, 0, 1);
+    const last = await this.procedureModel
+      .findOne({ prefix, institution, createdAt: { $gte: startDate, $lt: endDate } }, { correlative: 1 })
+      .sort({ _id: -1 });
+
     const correlative = last ? last.correlative + 1 : 1;
+
     return {
       prefix,
       correlative,
-      code: `${prefix}-${this.configService.get('YEAR')}-${correlative.toString().padStart(5, '0')}`,
+      code: `${prefix}-${institution.sigla}-${year}-${correlative.toString().padStart(5, '0')}`,
     };
   }
 }

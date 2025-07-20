@@ -125,3 +125,8 @@ export class Communication extends Document {
 }
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);
+
+CommunicationSchema.index({ 'procedure.code': 1 });
+CommunicationSchema.index({ 'sender.account': 1 });
+CommunicationSchema.index({ 'recipient.account': 1 });
+CommunicationSchema.index({ 'status': 1 });

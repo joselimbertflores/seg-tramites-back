@@ -86,7 +86,7 @@ export class InboxService {
       { _id: { $in: itemIds } },
       { status: communicationStatus.Received, receivedDate: currentDate },
     );
-    return { date: currentDate, itemIds, message: `Received communications: ${itemIds.length}` };
+    return { date: currentDate, ids: itemIds, message: `Received communications: ${itemIds.length}` };
   }
 
   async reject(account: Account, { description, ids }: RejectCommunicationDto) {

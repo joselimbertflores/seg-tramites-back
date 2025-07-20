@@ -15,7 +15,13 @@ export class CreateArchiveDto {
   @IsMongoId({ each: true })
   ids: string[];
 
-  @IsIn([procedureState.CONCLUIDO, procedureState.SUSPENDIDO, procedureState.ANULADO])
+  @IsIn([
+    procedureState.CONCLUIDO,
+    procedureState.SUSPENDIDO,
+    procedureState.ANULADO,
+    procedureState.ABANDONO,
+    procedureState.RETIRADO,
+  ])
   state: procedureState;
 }
 

@@ -16,6 +16,7 @@ import { EnvVars } from 'src/config';
         transport: {
           host: config.get('MAIL_HOST'),
           port: config.get('MAIL_PORT'),
+          secure: false,
           auth: {
             user: config.get('MAIL_USER'),
             pass: config.get('MAIL_PASSWORD'),
@@ -23,13 +24,6 @@ import { EnvVars } from 'src/config';
         },
         defaults: {
           from: `"Jefatura de Gobierno Electrónico" <${config.get('MAIL_USER')}>`,
-        },
-        template: {
-          dir: join(__dirname, 'templates'),
-          adapter: new HandlebarsAdapter(),
-          options: {
-            strict: true,
-          },
         },
       }),
       inject: [ConfigService],

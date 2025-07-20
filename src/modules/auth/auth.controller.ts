@@ -2,7 +2,7 @@ import { Controller, Post, Body, Get, Put, Ip } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto, UpdateMyUserDto } from './dto';
 import { GetUserRequest, Public } from './decorators';
-import { UserDocument } from 'src/modules/users/schemas';
+import { User } from '../users/schemas';
 
 @Controller('auth')
 export class AuthController {
@@ -15,7 +15,7 @@ export class AuthController {
   }
 
   @Get()
-  checkAuthStatus(@GetUserRequest() user: UserDocument) {
+  checkAuthStatus(@GetUserRequest() user: User) {
     return this.authService.checkAuthStatus(user);
   }
 

@@ -1,7 +1,7 @@
 import { SystemResource } from './system-resources';
 
 export interface Menu {
-  resource?: SystemResource[];
+  requiredResources?: SystemResource[];
   text: string;
   icon?: string;
   routerLink?: string;
@@ -13,19 +13,19 @@ export const FRONTEND_MENU: Menu[] = [
     text: 'Seguridad y Acceso',
     children: [
       {
-        resource: [SystemResource.USERS],
+        requiredResources: [SystemResource.USERS],
         text: 'Usuarios',
         icon: 'account_circle',
         routerLink: 'usuarios',
       },
       {
-        resource: [SystemResource.ROLES],
+        requiredResources: [SystemResource.ROLES],
         text: 'Roles',
         icon: 'admin_panel_settings',
         routerLink: 'roles',
       },
       {
-        resource: [SystemResource.USERS],
+        requiredResources: [SystemResource.USERS],
         text: 'Grupo de trabajo',
         icon: 'groups',
         routerLink: 'groupware/users',
@@ -36,31 +36,31 @@ export const FRONTEND_MENU: Menu[] = [
     text: 'Organizacion',
     children: [
       {
-        resource: [SystemResource.INSTITUTIONS],
+        requiredResources: [SystemResource.INSTITUTIONS],
         text: 'Instituciones',
         icon: 'apartment',
         routerLink: 'institutions',
       },
       {
-        resource: [SystemResource.DEPENDENCIES],
+        requiredResources: [SystemResource.DEPENDENCIES],
         text: 'Dependencias',
         icon: 'holiday_village',
         routerLink: 'dependencies',
       },
       {
-        resource: [SystemResource.OFFICERS],
+        requiredResources: [SystemResource.OFFICERS],
         text: 'Funcionarios',
         icon: 'person',
         routerLink: 'officers',
       },
       {
-        resource: [SystemResource.ACCOUNTS],
+        requiredResources: [SystemResource.ACCOUNTS],
         text: 'Cuentas',
         icon: 'account_circle',
         routerLink: 'accounts',
       },
       {
-        resource: [SystemResource.TYPES_PROCEDURES],
+        requiredResources: [SystemResource.TYPES_PROCEDURES],
         text: 'Tipos de tramite',
         icon: 'summarize',
         routerLink: 'types-procedures',
@@ -72,53 +72,53 @@ export const FRONTEND_MENU: Menu[] = [
     text: 'Administracion',
     children: [
       {
-        resource: [SystemResource.EXTERNAL],
+        requiredResources: [SystemResource.EXTERNAL],
         text: 'Tramites externos',
         icon: 'folder_shared',
         routerLink: 'manage/external',
       },
       {
-        resource: [SystemResource.INTERNAL],
+        requiredResources: [SystemResource.INTERNAL],
         text: 'Tramites internos',
         icon: 'folder',
         routerLink: 'manage/internal',
       },
       {
-        resource: [SystemResource.INTERNAL],
+        requiredResources: [SystemResource.PROCUREMENT],
         text: 'Contrataciones',
         icon: 'snippet_folder',
         routerLink: 'manage/procurement',
       },
     ],
   },
-
   {
-    resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
+    // Acceso a bandejas de trámites (si puede gestionar trámites externos o internos)
+    requiredResources: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de entrada',
     icon: 'inbox',
     routerLink: 'manage/inbox',
   },
   {
-    resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
+    requiredResources: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de salida',
     icon: 'outbox',
     routerLink: 'manage/outbox',
   },
   {
-    resource: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
+    requiredResources: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Archivos',
     icon: 'shelves',
     routerLink: 'manage/folders',
   },
   {
-    resource: [SystemResource.REPORTS],
+    requiredResources: [SystemResource.REPORTS],
     text: 'Reportes',
     icon: 'analytics',
     routerLink: 'reports',
   },
 
   {
-    resource: [SystemResource.PUBLICATIONS],
+    requiredResources: [SystemResource.PUBLICATIONS],
     text: 'Publicaciones',
     icon: 'newspaper',
     routerLink: 'posts/manage',

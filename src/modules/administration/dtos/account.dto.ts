@@ -27,7 +27,7 @@ export class UpdateAccountDto extends PartialType(PickType(CreateAccountDto, ['i
   officerId?: string;
 }
 
-export class CreatePartialUserDto extends OmitType(CreateUserDto, ['fullName'] as const) {}
+export class CreatePartialUserDto extends OmitType(CreateUserDto, ['fullname'] as const) {}
 export class UpdatePartialUserDto extends PartialType(CreatePartialUserDto) {}
 
 export class CreateAccountWithUserDto {
@@ -46,14 +46,12 @@ export class UpdateAccountWithUserDto {
   @ValidateNested()
   @Type(() => UpdatePartialUserDto)
   @IsDefined()
-  @IsOptional()
-  user?: UpdatePartialUserDto;
+  user: UpdatePartialUserDto;
 
   @ValidateNested()
   @Type(() => UpdateAccountDto)
   @IsDefined()
-  @IsOptional()
-  account?: UpdateAccountDto;
+  account: UpdateAccountDto;
 }
 
 export class FilterAccountDto extends PaginationDto {

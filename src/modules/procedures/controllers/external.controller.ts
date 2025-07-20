@@ -28,7 +28,7 @@ export class ExternalController {
 
   @Get('types-procedures/:segment')
   getTypesProceduresBySegment(@Param('segment') segment: string) {
-    return this.typeProcedure.getEnabledTypesBySegment(segment, 'EXTERNO');
+    return this.typeProcedure.getEnabledTypesBySegment(segment);
   }
 
   @Get()

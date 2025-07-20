@@ -1,16 +1,14 @@
 import { PartialType } from '@nestjs/mapped-types';
-import {
-  IsBoolean,
-  IsMongoId,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsBoolean, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
-  fullName: string;
+  fullname: string;
+
+  @IsString()
+  @IsNotEmpty()
+  login: string;
 
   @IsMongoId()
   role: string;

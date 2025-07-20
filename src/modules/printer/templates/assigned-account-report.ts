@@ -1,17 +1,16 @@
-import type {  TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { TDocumentDefinitions } from 'pdfmake/interfaces';
+import { Account } from 'src/modules/administration/schemas';
 
-interface ReportOptions {
-  fullName: string;
-  jobTitle: string;
+interface Credentials {
   login: string;
   password: string;
-  dependency: string;
 }
 
-export const getAccountAssignmentReport = (options: ReportOptions): TDocumentDefinitions => {
-  const { fullName, jobTitle, login, password, dependency } = options;
-
+export const getAccountAssignmentReport = (account: Account, credentials: Credentials): TDocumentDefinitions => {
+  const fullName = account.officer?.fullName || 'Sin asignar';
+  const jobTitle = account.jobtitle || 'Sin cargo';
   const docDefinition: TDocumentDefinitions = {
+    pageSize: 'LETTER',
     content: [
       {
         alignment: 'center',
@@ -50,19 +49,19 @@ export const getAccountAssignmentReport = (options: ReportOptions): TDocumentDef
       {
         marginTop: 50,
         text: [
-          'NOMBRE: ',
+          { text: 'NOMBRE: ', bold: true },
           {
             text: `${fullName}\n\n`.toUpperCase(),
             bold: false,
           },
-          'CARGO: ',
+          { text: 'CARGO: ', bold: true },
           {
-            text: `${jobTitle}\n\n`,
+            text: `${account.jobtitle}\n\n`,
             bold: false,
           },
-          'UNIDAD: ',
+          { text: 'UNIDAD: ', bold: true },
           {
-            text: `${dependency}`.toUpperCase(),
+            text: `${account.dependencia.nombre}\n\n`.toUpperCase(),
             bold: false,
           },
         ],
@@ -72,10 +71,10 @@ export const getAccountAssignmentReport = (options: ReportOptions): TDocumentDef
       },
       {
         text: [
-          'Usuario: ',
-          { text: `${login}\n\n`, bold: false },
-          'Contraseña: ',
-          { text: `${password ? password : '*********'}\n\n`, bold: false },
+          { text: 'USUARIO: ', bold: true },
+          { text: `${credentials.login}\n\n`, bold: false },
+          { text: 'CONTRASEÑA: ', bold: true },
+          { text: `${credentials.password}\n\n`, bold: false },
         ],
         style: 'header',
         alignment: 'center',
@@ -95,7 +94,7 @@ export const getAccountAssignmentReport = (options: ReportOptions): TDocumentDef
         marginBottom: 50,
       },
       {
-        qr: `${fullName} / : ${jobTitle}`,
+        qr: `${fullName} / ${jobTitle}`,
         alignment: 'right',
         fit: 100,
       },

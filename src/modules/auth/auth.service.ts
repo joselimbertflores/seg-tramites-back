@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthDto, UpdateMyUserDto } from './dto';
 
 import { logger } from 'src/config/logger';
-import { User, UserDocument, Role } from 'src/modules/users/schemas';
+import { User, Role } from 'src/modules/users/schemas';
 import { FRONTEND_MENU } from './constants';
 import { EnvVars } from 'src/config';
 import { JwtPayload } from './interfaces';
@@ -18,7 +18,7 @@ export class AuthService {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService<EnvVars>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async login({ login, password }: AuthDto, ip: string) {
@@ -36,10 +36,11 @@ export class AuthService {
     return { token: this._generateToken(user) };
   }
 
-  async checkAuthStatus(user: UserDocument) {
+  async checkAuthStatus(user: User) {
+    console.log(user.role);
     return {
       token: this._generateToken(user),
-      menu: this._getFrontMenu(user.role),
+      menu: this.getFrontMenu(user.role),
       permissions: this._getPermissions(user.role),
       updatedPassword: user.updatedPassword,
     };
@@ -53,7 +54,7 @@ export class AuthService {
     return { message: 'Contraseña actualizada' };
   }
 
-  private _generateToken(user: UserDocument): string {
+  private _generateToken(user: User): string {
     const payload: JwtPayload = {
       userId: user._id.toString(),
       fullname: user.fullname,
@@ -65,13 +66,13 @@ export class AuthService {
     return permissions.reduce((result, { actions, resource }) => ({ [resource]: actions, ...result }), {});
   }
 
-  private _getFrontMenu({ permissions }: Role) {
+  private getFrontMenu({ permissions }: Role) {
     return structuredClone(FRONTEND_MENU).filter((menu) => {
       if (!menu.children) {
-        return permissions.some(({ resource }) => menu.resource.includes(resource));
+        return permissions.some(({ resource }) => menu.requiredResources.includes(resource));
       }
       menu.children = menu.children.filter((submenu) =>
-        permissions.some(({ resource }) => submenu.resource.includes(resource)),
+        permissions.some(({ resource }) => submenu.requiredResources.includes(resource)),
       );
       return menu.children.length > 0;
     });

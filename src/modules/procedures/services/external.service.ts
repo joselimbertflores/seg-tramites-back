@@ -62,14 +62,23 @@ export class ExternalService implements validProcedureService {
     return procedure;
   }
 
-  private async generateCode(account: Account, segment: string) {
-    const prefix = `${segment}-${account.institution.sigla}`.trim().toUpperCase();
-    const last = await this.procedureModel.findOne({ prefix: prefix }, { correlative: 1 }).sort({ _id: -1 });
+  private async generateCode({ institution }: Account, segment: string) {
+    const prefix = segment.trim().toUpperCase();
+    const year = this.configService.get('YEAR') || new Date().getFullYear();
+
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year + 1, 0, 1);
+
+    const last = await this.procedureModel
+      .findOne({ prefix: prefix, institution, createdAt: { $gte: startDate, $lt: endDate } }, { correlative: 1 })
+      .sort({ _id: -1 });
+
     const correlative = last ? last.correlative + 1 : 1;
+
     return {
       prefix,
       correlative,
-      code: `${prefix}-${this.configService.get('YEAR')}-${correlative.toString().padStart(6, '0')}`,
+      code: `${prefix}-${institution.sigla}-${year}-${correlative.toString().padStart(6, '0')}`,
     };
   }
 }

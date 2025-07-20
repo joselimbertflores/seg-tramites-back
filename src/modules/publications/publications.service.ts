@@ -71,7 +71,7 @@ export class PublicationsService {
         .populate({ path: 'user', select: 'fullname' })
         .skip(offset)
         .limit(limit)
-        .sort({ _id: -1 })
+        .sort({ _id: "descending" })
         .lean(),
       this.publicationModel.count(query),
     ]);
@@ -110,6 +110,7 @@ export class PublicationsService {
     const deleted = await this.publicationModel.findByIdAndDelete(id);
     if (!deleted) throw new NotFoundException(`Publication ${id} not found`);
     const filesToDelete = deleted.attachments.map(({ fileName }) => fileName);
+    if (deleted.image) filesToDelete.push(deleted.image);
     this.fileService.removeMany(filesToDelete, FileGroup.POSTS);
     return { message: 'Deleted publication' };
   }
