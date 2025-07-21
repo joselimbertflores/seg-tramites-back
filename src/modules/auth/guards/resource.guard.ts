@@ -11,15 +11,17 @@ import { User } from 'src/modules/users/schemas';
 import { META_RESOURCE } from '../decorators';
 import { SystemResource } from '../constants';
 
-@Injectable()
-export class ResourceGuard implements CanActivate {
-  private readonly methodToActionMap = {
+  const  methodToActionMap = {
     PATCH: 'update',
     POST: 'create',
     GET: 'read',
     PUT: 'update',
     DELETE: 'delete',
   };
+
+@Injectable()
+export class ResourceGuard implements CanActivate {
+  
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -35,7 +37,7 @@ export class ResourceGuard implements CanActivate {
 
     if (!permissions) throw new ForbiddenException(`Esta cuenta no tiene los permisos necesarios.`);
 
-    if (!permissions.actions.includes(this.methodToActionMap[req.method])) {
+    if (!permissions.actions.includes(methodToActionMap[req.method])) {
       throw new ForbiddenException({
         statusCode: 403,
         message: `No puede realizar esta accion`,

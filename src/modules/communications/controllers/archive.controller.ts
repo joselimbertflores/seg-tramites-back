@@ -1,12 +1,15 @@
 import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
-import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
-import { ArchiveService } from '../services/archive.service';
 
-import { Account } from 'src/modules/administration/schemas';
-import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
+import { MultiResourceProtected } from 'src/modules/auth/decorators';
+import { Account } from 'src/modules/administration/schemas';
+import { SystemResource } from 'src/modules/auth/constants';
+import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
+import { ArchiveService } from '../services';
 
 @onlyAssignedAccount()
+@MultiResourceProtected({ resources: [SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT] })
 @Controller('archives')
 export class ArchiveController {
   constructor(private readonly archiveService: ArchiveService, private readonly groupwareGateway: GroupwareGateway) {}

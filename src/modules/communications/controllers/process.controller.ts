@@ -3,10 +3,13 @@ import { IsMongoidPipe } from 'src/modules/common';
 
 import { onlyAssignedAccount } from 'src/modules/administration/decorators';
 import { ProcedureFactoryService } from 'src/modules/procedures/services';
+import { MultiResourceProtected } from 'src/modules/auth/decorators';
+import { SystemResource } from 'src/modules/auth/constants';
 import { InboxService } from '../services';
 import { ProcessParamDto } from '../dtos';
 
 @onlyAssignedAccount()
+@MultiResourceProtected({ resources: [SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT] })
 @Controller('process')
 export class ProcessController {
   constructor(private inboxService: InboxService, private procedureFactoryService: ProcedureFactoryService) {}

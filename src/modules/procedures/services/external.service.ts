@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { FilterQuery, Model } from 'mongoose';
 
 import { ExternalProcedure, procedureState, procedureStatus } from '../schemas';
-import { Account } from 'src/modules/administration/schemas';
+import type { Account } from 'src/modules/administration/schemas';
 
 import { PaginationDto } from 'src/modules/common';
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
