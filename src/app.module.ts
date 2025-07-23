@@ -30,9 +30,9 @@ import { MailModule } from './modules/mail/mail.module';
       }),
       inject: [ConfigService],
     }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, '..', 'public'),
-    // }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+    }),
     ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
