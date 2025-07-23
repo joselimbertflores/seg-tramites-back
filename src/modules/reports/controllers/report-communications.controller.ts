@@ -56,4 +56,15 @@ export class ReportCommunicationsController {
   getUnlinkData(@GetAccountRequest() account: Account) {
     return this.reportService.getUnlinkData(account);
   }
+
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({
+    resource: SystemResource.ACCOUNTS,
+    actions: ['read'],
+  })
+  
+  @Get('work/:accountId')
+  getWorkDetail(@Param('accountId') accountId: string) {
+    return this.reportService.getWorkDetail(accountId);
+  }
 }

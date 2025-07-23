@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
+import mongoose, { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 
 import { Communication, communicationStatus } from 'src/modules/communications/schemas';
 import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
@@ -101,21 +101,20 @@ export class ReportCommunicationsService {
       this.communicationModel.aggregate([
         {
           $match: {
-            'recipient.account': new Types.ObjectId(account.id),
-            status: { $in: [communicationStatus.Received, communicationStatus.Pending] },
+            status: { $in: ['pending', 'received'] },
+            'recipient.account': { $ne: null },
           },
         },
         {
-          $facet: {
-            items: [{ $project: { __v: 0 } }],
-            counts: [
-              {
-                $group: {
-                  _id: '$status',
-                  count: { $sum: 1 },
-                },
-              },
-            ],
+          $group: {
+            _id: '$recipient.account',
+            pending: {
+              $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] },
+            },
+            received: {
+              $sum: { $cond: [{ $eq: ['$status', 'received'] }, 1, 0] },
+            },
+            total: { $sum: 1 },
           },
         },
       ]),
@@ -172,6 +171,49 @@ export class ReportCommunicationsService {
         outbox: outboxSummary,
       },
       inboxItems,
+    };
+  }
+
+  async getWorkDetail(accountId: string) {
+    const [inbox, outbox] = await Promise.all([
+      this.communicationModel.aggregate([
+        {
+          $match: {
+            'recipient.account': new Types.ObjectId(accountId),
+            status: { $in: ['pending', 'received'] },
+          },
+        },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      this.communicationModel.aggregate([
+        {
+          $match: {
+            'sender.account': new Types.ObjectId(accountId),
+            status: { $in: ['pending', 'rejected', 'auto-rejected'] },
+          },
+        },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+    return {
+      inbox: inbox.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, {}),
+      outbox: outbox.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, {}),
     };
   }
 }
