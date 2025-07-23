@@ -189,4 +189,40 @@ export class ArchiveService {
       },
     });
   }
+
+  // ! for new update
+  async buildArchiveSchemaColecction() {
+    // const communications = await this.communicationModel
+    //   .find({ status: communicationStatus.Archived })
+    //   .populate('recipient.account')
+    //   .sort({ _id: 1 })
+    //   .limit(50000)
+    //   .skip(150000);
+
+    // for (const element of communications) {
+    //   const model = new this.archiveModel({
+    //     account: element.recipient.account,
+    //     institution: element.recipient.account.institution,
+    //     dependency: element.recipient.account.dependencia,
+    //     communication: element._id,
+    //     officer: {
+    //       fullname: element.recipient.fullname,
+    //       jobtitle: element.recipient.jobtitle,
+    //     },
+    //     procedure: {
+    //       ref: element.procedure.ref,
+    //       code: element.procedure.code,
+    //       group: element.procedure.group,
+    //       reference: element.procedure.reference,
+    //     },
+    //     folder: null,
+    //     description: element.actionLog.description,
+    //     isOriginal: null,
+    //     createdAt: element.actionLog.date,
+    //     updatedAt: element.actionLog.date,
+    //   });
+    //   await model.save();
+    // }
+    return { message: 'Generated collection' };
+  }
 }

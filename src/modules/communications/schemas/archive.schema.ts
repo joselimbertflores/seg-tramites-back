@@ -76,7 +76,7 @@ export class Archive {
     type: mongoose.Schema.Types.ObjectId,
     ref: Folder.name,
   })
-  folder: Folder;
+  folder: Folder | null;
 
   @Prop()
   description: string;
@@ -92,6 +92,5 @@ export class Archive {
 }
 
 export const ArchiveSchema = SchemaFactory.createForClass(Archive);
-
 
 export type ArchiveDocument = HydratedDocument<Archive>;

@@ -44,10 +44,10 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   sentCommunications(communications: { toUser: string; communication: Communication }[]): void {
-    for (const item of communications) {
-      const user = this.groupwareService.getUser(item.toUser);
+    for (const { toUser, communication } of communications) {
+      const user = this.groupwareService.getUser(toUser);
       if (!user) return;
-      this.server.to(user.socketIds).emit('new-communication', item.communication);
+      this.server.to(user.socketIds).emit('new-communication', communication);
     }
   }
 

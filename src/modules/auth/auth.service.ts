@@ -32,7 +32,7 @@ export class AuthService {
     if (!user.isActive) {
       throw new BadRequestException('La cuenta ha sido deshabilidata');
     }
-    logger.info(`Ingreso de usuario (${login}) ${user.fullname} / IP: ${ip}`);
+    // logger.info(`Ingreso de usuario (${login}) ${user.fullname} / IP: ${ip}`);
     return { token: this._generateToken(user) };
   }
 

@@ -35,7 +35,6 @@ export class OfficerService {
       });
   }
   async searchOfficersWithoutAccount(text: string, limit = 5) {
-    console.log(text);
     const regex = new RegExp(text, 'i');
     return await this.officerModel
       .aggregate()
