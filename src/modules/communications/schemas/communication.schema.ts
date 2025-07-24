@@ -4,7 +4,7 @@ import mongoose, { Document } from 'mongoose';
 import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
 import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
 
-export enum communicationStatus {
+export enum SendStatus {
   Received = 'received',
   Pending = 'pending',
   Rejected = 'rejected',
@@ -87,11 +87,11 @@ export class Communication extends Document {
   procedure: ProcedureProps;
 
   @Prop({
-    enum: communicationStatus,
-    default: communicationStatus.Pending,
+    enum: SendStatus,
+    default: SendStatus.Pending,
     required: true,
   })
-  status: communicationStatus;
+  status: SendStatus;
 
   @Prop(ActionLogSchema)
   actionLog: ActionLog;

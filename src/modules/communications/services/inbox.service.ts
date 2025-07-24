@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, FilterQuery, Model } from 'mongoose';
 
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { Communication, communicationStatus } from '../schemas';
+import { Communication, SendStatus } from '../schemas';
 import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
 
@@ -28,7 +28,7 @@ export class InboxService {
     const regex = new RegExp(filterDto.term, 'i');
     const filterQuery: FilterQuery<Communication> = {
       'recipient.account': accountId,
-      ...(status ? { status } : { status: { $in: [communicationStatus.Received, communicationStatus.Pending] } }),
+      ...(status ? { status } : { status: { $in: [SendStatus.Received, SendStatus.Pending] } }),
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
       ...(group && { 'procedure.group': filterDto.group }),
       ...(typeof isOriginal === 'boolean' && {
@@ -76,7 +76,7 @@ export class InboxService {
   }
 
   async accept(account: Account, { ids }: SelectedCommunicationsDto) {
-    const items = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
+    const items = await this.getValidatedCommunications(ids, account, SendStatus.Pending);
 
     const itemIds = items.map((item) => item.id);
 
@@ -84,13 +84,13 @@ export class InboxService {
 
     await this.inboxModel.updateMany(
       { _id: { $in: itemIds } },
-      { status: communicationStatus.Received, receivedDate: currentDate },
+      { status: SendStatus.Received, receivedDate: currentDate },
     );
     return { date: currentDate, ids: itemIds, message: `Received communications: ${itemIds.length}` };
   }
 
   async reject(account: Account, { description, ids }: RejectCommunicationDto) {
-    const items = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
+    const items = await this.getValidatedCommunications(ids, account, SendStatus.Pending);
 
     const currentDate = new Date();
 
@@ -99,7 +99,7 @@ export class InboxService {
     await this.inboxModel.updateMany(
       { _id: { $in: itemIds } },
       {
-        status: communicationStatus.Rejected,
+        status: SendStatus.Rejected,
         actionLog: { fullname: account.officer.fullName, date: currentDate, description },
         receivedDate: currentDate,
       },
@@ -108,11 +108,11 @@ export class InboxService {
   }
 
   async archive({ ids, date, state, account, description, session }: archiveCommunicationsProps) {
-    const items = await this.getValidatedCommunications(ids, account, communicationStatus.Received);
+    const items = await this.getValidatedCommunications(ids, account, SendStatus.Received);
     await this.inboxModel.updateMany(
       { _id: { $in: items.map((item) => item._id) } },
       {
-        status: communicationStatus.Archived,
+        status: SendStatus.Archived,
         actionLog: { fullname: account.officer.fullName, description, date },
       },
       { session },
@@ -131,7 +131,7 @@ export class InboxService {
     return items;
   }
 
-  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: communicationStatus) {
+  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: SendStatus) {
     const communications = await this.inboxModel
       .find({ _id: { $in: ids }, 'recipient.account': account._id })
       .populate({ path: 'sender.account', select: 'officer' });
@@ -147,7 +147,7 @@ export class InboxService {
     return this.validateStatusOrThrow(communications, expectedStatus);
   }
 
-  private validateStatusOrThrow(communications: Communication[], validStatus: communicationStatus) {
+  private validateStatusOrThrow(communications: Communication[], validStatus: SendStatus) {
     const invalidItems = communications
       .filter(({ status }) => status !== validStatus)
       .map(({ id, procedure: { code }, status }) => ({ id, status, code }));

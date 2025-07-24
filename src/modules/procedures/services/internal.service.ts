@@ -41,11 +41,14 @@ export class InternalService implements validProcedureService {
   }
 
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
-    const regex = new RegExp(term, 'i');
     const query: FilterQuery<InternalProcedure> = {
       account: accountId,
       status: procedureStatus.PENDING,
-      $or: [{ code: regex }, { reference: regex }],
+      ...(term && {
+        ...(isNaN(Number(term))
+          ? { reference: { $regex: term, $options: 'i' } }
+          : { code: { $regex: term, $options: 'i' } }),
+      }),
     };
     const [procedures, length] = await Promise.all([
       this.procedureModel.find(query).lean().sort({ _id: -1 }).limit(limit).skip(offset),

@@ -14,7 +14,7 @@ import { ClientSession, Connection, Document, FilterQuery, Model, mongo } from '
 import { addDays, isWeekend } from 'date-fns';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
-import { Communication, communicationStatus } from '../schemas';
+import { Communication, SendStatus } from '../schemas';
 import { Account } from 'src/modules/administration/schemas';
 
 import { PaginationDto } from 'src/modules/common';
@@ -54,7 +54,7 @@ export class OutboxService {
     const regex = new RegExp(term, 'i');
     const query: FilterQuery<Communication> = {
       'sender.account': accountId,
-      status: { $in: [communicationStatus.Pending, communicationStatus.Rejected, communicationStatus.AutoRejected] },
+      status: { $in: [SendStatus.Pending, SendStatus.Rejected, SendStatus.AutoRejected] },
       ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }),
     };
     const [communications, length] = await Promise.all([
@@ -102,7 +102,7 @@ export class OutboxService {
       const current = await this.outboxModel.findById(communicationId, null, { session });
       if (!current) throw new BadRequestException(`Communication ${communicationId} not found`);
 
-      if (current.status !== communicationStatus.Received) {
+      if (current.status !== SendStatus.Received) {
         throw new BadRequestException('El envio actual no esta recibido');
       }
 
@@ -121,7 +121,7 @@ export class OutboxService {
 
       await this.outboxModel.insertMany(communications, { session });
 
-      await current.updateOne({ status: communicationStatus.Completed }, { session });
+      await current.updateOne({ status: SendStatus.Completed }, { session });
 
       await session.commitTransaction();
       return userCommunications;
@@ -154,17 +154,17 @@ export class OutboxService {
     try {
       session.startTransaction();
       switch (current.status) {
-        case communicationStatus.Rejected:
+        case SendStatus.Rejected:
           this.validateCommunicationType(communications, current.isOriginal);
-          await current.updateOne({ status: communicationStatus.Forwarding }, { session });
+          await current.updateOne({ status: SendStatus.Forwarding }, { session });
           break;
 
-        case communicationStatus.AutoRejected:
+        case SendStatus.AutoRejected:
           this.validateCommunicationType(communications, current.isOriginal);
           await current.deleteOne({ session });
           break;
 
-        case communicationStatus.Pending:
+        case SendStatus.Pending:
           if (!current.isOriginal) throw new BadRequestException('No puede realizar mas envios de una copia');
           if (communications.some(({ isOriginal }) => isOriginal)) {
             throw new BadRequestException('The original procedure has already been sent.');
@@ -191,7 +191,7 @@ export class OutboxService {
   }
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
-    const communications = await this.getValidatedCommunications(ids, account, communicationStatus.Pending);
+    const communications = await this.getValidatedCommunications(ids, account, SendStatus.Pending);
 
     const session = await this.connection.startSession();
     try {
@@ -275,7 +275,7 @@ export class OutboxService {
   private async validateNoDuplicateRecipients(procedureId: string, accounts: Map<string, Account>) {
     const duplicate = await this.outboxModel.findOne(
       {
-        status: { $in: [communicationStatus.Pending, communicationStatus.Received] },
+        status: { $in: [SendStatus.Pending, SendStatus.Received] },
         'procedure.ref': procedureId,
         'recipient.account': { $in: Array.from(accounts.keys()) },
       },
@@ -293,7 +293,7 @@ export class OutboxService {
       .find({
         'procedure.ref': { $in: procedureIds },
         'recipient.account': sender._id,
-        status: { $in: [communicationStatus.Completed, communicationStatus.Received] },
+        status: { $in: [SendStatus.Completed, SendStatus.Received] },
       })
       .sort({ _id: 'desc' })
       .lean();
@@ -301,7 +301,7 @@ export class OutboxService {
     const updates: mongo.AnyBulkWriteOperation[] = lastStages.map((stage) => ({
       updateOne: {
         filter: { _id: stage._id },
-        update: { status: communicationStatus.Received },
+        update: { status: SendStatus.Received },
       },
     }));
 
@@ -357,7 +357,7 @@ export class OutboxService {
     const plainObject = item instanceof Document ? item.toObject() : item;
     return {
       ...plainObject,
-      ...(item.status === communicationStatus.Pending && { remainingTime: this.getRemaininginTime(item) }),
+      ...(item.status === SendStatus.Pending && { remainingTime: this.getRemaininginTime(item) }),
     };
   }
 
@@ -371,7 +371,7 @@ export class OutboxService {
     return Math.max(0, expirationDate.getTime() - new Date().getTime());
   }
 
-  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: communicationStatus) {
+  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: SendStatus) {
     const communications = await this.outboxModel
       .find({ _id: { $in: ids }, 'sender.account': account._id })
       .populate('recipient.account', 'user');
@@ -387,7 +387,7 @@ export class OutboxService {
     return this.validateStatusOrThrow(communications, expectedStatus);
   }
 
-  private validateStatusOrThrow(communications: Communication[], validStatus: communicationStatus) {
+  private validateStatusOrThrow(communications: Communication[], validStatus: SendStatus) {
     const invalidItems = communications
       .filter(({ status }) => status !== validStatus)
       .map(({ id, procedure: { code }, status }) => ({ id, status, code }));

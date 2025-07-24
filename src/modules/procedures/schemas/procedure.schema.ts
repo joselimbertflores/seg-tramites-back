@@ -111,5 +111,5 @@ export const ProcedureSchema = SchemaFactory.createForClass(Procedure);
 ProcedureSchema.index({ code: 1, group: 1 }, { unique: true });
 
 export type ProcedureDocument = HydratedDocument<Procedure>;
-ProcedureSchema.index({ code: 1 }); 
-ProcedureSchema.index({ reference: 1 });
+ProcedureSchema.index({ account: 1, status: 1, code: 1 });
+ProcedureSchema.index({ account: 1, status: 1, reference: 1 });

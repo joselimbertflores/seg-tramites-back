@@ -57,14 +57,12 @@ export class ReportCommunicationsController {
     return this.reportService.getUnlinkData(account);
   }
 
-  @HttpCode(HttpStatus.OK)
   @RequirePermissions({
     resource: SystemResource.ACCOUNTS,
     actions: ['read'],
   })
-  
-  @Get('work/:accountId')
-  getWorkDetail(@Param('accountId') accountId: string) {
-    return this.reportService.getWorkDetail(accountId);
+  @Get('tray-status/:accountId')
+  getAccountTrayStatus(@Param('accountId') accountId: string) {
+    return this.reportService.getAccountTrayStatus(accountId);
   }
 }

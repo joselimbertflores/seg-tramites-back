@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
+import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 
-import { Communication, communicationStatus } from 'src/modules/communications/schemas';
+import { Communication, SendStatus } from 'src/modules/communications/schemas';
 import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
@@ -84,7 +84,7 @@ export class ReportCommunicationsService {
     const regex = new RegExp(term, 'i');
     const interval = { ...(startDate && { $gte: startDate }), ...(endDate && { $lte: endDate }) };
     const query: FilterQuery<Communication> = {
-      status: communicationStatus.Completed,
+      status: SendStatus.Completed,
       'recipient.account': accountId,
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
       ...(Object.keys(interval).length > 0 && { sentDate: { $gte: startDate, $lte: endDate } }),
@@ -123,7 +123,7 @@ export class ReportCommunicationsService {
           $match: {
             'sender.account': new Types.ObjectId(account.id),
             status: {
-              $in: [communicationStatus.Pending, communicationStatus.Rejected, communicationStatus.AutoRejected],
+              $in: [SendStatus.Pending, SendStatus.Rejected, SendStatus.AutoRejected],
             },
           },
         },
@@ -136,15 +136,15 @@ export class ReportCommunicationsService {
       ]),
     ]);
 
-    const [{ items: inboxItems, counts: inboxCounts }] = inboxData;
+    const [{ items: inboxItems = [], counts: inboxCounts = [] }] = inboxData;
 
     const inboxSummary = {
       pending: 0,
       received: 0,
     };
     for (const item of inboxCounts) {
-      if (item._id === communicationStatus.Pending) inboxSummary.pending = item.count;
-      if (item._id === communicationStatus.Received) inboxSummary.received = item.count;
+      if (item._id === SendStatus.Pending) inboxSummary.pending = item.count;
+      if (item._id === SendStatus.Received) inboxSummary.received = item.count;
     }
 
     const outboxSummary = {
@@ -154,9 +154,9 @@ export class ReportCommunicationsService {
     };
 
     for (const item of outboxCounts) {
-      if (item._id === communicationStatus.Pending) outboxSummary.pending = item.count;
-      if (item._id === communicationStatus.Rejected) outboxSummary.rejected = item.count;
-      if (item._id === communicationStatus.AutoRejected) outboxSummary.autoRejected = item.count;
+      if (item._id === SendStatus.Pending) outboxSummary.pending = item.count;
+      if (item._id === SendStatus.Rejected) outboxSummary.rejected = item.count;
+      if (item._id === SendStatus.AutoRejected) outboxSummary.autoRejected = item.count;
     }
 
     return {
@@ -174,13 +174,15 @@ export class ReportCommunicationsService {
     };
   }
 
-  async getWorkDetail(accountId: string) {
-    const [inbox, outbox] = await Promise.all([
+  async getAccountTrayStatus(accountId: string) {
+    const inboxStatuses = [SendStatus.Pending, SendStatus.Received];
+    const outboxStatuses = [SendStatus.Pending, SendStatus.Rejected, SendStatus.AutoRejected];
+    const [inboxResult, outboxResult] = await Promise.all([
       this.communicationModel.aggregate([
         {
           $match: {
             'recipient.account': new Types.ObjectId(accountId),
-            status: { $in: ['pending', 'received'] },
+            status: { $in: inboxStatuses },
           },
         },
         {
@@ -194,7 +196,7 @@ export class ReportCommunicationsService {
         {
           $match: {
             'sender.account': new Types.ObjectId(accountId),
-            status: { $in: ['pending', 'rejected', 'auto-rejected'] },
+            status: { $in: outboxStatuses },
           },
         },
         {
@@ -205,15 +207,21 @@ export class ReportCommunicationsService {
         },
       ]),
     ]);
+    const formatResult = (data: { _id: SendStatus; count: number }[], statuses: SendStatus[]) => {
+      const breakdown = {};
+      let total = 0;
+
+      for (const status of statuses) {
+        const count = data.find((item) => item._id === status)?.count ?? 0;
+        breakdown[status] = count;
+        total += count;
+      }
+
+      return { total, breakdown };
+    };
     return {
-      inbox: inbox.reduce((acc, curr) => {
-        acc[curr._id] = curr.count;
-        return acc;
-      }, {}),
-      outbox: outbox.reduce((acc, curr) => {
-        acc[curr._id] = curr.count;
-        return acc;
-      }, {}),
+      inbox: formatResult(inboxResult, inboxStatuses),
+      outbox: formatResult(outboxResult, outboxStatuses),
     };
   }
 }

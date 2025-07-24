@@ -7,7 +7,7 @@ import { Model } from 'mongoose';
 import { isWeekend, subDays } from 'date-fns';
 
 import { EnvVars } from 'src/config';
-import { Communication, communicationStatus } from '../communications/schemas';
+import { Communication, SendStatus } from '../communications/schemas';
 
 @Injectable()
 export class SchedulerService {
@@ -22,8 +22,8 @@ export class SchedulerService {
   async autoRejectExpiredCommunications() {
     const expirationDate = this.calculateBusinessDaysDeadline(this.AUTO_REJECT_DAYS);
     await this.communicationModel.updateMany(
-      { status: communicationStatus.Pending, sentDate: { $lte: expirationDate } },
-      { $set: { status: communicationStatus.AutoRejected } },
+      { status: SendStatus.Pending, sentDate: { $lte: expirationDate } },
+      { $set: { status: SendStatus.AutoRejected } },
     );
   }
 

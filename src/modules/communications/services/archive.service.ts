@@ -14,7 +14,7 @@ import mongoose, { FilterQuery, Model } from 'mongoose';
 import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
 
-import { Folder, Archive, Communication, FolderDocument, ArchiveDocument, communicationStatus } from '../schemas';
+import { Folder, Archive, Communication, FolderDocument, ArchiveDocument, SendStatus } from '../schemas';
 import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { InboxService } from './inbox.service';
 
@@ -97,10 +97,10 @@ export class ArchiveService {
 
     try {
       session.startTransaction();
-      let newCommStatus = communicationStatus.Received;
+      let newCommStatus = SendStatus.Received;
 
       if (String(archive.account._id) !== String(account._id)) {
-        newCommStatus = communicationStatus.Completed;
+        newCommStatus = SendStatus.Completed;
         const newCommunication = this.createNewCommunication(communication, account);
         await newCommunication.save({ session });
       }
@@ -135,7 +135,7 @@ export class ArchiveService {
       throw new ForbiddenException(`Archive not belonging to this dependency`);
     }
 
-    if (archive.communication.status !== communicationStatus.Archived) {
+    if (archive.communication.status !== SendStatus.Archived) {
       throw new ConflictException('El trámite no se encuentra archivado');
     }
 
@@ -169,7 +169,7 @@ export class ArchiveService {
       receivedDate: currentDate,
       attachmentsCount: current.attachmentsCount,
       internalNumber: '',
-      status: communicationStatus.Received,
+      status: SendStatus.Received,
       reference: 'PARA SU CONTINUACION',
       isOriginal: current.isOriginal,
       parentId: current._id,

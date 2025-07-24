@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 
 import { procedureGroup } from 'src/modules/procedures/schemas';
 import { PaginationDto } from 'src/modules/common';
-import { communicationStatus } from '../schemas';
+import { SendStatus } from '../schemas';
 
 export class SelectedCommunicationsDto {
   @ArrayMinSize(1, { message: 'Ningun elemento seleccionado' })
@@ -18,9 +18,9 @@ export class RejectCommunicationDto extends SelectedCommunicationsDto {
 }
 
 export class FilterInboxDto extends PaginationDto {
-  @IsIn([communicationStatus.Pending, communicationStatus.Received])
+  @IsIn([SendStatus.Pending, SendStatus.Received])
   @IsOptional()
-  status?: communicationStatus.Pending | communicationStatus.Received;
+  status?: SendStatus.Pending | SendStatus.Received;
 
   @IsEnum(procedureGroup)
   @IsOptional()
