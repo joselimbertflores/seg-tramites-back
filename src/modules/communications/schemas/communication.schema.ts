@@ -118,7 +118,7 @@ export class Communication extends Document {
     type: mongoose.Schema.Types.ObjectId,
     ref: Communication.name,
   })
-  parentId?: Communication;
+  parentId?: Communication | undefined;
 
   @Prop({ type: Number, default: 0 })
   priority: number;
@@ -129,4 +129,4 @@ export const CommunicationSchema = SchemaFactory.createForClass(Communication);
 CommunicationSchema.index({ 'procedure.code': 1 });
 CommunicationSchema.index({ 'sender.account': 1 });
 CommunicationSchema.index({ 'recipient.account': 1 });
-CommunicationSchema.index({ 'status': 1 });
+CommunicationSchema.index({ status: 1 });

@@ -134,7 +134,8 @@ export class OutboxService {
     }
   }
 
-  async resendCommunication(account: Account, { communicationId, ...props }: ReplyCommunicationDto) {
+  async resendCommunication(account: Account, communicationDto: ReplyCommunicationDto) {
+    const { communicationId, ...props } = communicationDto;
     const current = await this.outboxModel.findOne({ _id: communicationId, 'sender.account': account._id });
 
     if (!current) {
@@ -191,29 +192,39 @@ export class OutboxService {
   }
 
   async cancel(account: Account, { ids }: SelectedCommunicationsDto) {
-    const communications = await this.getValidatedCommunications(ids, account, SendStatus.Pending);
+    const items = await this.getValidCommunicationsToCancel(ids, account.id);
 
     const session = await this.connection.startSession();
+
     try {
       session.startTransaction();
-      const communicationIds = communications.map(({ _id }) => _id);
+      const itemIds = items.map((item) => item.id);
 
-      await this.outboxModel.deleteMany({ _id: { $in: communicationIds } }, { session });
+      await this.outboxModel.deleteMany({ _id: { $in: itemIds } }, { session });
 
-      // * For old communications, with idOriginal as undefined
-      const originals = communications.filter((item) => item.isOriginal !== false);
+      const itemsToRestore: Communication[] = [];
 
-      await this.restoreStages(originals, account, session);
+      for (const item of items) {
+        if (item.isOriginal !== false) {
+          itemsToRestore.push(item);
+        } else {
+          if (item.parentId && item.parentId.isOriginal === false) {
+            itemsToRestore.push(item);
+          }
+        }
+      }
+
+      await this.restoreStages(itemsToRestore, account, session);
 
       await session.commitTransaction();
 
       return {
-        items: communications.map(({ id, recipient }) => ({
+        items: items.map(({ id, recipient }) => ({
           toUser: String(recipient.account.user._id),
           communicationId: id,
         })),
-        message: `Total de envios cancelados: ${communicationIds.length}`,
-        ids: communicationIds,
+        message: `Total de envios cancelados: ${itemIds.length}`,
+        ids: itemIds,
       };
     } catch (error) {
       await session.abortTransaction();
@@ -371,34 +382,28 @@ export class OutboxService {
     return Math.max(0, expirationDate.getTime() - new Date().getTime());
   }
 
-  private async getValidatedCommunications(ids: string[], account: Account, expectedStatus: SendStatus) {
-    const communications = await this.outboxModel
-      .find({ _id: { $in: ids }, 'sender.account': account._id })
+  private async getValidCommunicationsToCancel(ids: string[], accountId: string) {
+    const items = await this.outboxModel
+      .find({ _id: { $in: ids }, 'sender.account': accountId })
       .populate('recipient.account', 'user');
 
-    const foundIds = new Set(communications.map((item) => item.id));
+    const foundIds = new Set(items.map((item) => item.id));
 
     const notFoundIds = ids.filter((id) => !foundIds.has(id));
 
     if (notFoundIds.length > 0) {
-      throw new NotFoundException({ message: `Some elements with sender ${account.id} dont exist`, notFoundIds });
+      throw new NotFoundException({ message: `Some elements with sender ${accountId} dont exist`, ids: notFoundIds });
     }
 
-    return this.validateStatusOrThrow(communications, expectedStatus);
-  }
-
-  private validateStatusOrThrow(communications: Communication[], validStatus: SendStatus) {
-    const invalidItems = communications
-      .filter(({ status }) => status !== validStatus)
-      .map(({ id, procedure: { code }, status }) => ({ id, status, code }));
+    const invalidItems = items.filter(({ status }) => status !== SendStatus.Pending);
 
     if (invalidItems.length > 0) {
       throw new UnprocessableEntityException({
-        message: `Some items do not have the expected status: ${validStatus}`,
-        invalidItems,
+        message: `Some items do not have the expected status: ${SendStatus.Pending}`,
+        ids: invalidItems.map((item) => item.id),
       });
     }
-    return communications;
+    return items;
   }
 
   private validateCommunicationType(communications: Communication[], isOriginal: boolean | undefined): void {
