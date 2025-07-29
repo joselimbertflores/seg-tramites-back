@@ -102,19 +102,20 @@ export class ReportCommunicationsService {
         {
           $match: {
             status: { $in: ['pending', 'received'] },
-            'recipient.account': { $ne: null },
+            'recipient.account': account._id,
           },
         },
         {
-          $group: {
-            _id: '$recipient.account',
-            pending: {
-              $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] },
-            },
-            received: {
-              $sum: { $cond: [{ $eq: ['$status', 'received'] }, 1, 0] },
-            },
-            total: { $sum: 1 },
+          $facet: {
+            items: [{ $project: { __v: 0 } }],
+            counts: [
+              {
+                $group: {
+                  _id: '$status',
+                  count: { $sum: 1 },
+                },
+              },
+            ],
           },
         },
       ]),
@@ -136,13 +137,13 @@ export class ReportCommunicationsService {
       ]),
     ]);
 
-    const [{ items: inboxItems = [], counts: inboxCounts = [] }] = inboxData;
+    const [{ items = [], counts = [] }] = inboxData;
 
     const inboxSummary = {
       pending: 0,
       received: 0,
     };
-    for (const item of inboxCounts) {
+    for (const item of counts) {
       if (item._id === SendStatus.Pending) inboxSummary.pending = item.count;
       if (item._id === SendStatus.Received) inboxSummary.received = item.count;
     }
@@ -170,7 +171,7 @@ export class ReportCommunicationsService {
         inbox: inboxSummary,
         outbox: outboxSummary,
       },
-      inboxItems,
+      inboxItems: items,
     };
   }
 

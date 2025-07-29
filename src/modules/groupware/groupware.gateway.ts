@@ -17,6 +17,11 @@ interface expelClientProps {
   id_account: string;
   message: string;
 }
+
+interface canceledCommunications {
+  toUser: string;
+  id: string;
+}
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -51,11 +56,12 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
   }
 
-  cancelCommunications(items: { toUser: string; communicationId: string }[]): void {
-    for (const { toUser, communicationId } of items) {
+  cancelCommunications(items: canceledCommunications[]): void {
+    for (const { toUser, id } of items) {
       const user = this.groupwareService.getUser(toUser);
-      if (!user) return;
-      this.server.to(user.socketIds).emit('cancel-communication', communicationId);
+      if (user) {
+        this.server.to(user.socketIds).emit('cancel-communication', id);
+      }
     }
   }
 

@@ -10,7 +10,7 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 
-import { ClientSession, Connection, Document, FilterQuery, Model, mongo } from 'mongoose';
+import { ClientSession, Connection, Document, FilterQuery, Model, mongo, Types } from 'mongoose';
 import { addDays, isWeekend } from 'date-fns';
 
 import { Procedure, ProcedureDocument, procedureState } from 'src/modules/procedures/schemas';
@@ -198,33 +198,22 @@ export class OutboxService {
 
     try {
       session.startTransaction();
+
       const itemIds = items.map((item) => item.id);
 
       await this.outboxModel.deleteMany({ _id: { $in: itemIds } }, { session });
 
-      const itemsToRestore: Communication[] = [];
-
-      for (const item of items) {
-        if (item.isOriginal !== false) {
-          itemsToRestore.push(item);
-        } else {
-          if (item.parentId && item.parentId.isOriginal === false) {
-            itemsToRestore.push(item);
-          }
-        }
-      }
-
-      await this.restoreStages(itemsToRestore, account, session);
+      const restoreResult = await this.restoreCanceledCommunications(items, account, session);
 
       await session.commitTransaction();
 
       return {
-        items: items.map(({ id, recipient }) => ({
-          toUser: String(recipient.account.user._id),
-          communicationId: id,
+        canceledCommunications: items.map((item) => ({
+          toUser: item.recipient.account.user._id.toString(),
+          id: item.id,
         })),
-        message: `Total de envios cancelados: ${itemIds.length}`,
-        ids: itemIds,
+        restoredItems: restoreResult,
+        canceledIds: itemIds,
       };
     } catch (error) {
       await session.abortTransaction();
@@ -297,37 +286,74 @@ export class OutboxService {
     }
   }
 
-  private async restoreStages(items: Communication[], sender: Account, session: ClientSession) {
-    const procedureIds = [...new Set(items.map(({ procedure }) => procedure.ref._id))];
+  private async restoreCanceledCommunications(items: Communication[], sender: Account, session: ClientSession) {
+    const communicationsToRestore: Types.ObjectId[] = [];
+    const proceduresToRestore: Types.ObjectId[] = [];
+    const resultList: { restoredType: string; code: string }[] = [];
 
-    const lastStages = await this.outboxModel
-      .find({
-        'procedure.ref': { $in: procedureIds },
-        'recipient.account': sender._id,
-        status: { $in: [SendStatus.Completed, SendStatus.Received] },
-      })
-      .sort({ _id: 'desc' })
-      .lean();
+    for (const item of items) {
+      // * For old schemas without isOriginal
+      if (item.isOriginal === undefined) {
+        if (item.parentId) {
+          communicationsToRestore.push(item.parentId._id);
+          resultList.push({ restoredType: `inbox`, code: item.procedure.code });
+        } else {
+          const lastStage = await this.outboxModel
+            .findOne({
+              'procedure.ref': item.procedure.ref,
+              'recipient.account': sender._id,
+              status: { $in: [SendStatus.Completed, SendStatus.Received] },
+            })
+            .sort({ _id: 'desc' });
 
-    const updates: mongo.AnyBulkWriteOperation[] = lastStages.map((stage) => ({
-      updateOne: {
-        filter: { _id: stage._id },
-        update: { status: SendStatus.Received },
-      },
-    }));
+          if (lastStage) {
+            communicationsToRestore.push(lastStage._id);
+            resultList.push({ restoredType: 'inbox', code: lastStage.procedure.code });
+          } else {
+            proceduresToRestore.push(item.procedure.ref._id);
+            resultList.push({ restoredType: `administration`, code: item.procedure.code });
+          }
+        }
+      } else {
+        // * for communications after first send
+        if (item.parentId) {
+          if (item.isOriginal) {
+            communicationsToRestore.push(item.parentId._id);
+            resultList.push({ restoredType: 'inbox', code: item.procedure.code });
+          } else {
+            if (item.parentId.isOriginal === false) {
+              communicationsToRestore.push(item.parentId._id);
+              resultList.push({ restoredType: 'inbox', code: item.procedure.code });
+            }
+          }
+        } else {
+          // * First communication and isOriginal restart procedure for new send
+          if (item.isOriginal) {
+            proceduresToRestore.push(item.procedure.ref._id);
+            resultList.push({ restoredType: `administration`, code: item.procedure.code });
+          }
+        }
+      }
+    }
 
-    if (updates.length > 0) await this.outboxModel.bulkWrite(updates, { session });
+    if (communicationsToRestore.length > 0) {
+      const updates: mongo.AnyBulkWriteOperation[] = communicationsToRestore.map((id) => ({
+        updateOne: {
+          filter: { _id: id },
+          update: { status: SendStatus.Received },
+        },
+      }));
+      await this.outboxModel.bulkWrite(updates, { session });
+    }
 
-    const affectedProcedureIds = new Set(lastStages.map(({ procedure }) => String(procedure.ref._id)));
-    const proceduresToReset = procedureIds.filter((id) => !affectedProcedureIds.has(id.toString()));
-
-    if (proceduresToReset.length > 0) {
+    if (proceduresToRestore.length > 0) {
       await this.procedureModel.updateMany(
-        { _id: { $in: proceduresToReset } },
+        { _id: { $in: proceduresToRestore } },
         { state: procedureState.INSCRITO },
         { session },
       );
     }
+    return resultList;
   }
 
   private buildCommunicationInstance({ sender, recipient, procedure, ...props }: communicationProps) {
@@ -383,9 +409,10 @@ export class OutboxService {
   }
 
   private async getValidCommunicationsToCancel(ids: string[], accountId: string) {
-    const items = await this.outboxModel
-      .find({ _id: { $in: ids }, 'sender.account': accountId })
-      .populate('recipient.account', 'user');
+    const items = await this.outboxModel.find({ _id: { $in: ids }, 'sender.account': accountId }).populate([
+      { path: 'recipient.account', select: 'user' },
+      { path: 'parentId', select: 'isOriginal' },
+    ]);
 
     const foundIds = new Set(items.map((item) => item.id));
 

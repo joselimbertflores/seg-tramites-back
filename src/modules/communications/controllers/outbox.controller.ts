@@ -43,8 +43,8 @@ export class OutboxController {
 
   @Delete()
   async cancel(@GetAccountRequest() account: Account, @Body() communicationDto: SelectedCommunicationsDto) {
-    const { items, ...result } = await this.outboxService.cancel(account, communicationDto);
-    this.groupwareGateway.cancelCommunications(items);
+    const { canceledCommunications, ...result } = await this.outboxService.cancel(account, communicationDto);
+    this.groupwareGateway.cancelCommunications(canceledCommunications);
     return result;
   }
 }
