@@ -36,8 +36,9 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     try {
       const token = client.handshake.auth.token;
       const decoded: JwtPayload = this.jwtService.verify(token);
+      client.data['user'] = decoded;
       this.groupwareService.onClientConnected(client.id, decoded);
-      this.server.emit('listar', this.groupwareService.getClients());
+      this.server.emit('clientsList', this.groupwareService.getClients());
     } catch (error) {
       client.disconnect();
     }
@@ -45,7 +46,7 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   handleDisconnect(client: Socket): void {
     this.groupwareService.onClientDisconnected(client.id);
-    client.broadcast.emit('listar', this.groupwareService.getClients());
+    client.broadcast.emit('clientsList', this.groupwareService.getClients());
   }
 
   sentCommunications(communications: { toUser: string; communication: Communication }[]): void {

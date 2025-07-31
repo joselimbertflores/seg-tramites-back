@@ -1,3 +1,4 @@
+import path from 'path';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { Account } from 'src/modules/administration/schemas';
 
@@ -9,6 +10,7 @@ interface Credentials {
 export const getAccountAssignmentReport = (account: Account, credentials: Credentials): TDocumentDefinitions => {
   const fullName = account.officer?.fullName || 'Sin asignar';
   const jobTitle = account.jobtitle || 'Sin cargo';
+  const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'escudo.png');
   const docDefinition: TDocumentDefinitions = {
     pageSize: 'LETTER',
     content: [
@@ -20,7 +22,7 @@ export const getAccountAssignmentReport = (account: Account, credentials: Creden
           widths: [70, 300, '*'],
           body: [
             [
-              { rowSpan: 4, image: 'src/assets/escudo.png', fit: [100, 70] },
+              { rowSpan: 4, image: imagePath, fit: [100, 70] },
               {
                 rowSpan: 2,
                 text: 'GOBIERNO ELECTRÓNICO',
