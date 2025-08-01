@@ -3,25 +3,26 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
-  ConnectedSocket,
   WebSocketServer,
   MessageBody,
 } from '@nestjs/websockets';
+import { UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
-import { GroupwareService } from './groupware.service';
-import { JwtPayload } from 'src/modules/auth/interfaces/jwt.interface';
-import { Communication } from '../communications/schemas/communication.schema';
 
-interface expelClientProps {
-  id_account: string;
-  message: string;
-}
+import { Communication } from '../communications/schemas';
+import { GroupwareService } from './groupware.service';
+import { WsRequirePermissions } from './decorators';
+import { WsJwtGuard } from './guards/ws-jwt.guard';
+import { SystemResource } from '../auth/constants';
+import { IKickUserData } from './interfaces';
+import { JwtPayload } from '../auth/interfaces';
 
 interface canceledCommunications {
   toUser: string;
   id: string;
 }
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -74,10 +75,11 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.server.emit('news', publication);
   }
 
-  @SubscribeMessage('expel')
-  handleExpel(@ConnectedSocket() socket: Socket, @MessageBody() { id_account, message }: expelClientProps) {
-    const client = this.groupwareService.remove(id_account);
-    if (!client) return;
-    socket.to(client.socketIds).emit('has-expel', message);
+  @SubscribeMessage('kickUser')
+  @WsRequirePermissions({ resource: SystemResource.GROUPWARE, actions: ['kick'] })
+  handlekickUser(@MessageBody() { userIds, message }: IKickUserData) {
+    const users = userIds.map((id) => this.groupwareService.remove(id)).filter((user) => !!user);
+    users.forEach((user) => this.server.to(user.socketIds).emit('userKicked', message));
+    return { test: 'dsds' };
   }
 }

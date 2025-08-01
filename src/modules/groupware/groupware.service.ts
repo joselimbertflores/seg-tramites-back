@@ -19,9 +19,9 @@ export class GroupwareService {
     if (this.clients[client.userId].socketIds.length === 0) delete this.clients[client.userId];
   }
 
-  remove(id_account: string) {
-    const client = this.clients[id_account];
-    if (client) delete this.clients[id_account];
+  remove(userId: string) {
+    const client = this.clients[userId];
+    if (client) delete this.clients[userId];
     return client;
   }
 

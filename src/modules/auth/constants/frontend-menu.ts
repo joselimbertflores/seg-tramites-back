@@ -92,7 +92,6 @@ export const FRONTEND_MENU: Menu[] = [
     ],
   },
   {
-    // Acceso a bandejas de trámites (si puede gestionar trámites externos o internos)
     requiredResources: [SystemResource.EXTERNAL, SystemResource.INTERNAL],
     text: 'Bandeja de entrada',
     icon: 'inbox',
@@ -116,42 +115,16 @@ export const FRONTEND_MENU: Menu[] = [
     icon: 'analytics',
     routerLink: 'reports',
   },
-
   {
     requiredResources: [SystemResource.PUBLICATIONS],
     text: 'Publicaciones',
     icon: 'newspaper',
     routerLink: 'posts/manage',
   },
-
-  // {
-  //   resource: 'archived',
-  //   text: 'Archivos',
-  //   icon: 'folder_copy',
-  //   routerLink: 'archives',
-  // },
-  // // {
-  // //   resource: 'reports',
-  // //   text: 'Reportes',
-  // //   icon: 'equalizer',
-  // //   routerLink: 'reports',
-  // // },
-  // {
-  //   text: 'Grupo de trabajo',
-  //   icon: 'equalizer',
-  //   children: [
-  //     {
-  //       resource: 'groupware',
-  //       text: 'Usuarios activos',
-  //       icon: 'equalizer',
-  //       routerLink: 'groupware/users',
-  //     },
-  //     {
-  //       resource: 'publications',
-  //       text: 'Publicaciones',
-  //       icon: 'newspaper',
-  //       routerLink: 'posts/manage',
-  //     },
-  //   ],
-  // },
+  {
+    requiredResources: [SystemResource.GROUPWARE],
+    text: 'Grupo de trabajo',
+    icon: 'groups_3',
+    routerLink: 'groupware',
+  },
 ];

@@ -14,7 +14,7 @@ export enum SystemResource {
   REPORTS = 'reports',
   RESOURCES = 'resources',
   PUBLICATIONS = 'publications',
-  groupware = 'groupware',
+  GROUPWARE = 'groupware',
 }
 
 export const SYSTEM_RESOURCES = [
@@ -89,9 +89,11 @@ export const SYSTEM_RESOURCES = [
   },
 
   {
-    value: SystemResource.groupware,
+    value: SystemResource.GROUPWARE,
     label: 'GRUPO DE TRABAJO',
-    actions: [{ value: 'manage', label: 'Administrar' }],
+    actions: [
+      { value: 'kick', label: 'Expulsar' },
+    ],
   },
   {
     value: SystemResource.PUBLICATIONS,

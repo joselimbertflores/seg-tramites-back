@@ -7,16 +7,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { SystemResource } from 'src/modules/auth/constants';
 import { User } from 'src/modules/users/schemas';
-
 import { META_PERMISSIONS } from '../decorators';
-
-export interface RequirePermissionsMetadata {
-  resource: SystemResource;
-  actions: string[];
-  match?: 'every' | 'some';
-}
+import { RequirePermissionsMetadata } from '../interfaces';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
