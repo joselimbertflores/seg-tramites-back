@@ -8,10 +8,10 @@ import type { Account } from 'src/modules/administration/schemas';
 
 import { PaginationDto } from 'src/modules/common';
 import { CreateExternalProcedureDto, UpdateExternalProcedureDto } from '../dtos';
-import { validProcedureService } from '../domain';
+import { ValidProcedureService } from '../domain';
 
 @Injectable()
-export class ExternalService implements validProcedureService {
+export class ExternalService implements ValidProcedureService {
   constructor(
     @InjectModel(ExternalProcedure.name) private procedureModel: Model<ExternalProcedure>,
     private configService: ConfigService,
@@ -22,9 +22,7 @@ export class ExternalService implements validProcedureService {
       account: accountId,
       status: procedureStatus.PENDING,
       ...(term && {
-        ...(isNaN(Number(term))
-          ? { reference: { $regex: term, $options: 'i' } }
-          : { code: { $regex: term, $options: 'i' } }),
+        ...(isNaN(+term) ? { reference: { $regex: term, $options: 'i' } } : { code: { $regex: term } }),
       }),
     };
     const [procedures, length] = await Promise.all([

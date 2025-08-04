@@ -8,10 +8,10 @@ import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 import { InternalProcedure, procedureState, procedureStatus } from '../schemas';
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
-import { validProcedureService } from '../domain';
+import { ValidProcedureService } from '../domain';
 
 @Injectable()
-export class InternalService implements validProcedureService {
+export class InternalService implements ValidProcedureService {
   constructor(
     @InjectModel(InternalProcedure.name) private procedureModel: Model<InternalProcedure>,
     private configService: ConfigService,

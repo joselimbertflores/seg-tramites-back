@@ -6,7 +6,7 @@ import { ExternalService } from './external.service';
 import { InternalService } from './internal.service';
 import { ProcurementService } from './procurement.service';
 
-import { validProcedureService } from '../domain';
+import { ValidProcedureService } from '../domain';
 
 @Injectable()
 export class ProcedureFactoryService {
@@ -28,7 +28,7 @@ export class ProcedureFactoryService {
   //   }
   // }
 
-  getService(group: procedureGroup): validProcedureService {
+  getService(group: procedureGroup): ValidProcedureService {
     switch (group) {
       case procedureGroup.EXTERNAL:
         return this.externalService;

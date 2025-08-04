@@ -8,10 +8,10 @@ import { PaginationDto } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { InternalProcedure, InternalProcedureDocument, procedureStatus, ProcurementProcedure } from '../schemas';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
-import { validProcedureService } from '../domain';
+import { ValidProcedureService } from '../domain';
 
 @Injectable()
-export class ProcurementService implements validProcedureService {
+export class ProcurementService implements ValidProcedureService {
   constructor(
     @InjectModel(ProcurementProcedure.name) private procedureModel: Model<ProcurementProcedure>,
     @InjectModel(InternalProcedure.name) private internalProcedureModel: Model<InternalProcedureDocument>,
