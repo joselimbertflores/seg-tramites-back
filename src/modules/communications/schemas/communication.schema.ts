@@ -8,9 +8,9 @@ export enum SendStatus {
   Received = 'received',
   Pending = 'pending',
   Rejected = 'rejected',
+  Archived = 'archived',
   Forwarding = 'forwarding',
   Completed = 'completed',
-  Archived = 'archived',
   AutoRejected = 'auto-rejected',
 }
 
@@ -126,8 +126,16 @@ export class Communication extends Document {
 
 export const CommunicationSchema = SchemaFactory.createForClass(Communication);
 
-CommunicationSchema.index({ 'procedure.ref': 1 }, { background: true });
-CommunicationSchema.index({ 'procedure.code': 1 });
-CommunicationSchema.index({ 'sender.account': 1 });
-CommunicationSchema.index({ 'recipient.account': 1 });
-CommunicationSchema.index({ status: 1 });
+// * Index for managing from inbox service
+CommunicationSchema.index({ 'recipient.account': 1, status: 1, priority: -1, sentDate: -1 });
+CommunicationSchema.index({ 'recipient.account': 1, status: 1, 'procedure.code': 1 });
+CommunicationSchema.index({ 'recipient.account': 1, status: 1, 'procedure.reference': 1 });
+
+// * Index for managing from outbox service
+CommunicationSchema.index({ 'sender.account': 1, status: 1, sentDate: -1 });
+CommunicationSchema.index({ 'sender.account': 1, status: 1, 'procedure.code': 1 });
+CommunicationSchema.index({ 'sender.account': 1, status: 1, 'procedure.reference': 1 });
+
+// * For get workflow procedures
+CommunicationSchema.index({ 'procedure.ref': 1 });
+

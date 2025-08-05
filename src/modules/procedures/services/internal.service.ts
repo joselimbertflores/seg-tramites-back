@@ -45,14 +45,11 @@ export class InternalService implements ValidProcedureService {
       account: accountId,
       status: procedureStatus.PENDING,
     };
-
     if (term) {
-      const regex = { $regex: term, $options: 'i' };
-      Object.assign(query, isNaN(+term) ? { reference: regex } : { code: regex });
+      Object.assign(query, isNaN(+term) ? { reference: { $regex: term, $options: 'i' } } : { code: { $regex: term } });
     }
-
     const [procedures, length] = await Promise.all([
-      this.procedureModel.find(query).lean().sort({ _id: -1 }).limit(limit).skip(offset),
+      this.procedureModel.find(query).lean().sort({ _id: 'desc' }).limit(limit).skip(offset),
       this.procedureModel.countDocuments(query),
     ]);
     return { procedures, length };

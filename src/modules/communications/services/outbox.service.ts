@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-
 import { ClientSession, Connection, Document, FilterQuery, Model, mongo, Types } from 'mongoose';
 import { addDays, isWeekend } from 'date-fns';
 
@@ -43,22 +42,24 @@ export class OutboxService {
   private readonly AUTO_REJECT_DAYS = this.configService.get<number>('AUTO_REJECT_DAYS');
 
   constructor(
+    private configService: ConfigService<EnvVars>,
     @InjectModel(Communication.name) private outboxModel: Model<Communication>,
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectConnection() private connection: Connection,
-    private configService: ConfigService<EnvVars>,
   ) {}
 
   async findAll(accountId: string, { limit, offset, term }: PaginationDto) {
-    const regex = new RegExp(term, 'i');
     const query: FilterQuery<Communication> = {
       'sender.account': accountId,
       status: { $in: [SendStatus.Pending, SendStatus.Rejected, SendStatus.AutoRejected] },
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'recipient.fullname': regex }] }),
     };
+    if (term) {
+      const regex = new RegExp(term, 'i');
+      query.$or = [{ 'procedure.code': regex }, { 'procedure.reference': regex }];
+    }
     const [communications, length] = await Promise.all([
-      this.outboxModel.find(query).lean().skip(offset).limit(limit).sort({ sentDate: 'descending' }),
+      this.outboxModel.find(query).lean().skip(offset).limit(limit).sort({ sentDate: 'desc' }),
       this.outboxModel.countDocuments(query),
     ]);
     return { communications: communications.map((item) => this.plainCommunication(item)), length };

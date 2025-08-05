@@ -15,6 +15,7 @@ export class ReportCommunicationsService {
   ) {}
 
   async getTotalByUnit(params: GetTotalCommunicationsByUnit, dependencyId: string) {
+    const { startDate, endDate, filterBy, group } = params;
     const unit = await this.accountModel
       .find({ dependencia: dependencyId })
       .populate({ path: 'officer', select: 'nombre paterno materno' })
@@ -23,20 +24,19 @@ export class ReportCommunicationsService {
     const pipeline: PipelineStage[] = [
       {
         $match: {
-          'recipient.account': { $in: unit.map((account) => account._id) },
-          status: { $in: ['pending', 'received', 'rejected', 'auto-rejected', 'archived'] },
+          [`${filterBy}.account`]: { $in: unit.map((account) => account._id) },
           sentDate: {
-            $gte: new Date(params.startDate),
-            $lte: new Date(params.endDate),
+            $gte: startDate,
+            $lte: endDate,
           },
-          ...(params.group && { ['procedure.group']: params.group }),
+          ...(group && { ['procedure.group']: group }),
         },
       },
       // 2. Agrupar por cuenta (funcionario) y estado
       {
         $group: {
           _id: {
-            account: `$recipient.account`,
+            account: `$${filterBy}.account`,
             status: '$status',
           },
           count: { $sum: 1 },

@@ -1,12 +1,11 @@
 import { Injectable, NotFoundException, ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-
 import { ClientSession, FilterQuery, Model } from 'mongoose';
 
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
-import { Communication, SendStatus } from '../schemas';
 import { Procedure, procedureState, procedureStatus } from 'src/modules/procedures/schemas';
 import { Account } from 'src/modules/administration/schemas';
+import { Communication, SendStatus } from '../schemas';
 
 interface archiveCommunicationsProps {
   date: Date;
@@ -25,16 +24,24 @@ export class InboxService {
 
   async findAll(accountId: string, filterDto: FilterInboxDto) {
     const { limit, offset, isOriginal, status, term, group } = filterDto;
-    const regex = new RegExp(filterDto.term, 'i');
     const filterQuery: FilterQuery<Communication> = {
       'recipient.account': accountId,
-      ...(status ? { status } : { status: { $in: [SendStatus.Received, SendStatus.Pending] } }),
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
-      ...(group && { 'procedure.group': filterDto.group }),
-      ...(typeof isOriginal === 'boolean' && {
-        ...(isOriginal ? { isOriginal } : { isOriginal: { $in: [false, null] } }),
-      }),
+      status: status ?? { $in: [SendStatus.Received, SendStatus.Pending] },
     };
+
+    if (term) {
+      const regex = new RegExp(term, 'i');
+      filterQuery.$or = [{ 'procedure.code': regex }, { 'procedure.reference': regex }];
+    }
+
+    if (group) {
+      filterQuery['procedure.group'] = group;
+    }
+
+    if (typeof isOriginal === 'boolean') {
+      filterQuery.isOriginal = isOriginal ? true : { $in: [false, null] };
+    }
+
     const [communications, length] = await Promise.all([
       this.inboxModel.find(filterQuery).lean().limit(limit).skip(offset).sort({ priority: 'desc', sentDate: 'desc' }),
       this.inboxModel.countDocuments(filterQuery),

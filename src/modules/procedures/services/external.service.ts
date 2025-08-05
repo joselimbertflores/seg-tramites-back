@@ -18,15 +18,12 @@ export class ExternalService implements ValidProcedureService {
   ) {}
 
   async findAll({ limit, offset, term }: PaginationDto, accountId: string) {
-    const query: FilterQuery<ExternalProcedure> = {
-      account: accountId,
-      status: procedureStatus.PENDING,
-      ...(term && {
-        ...(isNaN(+term) ? { reference: { $regex: term, $options: 'i' } } : { code: { $regex: term } }),
-      }),
-    };
+    const query: FilterQuery<ExternalProcedure> = { account: accountId, status: procedureStatus.PENDING };
+    if (term) {
+      Object.assign(query, isNaN(+term) ? { reference: { $regex: term, $options: 'i' } } : { code: { $regex: term } });
+    }
     const [procedures, length] = await Promise.all([
-      this.procedureModel.find(query).lean().populate('account').sort({ _id: -1 }).limit(limit).skip(offset),
+      this.procedureModel.find(query).lean().populate('account').sort({ _id: 'desc' }).limit(limit).skip(offset),
       this.procedureModel.countDocuments(query),
     ]);
     return { procedures, length };

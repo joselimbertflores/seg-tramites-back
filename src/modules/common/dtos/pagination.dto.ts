@@ -1,13 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsInt,
-  IsPositive,
-  Min,
-  Max,
-  IsOptional,
-  IsString,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsInt, IsPositive, Min, Max, IsOptional, IsString, IsNotEmpty, Matches } from 'class-validator';
 
 export class PaginationDto {
   @Type(() => Number)
@@ -16,16 +8,17 @@ export class PaginationDto {
   @Min(1)
   @Max(50)
   @IsOptional()
-  limit?: number = 10;
+  readonly limit?: number = 10;
 
   @Type(() => Number)
   @IsInt()
   @Min(0)
   @IsOptional()
-  offset?: number = 0;
+  readonly offset?: number = 0;
 
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  term?: string;
+  @Matches(/^[a-zA-Z0-9\s-]{1,255}$/, { message: 'El término de búsqueda contiene caracteres no válidos.' })
+  readonly term?: string;
 }
