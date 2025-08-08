@@ -201,7 +201,7 @@ export class AccountService {
           ],
         },
       })
-      .match({ fullname: regex, activo: true })
+      .match({ fullname: regex, isVisible: true })
       .limit(limit)
       .project({ fullname: 0 });
   }
@@ -213,7 +213,6 @@ export class AccountService {
       .match({
         _id: { $ne: currentAccountId },
         officer: { $ne: null },
-        activo: true,
         isVisible: true,
       })
       .lookup({

@@ -1,11 +1,11 @@
 import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  HttpException,
   Injectable,
-  InternalServerErrorException,
+  HttpException,
+  ConflictException,
   NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 
@@ -23,6 +23,7 @@ interface buildArchiveInstanteProps {
   account: Account;
   folder: Folder | null;
   description: string;
+  state: string;
 }
 
 @Injectable()
@@ -37,7 +38,6 @@ export class ArchiveService {
   ) {}
 
   async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
-    const regex = new RegExp(term, 'i');
     let folderDB: null | FolderDocument = null;
     if (folder) {
       folderDB = await this.folderModel.findById(folder, { name: 1 });
@@ -46,10 +46,13 @@ export class ArchiveService {
     const query: FilterQuery<Archive> = {
       dependency: account.dependencia,
       ...(folderDB && { folder: folderDB.id }),
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
     };
+    if (term) {
+      const regex = new RegExp(term, 'i');
+      query.$or = [{ 'procedure.code': regex }, { 'procedure.reference': regex }];
+    }
     const [archives, length] = await Promise.all([
-      this.archiveModel.find(query).limit(limit).skip(offset).sort({ createdAt: -1 }),
+      this.archiveModel.find(query).lean().limit(limit).skip(offset).sort({ createdAt: -1 }),
       this.archiveModel.count(query),
     ]);
     return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
@@ -72,7 +75,7 @@ export class ArchiveService {
 
       const items = await this.inboxService.archive({ ids, description, state, account, date, session });
 
-      const models = items.map((item) => this.buildArchiveInstance({ item, description, account, folder }));
+      const models = items.map((item) => this.buildArchiveInstance({ item, description, account, folder, state }));
 
       await this.archiveModel.insertMany(models, { session });
 
@@ -142,7 +145,7 @@ export class ArchiveService {
     return archive;
   }
 
-  private buildArchiveInstance({ item, account, description, folder }: buildArchiveInstanteProps) {
+  private buildArchiveInstance({ item, account, description, folder, state }: buildArchiveInstanteProps) {
     return new this.archiveModel({
       communication: item._id,
       dependency: account.dependencia,
@@ -158,6 +161,7 @@ export class ArchiveService {
       },
       isOriginal: item.isOriginal,
       description,
+      state,
     });
   }
 

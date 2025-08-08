@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
+
 import { Account, Dependency, Institution } from 'src/modules/administration/schemas';
 import { Procedure, ProcedureDocument } from 'src/modules/procedures/schemas';
 import { Communication } from './communication.schema';
@@ -89,8 +90,18 @@ export class Archive {
 
   @Prop()
   updatedAt: Date;
+
+  // TODO state procedure enum
+  @Prop({ required: true })
+  state: string;
 }
 
 export const ArchiveSchema = SchemaFactory.createForClass(Archive);
 
 export type ArchiveDocument = HydratedDocument<Archive>;
+
+ArchiveSchema.index({ dependency: 1, createdAt: -1 });
+ArchiveSchema.index({ dependency: 1, 'procedure.code': 1 });
+ArchiveSchema.index({ dependency: 1, 'procedure.reference': 1 });
+ArchiveSchema.index({ dependency: 1, folder: 1, 'procedure.code': 1 });
+ArchiveSchema.index({ dependency: 1, folder: 1, 'procedure.reference': 1 });
