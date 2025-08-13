@@ -20,6 +20,7 @@ import { EnvVars, validate } from './config';
 import { ResourcesModule } from './modules/resources/resources.module';
 import { PrinterModule } from './modules/printer/printer.module';
 import { MailModule } from './modules/mail/mail.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -30,9 +31,9 @@ import { MailModule } from './modules/mail/mail.module';
       }),
       inject: [ConfigService],
     }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
-    }),
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, '..', 'public'),
+    // }),
     ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
@@ -47,6 +48,7 @@ import { MailModule } from './modules/mail/mail.module';
     ResourcesModule,
     PrinterModule,
     MailModule,
+    ChatModule,
   ],
   controllers: [],
   providers: [],

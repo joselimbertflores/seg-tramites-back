@@ -9,7 +9,7 @@ import { ProcurementService } from '../services';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
 
 @onlyAssignedAccount()
-@ResourceProtected(SystemResource.PROCUREMENT)
+// @ResourceProtected(SystemResource.PROCUREMENT)
 @Controller('procurement')
 export class ProcurementController {
   constructor(private procurementService: ProcurementService) {}
