@@ -90,6 +90,13 @@ export class UserService {
     }
   }
 
+  async searchUser(term: string) {
+    return await this.userModel
+      .find({ fullname: new RegExp(term, 'i'), isActive: true })
+      .limit(7)
+      .select({ fullname: 1 });
+  }
+
   async resetPassword(user: User) {
     const newPassword = generatePassword();
     const encryptPassword = this.encryptPassword(newPassword);
