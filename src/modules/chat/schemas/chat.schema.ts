@@ -6,7 +6,7 @@ import { User } from 'src/modules/users/schemas';
 @Schema({ _id: false })
 class LastMessage {
   @Prop()
-  text: string;
+  content: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name })
   sender: User;
@@ -15,7 +15,7 @@ class LastMessage {
   senderName: string;
 
   @Prop()
-  createdAt: Date;
+  sentAt: Date;
 }
 const LastMessageSchema = SchemaFactory.createForClass(LastMessage);
 
@@ -35,16 +35,19 @@ export class Chat extends Document {
   participants: Participant[];
 
   @Prop()
-  name: string; // *Only for groups
+  name?: string; // *Only for groups
 
-  @Prop({ enum: ['private', 'group'], required: true })
+  @Prop({ enum: ['private', 'group'], required: true   })
   type: 'private' | 'group';
 
   @Prop({ type: LastMessageSchema })
-  lastMessage: LastMessage;
+  lastMessage?: LastMessage;
 
   @Prop({ type: [{ user: { type: Types.ObjectId, ref: User.name }, readAt: Date }] })
   readBy: { user: Types.ObjectId; readAt: Date }[];
+
+  @Prop({ type: Boolean, default: false })
+  hasMessages: boolean;
 }
 
 export const ChatSchema = SchemaFactory.createForClass(Chat);

@@ -3,11 +3,16 @@ import { ChatService } from './chat.service';
 import { UserService } from '../users/services';
 import { GetUserRequest } from '../auth/decorators';
 import { User } from '../users/schemas';
-import { StartChatDto } from './dtos';
+import { CreateMessageDto, StartChatDto } from './dtos';
 
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService, private userService: UserService) {}
+
+  @Get('start/:receiverId')
+  fintOrCreateChat(@GetUserRequest() user: User, @Param('receiverId') receiverId: string) {
+    return this.chatService.findOrCreateChat(user, receiverId);
+  }
 
   @Get('my')
   getMyChats(@GetUserRequest() user: User) {
@@ -19,18 +24,14 @@ export class ChatController {
     return this.userService.searchUser(term);
   }
 
-  @Get('user/:id')
-  getChatByUser(@Param('id') id: string, @GetUserRequest() user: User) {
-    return this.chatService.getChatByUser(user.id, id);
+  @Get(':chatId/messages')
+  getChatMessages(@Param('chatId') id: string) {
+    console.log(id);
+    return this.chatService.getChatMessages(id);
   }
 
-  @Post()
-  createMessage(@Body() body: StartChatDto, @GetUserRequest() user: User) {
-    return this.chatService.startChat(user, body);
-  }
-
-  @Get('messages/:chatId')
-  getMessage(@Param('chatId') id: string) {
-    return this.chatService.getmessages(id);
+  @Post(':chatId/messages')
+  sendMessage(@Param('chatId') chatId: string, @Body() body: CreateMessageDto, @GetUserRequest() user: User) {
+    return this.chatService.sendMessage(chatId, body, user);
   }
 }
