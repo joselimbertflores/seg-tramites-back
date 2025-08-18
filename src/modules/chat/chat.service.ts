@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, UpdateQuery } from 'mongoose';
 
 import { Chat, Message } from './schemas';
 import { User } from '../users/schemas';
-import { CreateMessageDto, StartChatDto } from './dtos';
+import { CreateMessageDto } from './dtos';
 
 @Injectable()
 export class ChatService {
@@ -37,30 +37,50 @@ export class ChatService {
     return await this.messageModel.find({ chat: chatId }).populate({ path: 'sender', select: { fullname: 1 } });
   }
 
-  async sendMessage(chatId: string, messageDto: CreateMessageDto, currentUser: User) {
+  async sendMessage(chatId: string, messageDto: CreateMessageDto, sender: User) {
     const chat = await this.chatModel.findById(chatId);
-    if (!chat) {
-      throw new NotFoundException(`Chat with id ${chatId} not found`);
-    }
-    const newMessage = new this.messageModel({ content: messageDto.message, sender: currentUser, chat });
+
+    if (!chat) throw new NotFoundException(`Chat id ${chatId} not found`);
+
+    const { content } = messageDto;
+
+    const newMessage = new this.messageModel({
+      sender: sender.id,
+      chat: chat.id,
+      content,
+    });
+
     await newMessage.save();
+
+    await this.messageModel.populate(newMessage, { path: 'sender', select: 'fullname' });
+
+    const updateQuery: UpdateQuery<Chat> = {
+      $inc: { 'participants.$[item].unreadCount': 1 },
+      hasMessages: true,
+      lastMessage: {
+        content: newMessage.content,
+        sender: newMessage.sender,
+        sentAt: newMessage.sentAt,
+        senderName: sender.fullname,
+      },
+    };
+
     const createdChat = await this.chatModel
-      .findByIdAndUpdate(
-        chatId,
-        {
-          hasMessages: true,
-          lastMessage: {
-            content: newMessage.content,
-            sender: newMessage.sender,
-            sentAt: newMessage.sentAt,
-            senderName: currentUser.fullname,
-          },
-          $inc: { 'participants.$[item].unreadCount': 1 },
-        },
-        { arrayFilters: [{ 'item.user': { $ne: currentUser.id } }] },
-      )
+      .findByIdAndUpdate(chatId, updateQuery, { arrayFilters: [{ 'item.user': { $ne: sender.id } }], new: true })
       .populate({ path: 'participants.user', select: 'fullname' });
-    return this.plainChat(currentUser, createdChat);
+
+    return {
+      message: newMessage,
+      chatForOthers: createdChat.participants
+        .filter(({ user }) => String(user._id) !== sender.id)
+        .map(({ user }) => ({
+          toUser: String(user._id),
+          payload: {
+            chat: this.plainChat(user, createdChat),
+            message: newMessage,
+          },
+        })),
+    };
   }
 
   async getChatsByUser(user: User) {
@@ -71,7 +91,6 @@ export class ChatService {
 
     return chats.map((chat) => this.plainChat(user, chat));
   }
-
 
   private plainChat(currentUser: User, chat: Chat) {
     const { participants, ...props } = chat.toObject();

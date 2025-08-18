@@ -19,7 +19,7 @@ export class Message extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Chat.name, required: true })
   chat: Chat;
 
-  @Prop({ type: Types.ObjectId, ref: User.name, required: true })
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name, required: true })
   sender: User;
 
   @Prop({ type: String })

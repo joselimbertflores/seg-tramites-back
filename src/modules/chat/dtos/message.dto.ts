@@ -16,5 +16,5 @@ export class StartChatDto {
 export class CreateMessageDto {
   @IsString()
   @IsNotEmpty()
-  message: string;
+  content: string;
 }
