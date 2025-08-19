@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, Types } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 
 import { User } from 'src/modules/users/schemas';
 
@@ -34,20 +34,23 @@ export class Chat extends Document {
   @Prop({ type: [ParticipantSchema], required: true })
   participants: Participant[];
 
-  @Prop()
-  name?: string; // *Only for groups
-
-  @Prop({ enum: ['private', 'group'], required: true   })
+  @Prop({ enum: ['private', 'group'], required: true })
   type: 'private' | 'group';
+
+  @Prop({ type: Date, default: Date.now })
+  lastActivity: Date;
+
+  @Prop({ type: Boolean, default: false })
+  hasMessages: boolean;
+
+  @Prop()
+  name?: string; // only for group chats
 
   @Prop({ type: LastMessageSchema })
   lastMessage?: LastMessage;
 
-  @Prop({ type: [{ user: { type: Types.ObjectId, ref: User.name }, readAt: Date }] })
-  readBy: { user: Types.ObjectId; readAt: Date }[];
-
-  @Prop({ type: Boolean, default: false })
-  hasMessages: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const ChatSchema = SchemaFactory.createForClass(Chat);

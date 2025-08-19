@@ -5,6 +5,7 @@ import { Model, UpdateQuery } from 'mongoose';
 import { Chat, Message } from './schemas';
 import { User } from '../users/schemas';
 import { CreateMessageDto } from './dtos';
+import { PaginationDto } from '../common';
 
 @Injectable()
 export class ChatService {
@@ -33,8 +34,16 @@ export class ChatService {
     return this.plainChat(currentUser, chat);
   }
 
-  async getChatMessages(chatId: string) {
-    return await this.messageModel.find({ chat: chatId }).populate({ path: 'sender', select: { fullname: 1 } });
+  async getChatMessages(chatId: string, paginationDto: PaginationDto) {
+    const { limit, offset } = paginationDto;
+    const rest= await this.messageModel
+    .find({ chat: chatId })
+    .populate({ path: 'sender', select: { fullname: 1 } })
+    .limit(limit)
+    .skip(offset)
+    .sort({ sentAt: "desc" });
+    console.log("limit:", limit, "  offset:", offset, "   results",rest.length);
+    return rest
   }
 
   async sendMessage(chatId: string, messageDto: CreateMessageDto, sender: User) {
@@ -70,7 +79,10 @@ export class ChatService {
       .populate({ path: 'participants.user', select: 'fullname' });
 
     return {
-      message: newMessage,
+      chatForMe: {
+        chat: this.plainChat(sender, createdChat),
+        message: newMessage,
+      },
       chatForOthers: createdChat.participants
         .filter(({ user }) => String(user._id) !== sender.id)
         .map(({ user }) => ({
@@ -87,7 +99,7 @@ export class ChatService {
     const chats = await this.chatModel
       .find({ 'participants.user': user.id, hasMessages: true })
       .populate({ path: 'participants.user', select: 'fullname' })
-      .sort({ 'lastMessage.sentAt': 'desc' });
+      .sort({ lastActivity: 'desc' });
 
     return chats.map((chat) => this.plainChat(user, chat));
   }

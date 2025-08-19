@@ -4,16 +4,6 @@ import mongoose, { Document, Types } from 'mongoose';
 import { User } from 'src/modules/users/schemas';
 import { Chat } from './chat.schema';
 
-// @Schema({ _id: false })
-// class ReadBy {
-//   @Prop({ type: Types.ObjectId, ref: User.name })
-//   user: User;
-
-//   @Prop()
-//   readAt: Date;
-// }
-// const ReadBySchema = SchemaFactory.createForClass(ReadBy);
-
 @Schema({ timestamps: { createdAt: 'sentAt' } })
 export class Message extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Chat.name, required: true })
@@ -25,10 +15,11 @@ export class Message extends Document {
   @Prop({ type: String })
   content?: string;
 
-  // @Prop({ type: [ReadBySchema], default: [] })
-  // readBy: ReadBy[];
+  @Prop({ type: [mongoose.Schema.Types.ObjectId], ref: User.name, default: [] })
+  readBy: User[];
 
   sentAt: Date;
+  updatedAt: Date;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
