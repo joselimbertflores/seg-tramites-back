@@ -2,17 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, UpdateQuery } from 'mongoose';
 
-import { Chat, Message } from './schemas';
-import { User } from '../users/schemas';
 import { CreateMessageDto } from './dtos';
 import { PaginationDto } from '../common';
+import { Chat, Message } from './schemas';
+import { User } from '../users/schemas';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<Chat>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
-    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async findOrCreateChat(currentUser: User, receiverId: string) {
@@ -36,14 +35,14 @@ export class ChatService {
 
   async getChatMessages(chatId: string, paginationDto: PaginationDto) {
     const { limit, offset } = paginationDto;
-    const rest= await this.messageModel
-    .find({ chat: chatId })
-    .populate({ path: 'sender', select: { fullname: 1 } })
-    .limit(limit)
-    .skip(offset)
-    .sort({ sentAt: "desc" });
-    console.log("limit:", limit, "  offset:", offset, "   results",rest.length);
-    return rest
+    const rest = await this.messageModel
+      .find({ chat: chatId })
+      .populate({ path: 'sender', select: { fullname: 1 } })
+      .limit(limit)
+      .skip(offset)
+      .sort({ sentAt: 'desc' });
+    console.log('limit:', limit, '  offset:', offset, '   results', rest.length);
+    return rest;
   }
 
   async sendMessage(chatId: string, messageDto: CreateMessageDto, sender: User) {
@@ -64,6 +63,7 @@ export class ChatService {
     await this.messageModel.populate(newMessage, { path: 'sender', select: 'fullname' });
 
     const updateQuery: UpdateQuery<Chat> = {
+      lastActivity: new Date(),
       $inc: { 'participants.$[item].unreadCount': 1 },
       hasMessages: true,
       lastMessage: {
@@ -102,6 +102,19 @@ export class ChatService {
       .sort({ lastActivity: 'desc' });
 
     return chats.map((chat) => this.plainChat(user, chat));
+  }
+
+  async markChatAsRead(chatId: string, user: User) {
+    const chat = await this.chatModel.findById(chatId);
+
+    if (!chat) throw new NotFoundException(`Chat${chatId} not found`);
+
+    await this.chatModel.updateOne(
+      { _id: chatId },
+      { $set: { 'participants.$[item].unreadCount': 0 } },
+      { arrayFilters: [{ 'item.user': user.id }] },
+    );
+    return { message: 'Chat marked as read successfully' };
   }
 
   private plainChat(currentUser: User, chat: Chat) {

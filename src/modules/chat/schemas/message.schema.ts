@@ -1,9 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, Types } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 
 import { User } from 'src/modules/users/schemas';
 import { Chat } from './chat.schema';
-
 @Schema({ timestamps: { createdAt: 'sentAt' } })
 export class Message extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Chat.name, required: true })

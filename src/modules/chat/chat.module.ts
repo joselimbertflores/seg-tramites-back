@@ -5,6 +5,7 @@ import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { Chat, ChatSchema, Message, MessageSchema } from './schemas';
 import { UsersModule } from '../users/users.module';
+import { GroupwareModule } from '../groupware/groupware.module';
 
 @Module({
   controllers: [ChatController],
@@ -15,6 +16,7 @@ import { UsersModule } from '../users/users.module';
       { name: Message.name, schema: MessageSchema },
     ]),
     UsersModule,
+    GroupwareModule
   ],
 })
 export class ChatModule {}

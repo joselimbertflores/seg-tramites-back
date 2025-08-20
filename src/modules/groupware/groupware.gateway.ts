@@ -82,4 +82,14 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
     users.forEach((user) => this.server.to(user.socketIds).emit('userKicked', message));
     return { test: 'dsds' };
   }
+
+  sentMessage(data: any[]) {
+    console.log(data);
+    for (const { toUser, payload } of data) {
+      const user = this.groupwareService.getUser(toUser);
+      if (user) {
+        this.server.to(user.socketIds).emit('chat', payload);
+      }
+    }
+  }
 }
