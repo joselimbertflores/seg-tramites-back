@@ -4,7 +4,13 @@ import mongoose, { Document } from 'mongoose';
 import { User } from 'src/modules/users/schemas';
 
 @Schema({ _id: false })
-class LastMessage {
+export class LastMessage {
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Message' })
+  ref: mongoose.Types.ObjectId;
+
+  @Prop({ type: Boolean })
+  isRead: boolean;
+
   @Prop()
   content: string;
 

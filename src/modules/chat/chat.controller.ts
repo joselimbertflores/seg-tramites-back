@@ -6,16 +6,20 @@ import { ChatService } from './chat.service';
 import { User } from '../users/schemas';
 import { CreateMessageDto } from './dtos';
 import { PaginationDto } from '../common';
-import { GroupwareService } from '../groupware/groupware.service';
 import { GroupwareGateway } from '../groupware/groupware.gateway';
 
 @Controller('chat')
 export class ChatController {
   constructor(
-    private readonly chatService: ChatService,
+    private chatService: ChatService,
     private userService: UserService,
     private groupwareGateway: GroupwareGateway,
   ) {}
+
+  @Get('users/:term')
+  searchcuser(@Param('term') term: string) {
+    return this.userService.searchUser(term);
+  }
 
   @Get('start/:receiverId')
   fintOrCreateChat(@GetUserRequest() user: User, @Param('receiverId') receiverId: string) {
@@ -23,18 +27,13 @@ export class ChatController {
   }
 
   @Get()
-  getMyChats(@GetUserRequest() user: User) {
-    return this.chatService.getChatsByUser(user);
-  }
-
-  @Get('users/:term')
-  searhcuser(@Param('term') term: string) {
-    return this.userService.searchUser(term);
+  getChats(@GetUserRequest() user: User) {
+    return this.chatService.getChats(user);
   }
 
   @Get(':chatId/messages')
-  getChatMessages(@Param('chatId') id: string, @Query() paginationDto: PaginationDto) {
-    return this.chatService.getChatMessages(id, paginationDto);
+  getChatMessages(@Param('chatId') id: string, @GetUserRequest() user: User, @Query() paginationDto: PaginationDto) {
+    return this.chatService.getChatMessages(id, user, paginationDto);
   }
 
   @Post(':chatId/messages')

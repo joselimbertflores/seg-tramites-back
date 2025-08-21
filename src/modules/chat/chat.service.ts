@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, UpdateQuery } from 'mongoose';
+import { Model, Types, UpdateQuery } from 'mongoose';
 
 import { CreateMessageDto } from './dtos';
 import { PaginationDto } from '../common';
@@ -33,16 +33,30 @@ export class ChatService {
     return this.plainChat(currentUser, chat);
   }
 
-  async getChatMessages(chatId: string, paginationDto: PaginationDto) {
+  async getChats(user: User) {
+    const chats = await this.chatModel
+      .find({ 'participants.user': user.id, hasMessages: true })
+      .populate({ path: 'participants.user', select: 'fullname' })
+      .sort({ lastActivity: 'desc' });
+
+    return chats.map((chat) => this.plainChat(user, chat));
+  }
+
+  async getChatMessages(chatId: string, currentUser: User, paginationDto: PaginationDto) {
     const { limit, offset } = paginationDto;
-    const rest = await this.messageModel
+
+    const chat = await this.chatModel.findById(chatId, { participants: 1 });
+
+    if (!chat) throw new NotFoundException(`Chat id ${chatId} not found`);
+
+    const messages = await this.messageModel
       .find({ chat: chatId })
       .populate({ path: 'sender', select: { fullname: 1 } })
       .limit(limit)
       .skip(offset)
       .sort({ sentAt: 'desc' });
-    console.log('limit:', limit, '  offset:', offset, '   results', rest.length);
-    return rest;
+
+    return messages.map((message) => this.plainMessage(message, chat, currentUser)).reverse();
   }
 
   async sendMessage(chatId: string, messageDto: CreateMessageDto, sender: User) {
@@ -55,22 +69,26 @@ export class ChatService {
     const newMessage = new this.messageModel({
       sender: sender.id,
       chat: chat.id,
+      readBy: [sender.id],
       content,
     });
 
     await newMessage.save();
 
     await this.messageModel.populate(newMessage, { path: 'sender', select: 'fullname' });
+    console.log(newMessage._id);
 
     const updateQuery: UpdateQuery<Chat> = {
       lastActivity: new Date(),
       $inc: { 'participants.$[item].unreadCount': 1 },
       hasMessages: true,
       lastMessage: {
+        ref: newMessage._id,
         content: newMessage.content,
         sender: newMessage.sender,
         sentAt: newMessage.sentAt,
         senderName: sender.fullname,
+        isRead: false,
       },
     };
 
@@ -95,25 +113,41 @@ export class ChatService {
     };
   }
 
-  async getChatsByUser(user: User) {
-    const chats = await this.chatModel
-      .find({ 'participants.user': user.id, hasMessages: true })
-      .populate({ path: 'participants.user', select: 'fullname' })
-      .sort({ lastActivity: 'desc' });
-
-    return chats.map((chat) => this.plainChat(user, chat));
-  }
-
   async markChatAsRead(chatId: string, user: User) {
     const chat = await this.chatModel.findById(chatId);
 
-    if (!chat) throw new NotFoundException(`Chat${chatId} not found`);
+    if (!chat) throw new NotFoundException(`Chat ${chatId} not found`);
 
-    await this.chatModel.updateOne(
-      { _id: chatId },
-      { $set: { 'participants.$[item].unreadCount': 0 } },
-      { arrayFilters: [{ 'item.user': user.id }] },
+    // * Mark messages as read and insert readers in array
+    await this.messageModel.updateMany(
+      {
+        chat: chatId,
+        sender: { $ne: user.id },
+        readBy: { $ne: user.id },
+      },
+      { $addToSet: { readBy: user.id } },
     );
+
+    // * After update chats, populate ref for get updated readBy
+    await this.chatModel.populate<{ 'lastMessage.ref': Message }>(chat, { path: 'lastMessage.ref', select: 'readBy' });
+
+    let isLastMessageRead = false;
+
+    if (chat.lastMessage) {
+      const lastMessageRef = chat.lastMessage.ref;
+      const readerIds = lastMessageRef['readBy'] as Types.ObjectId[];
+      isLastMessageRead = readerIds.length === chat.participants.length;
+    }
+
+    const updateChatQuery: UpdateQuery<Chat> = {
+      $set: {
+        'participants.$[item].unreadCount': 0,
+        ...(chat.lastMessage && { 'lastMessage.isRead': isLastMessageRead }),
+      },
+    };
+
+    await this.chatModel.updateOne({ _id: chatId }, updateChatQuery, { arrayFilters: [{ 'item.user': user.id }] });
+
     return { message: 'Chat marked as read successfully' };
   }
 
@@ -128,5 +162,12 @@ export class ChatService {
       name = props?.name ?? 'Unknow group';
     }
     return { ...props, name, unreadCount: me?.unreadCount ?? 0 };
+  }
+
+  private plainMessage(message: Message, chat: Chat, user: User) {
+    const { participants } = chat;
+    const isMine = String(message.sender._id) === user.id;
+    const isRead = isMine ? participants.length === message.readBy.length : true;
+    return { ...message.toObject(), isRead };
   }
 }
