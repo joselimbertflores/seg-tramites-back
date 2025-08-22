@@ -45,6 +45,8 @@ export class ChatController {
 
   @Patch(':chatId/read')
   async markChatAsRead(@Param('chatId') chatId: string, @GetUserRequest() user: User) {
-    return this.chatService.markChatAsRead(chatId, user);
+    const { message, participantId } = await this.chatService.markChatAsRead(chatId, user);
+    this.groupwareGateway.readMessage(participantId, chatId);
+    return { message };
   }
 }

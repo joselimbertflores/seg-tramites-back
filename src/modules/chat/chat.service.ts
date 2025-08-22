@@ -76,7 +76,6 @@ export class ChatService {
     await newMessage.save();
 
     await this.messageModel.populate(newMessage, { path: 'sender', select: 'fullname' });
-    console.log(newMessage._id);
 
     const updateQuery: UpdateQuery<Chat> = {
       lastActivity: new Date(),
@@ -96,10 +95,12 @@ export class ChatService {
       .findByIdAndUpdate(chatId, updateQuery, { arrayFilters: [{ 'item.user': { $ne: sender.id } }], new: true })
       .populate({ path: 'participants.user', select: 'fullname' });
 
+    const plainMessage = this.plainMessage(newMessage, chat, sender);
+
     return {
       chatForMe: {
         chat: this.plainChat(sender, createdChat),
-        message: newMessage,
+        message: plainMessage,
       },
       chatForOthers: createdChat.participants
         .filter(({ user }) => String(user._id) !== sender.id)
@@ -107,7 +108,7 @@ export class ChatService {
           toUser: String(user._id),
           payload: {
             chat: this.plainChat(user, createdChat),
-            message: newMessage,
+            message: plainMessage,
           },
         })),
     };
@@ -148,7 +149,10 @@ export class ChatService {
 
     await this.chatModel.updateOne({ _id: chatId }, updateChatQuery, { arrayFilters: [{ 'item.user': user.id }] });
 
-    return { message: 'Chat marked as read successfully' };
+    return {
+      message: 'Chat marked as read successfully',
+      participantId: chat.participants.map(({ user }) => String(user._id)).filter((id) => id !== user.id),
+    };
   }
 
   private plainChat(currentUser: User, chat: Chat) {

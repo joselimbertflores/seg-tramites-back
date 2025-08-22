@@ -38,6 +38,7 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
       const token = client.handshake.auth.token;
       const decoded: JwtPayload = this.jwtService.verify(token);
       client.data['user'] = decoded;
+      console.log(decoded);
       this.groupwareService.onClientConnected(client.id, decoded);
       this.server.emit('clientsList', this.groupwareService.getClients());
     } catch (error) {
@@ -84,11 +85,19 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   sentMessage(data: any[]) {
-    console.log(data);
     for (const { toUser, payload } of data) {
       const user = this.groupwareService.getUser(toUser);
       if (user) {
         this.server.to(user.socketIds).emit('chat', payload);
+      }
+    }
+  }
+
+  readMessage(userIds: string[], chatId: string) {
+    for (const userId of userIds) {
+      const user = this.groupwareService.getUser(userId);
+      if (user) {
+        this.server.to(user.socketIds).emit('message:read', chatId);
       }
     }
   }
