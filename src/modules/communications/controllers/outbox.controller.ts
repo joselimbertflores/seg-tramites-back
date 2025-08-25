@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 
 import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
-import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
+import { GroupwareGateway } from 'src/modules/groupware/gateways/groupware.gateway';
 import { MultiResourceProtected } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';

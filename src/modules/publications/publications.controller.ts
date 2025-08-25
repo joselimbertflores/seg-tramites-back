@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Query, Patch, Param, Delete } from '@nestjs/common';
 
-import { GroupwareGateway } from 'src/modules/groupware/groupware.gateway';
+import { GroupwareGateway } from 'src/modules/groupware/gateways/groupware.gateway';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 
 import { CreatePublicationDto, UpdatePublicationDto } from './dtos';

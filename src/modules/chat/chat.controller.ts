@@ -6,15 +6,11 @@ import { ChatService } from './chat.service';
 import { User } from '../users/schemas';
 import { CreateMessageDto } from './dtos';
 import { PaginationDto } from '../common';
-import { GroupwareGateway } from '../groupware/groupware.gateway';
+import { ChatGateway } from '../groupware/gateways';
 
 @Controller('chat')
 export class ChatController {
-  constructor(
-    private chatService: ChatService,
-    private userService: UserService,
-    private groupwareGateway: GroupwareGateway,
-  ) {}
+  constructor(private chatService: ChatService, private userService: UserService, private chatGateway: ChatGateway) {}
 
   @Get('users/:term')
   searchcuser(@Param('term') term: string) {
@@ -24,6 +20,11 @@ export class ChatController {
   @Get('start/:receiverId')
   fintOrCreateChat(@GetUserRequest() user: User, @Param('receiverId') receiverId: string) {
     return this.chatService.findOrCreateChat(user, receiverId);
+  }
+
+  @Get('account/:accountId')
+  getAccountChat(@GetUserRequest() user: User, @Param('accountId') accountId: string) {
+    return this.chatService.getAccountChat(user, accountId);
   }
 
   @Get()
@@ -36,17 +37,17 @@ export class ChatController {
     return this.chatService.getChatMessages(id, user, paginationDto);
   }
 
-  @Post(':chatId/messages')
+  @Post(':chatId/message')
   async sendMessage(@Param('chatId') chatId: string, @Body() body: CreateMessageDto, @GetUserRequest() user: User) {
     const { chatForMe, chatForOthers } = await this.chatService.sendMessage(chatId, body, user);
-    this.groupwareGateway.sentMessage(chatForOthers);
+    this.chatGateway.sendMessage(chatForOthers);
     return chatForMe;
   }
 
   @Patch(':chatId/read')
   async markChatAsRead(@Param('chatId') chatId: string, @GetUserRequest() user: User) {
     const { message, participantId } = await this.chatService.markChatAsRead(chatId, user);
-    this.groupwareGateway.readMessage(participantId, chatId);
+    this.chatGateway.readMessage(participantId, chatId);
     return { message };
   }
 }

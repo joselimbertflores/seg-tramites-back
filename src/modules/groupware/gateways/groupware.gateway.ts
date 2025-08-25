@@ -10,13 +10,13 @@ import { UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 
-import { Communication } from '../communications/schemas';
-import { GroupwareService } from './groupware.service';
-import { WsRequirePermissions } from './decorators';
-import { WsJwtGuard } from './guards/ws-jwt.guard';
-import { SystemResource } from '../auth/constants';
-import { IKickUserData } from './interfaces';
-import { JwtPayload } from '../auth/interfaces';
+import { Communication } from '../../communications/schemas';
+import { GroupwareService } from '../groupware.service';
+import { WsRequirePermissions } from '../decorators';
+import { WsJwtGuard } from '../guards/ws-jwt.guard';
+import { SystemResource } from '../../auth/constants';
+import { IKickUserData } from '../interfaces';
+import { JwtPayload } from '../../auth/interfaces';
 
 interface canceledCommunications {
   toUser: string;
@@ -38,7 +38,6 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
       const token = client.handshake.auth.token;
       const decoded: JwtPayload = this.jwtService.verify(token);
       client.data['user'] = decoded;
-      console.log(decoded);
       this.groupwareService.onClientConnected(client.id, decoded);
       this.server.emit('clientsList', this.groupwareService.getClients());
     } catch (error) {
@@ -81,24 +80,7 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
   handlekickUser(@MessageBody() { userIds, message }: IKickUserData) {
     const users = userIds.map((id) => this.groupwareService.remove(id)).filter((user) => !!user);
     users.forEach((user) => this.server.to(user.socketIds).emit('userKicked', message));
-    return { test: 'dsds' };
+    return { test: `Total users kicked ${userIds.length}` };
   }
 
-  sentMessage(data: any[]) {
-    for (const { toUser, payload } of data) {
-      const user = this.groupwareService.getUser(toUser);
-      if (user) {
-        this.server.to(user.socketIds).emit('chat', payload);
-      }
-    }
-  }
-
-  readMessage(userIds: string[], chatId: string) {
-    for (const userId of userIds) {
-      const user = this.groupwareService.getUser(userId);
-      if (user) {
-        this.server.to(user.socketIds).emit('message:read', chatId);
-      }
-    }
-  }
 }

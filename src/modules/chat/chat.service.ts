@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types, UpdateQuery } from 'mongoose';
 
@@ -6,12 +6,14 @@ import { CreateMessageDto } from './dtos';
 import { PaginationDto } from '../common';
 import { Chat, Message } from './schemas';
 import { User } from '../users/schemas';
+import { Account } from '../administration/schemas';
 
 @Injectable()
 export class ChatService {
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<Chat>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
+    @InjectModel(Account.name) private accountModel: Model<Account>,
   ) {}
 
   async findOrCreateChat(currentUser: User, receiverId: string) {
@@ -31,6 +33,12 @@ export class ChatService {
       await chat.populate({ path: 'participants.user', select: 'fullname' });
     }
     return this.plainChat(currentUser, chat);
+  }
+
+  async getAccountChat(currentUser: User, accounId: string) {
+    const account = await this.accountModel.findById(accounId);
+    if (!account) throw new BadRequestException(`La cuenta no existe`);
+    return await this.findOrCreateChat(currentUser, String(account.user._id));
   }
 
   async getChats(user: User) {
