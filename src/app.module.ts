@@ -21,6 +21,7 @@ import { ResourcesModule } from './modules/resources/resources.module';
 import { PrinterModule } from './modules/printer/printer.module';
 import { MailModule } from './modules/mail/mail.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ChatModule } from './modules/chat/chat.module';
     PrinterModule,
     MailModule,
     ChatModule,
+    MessagingModule,
   ],
   controllers: [],
   providers: [],

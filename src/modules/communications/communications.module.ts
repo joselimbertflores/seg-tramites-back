@@ -14,6 +14,7 @@ import { AdministrationModule } from '../administration/administration.module';
 import { ProceduresModule } from '../procedures/procedures.module';
 import { GroupwareModule } from '../groupware/groupware.module';
 import { Archive, ArchiveSchema, Communication, CommunicationSchema, Folder, FolderSchema } from './schemas';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { Archive, ArchiveSchema, Communication, CommunicationSchema, Folder, Fol
     AdministrationModule,
     GroupwareModule,
     ProceduresModule,
+    MessagingModule
   ],
   controllers: [InboxController, ProcessController, FolderController, ArchiveController, OutboxController],
   providers: [InboxService, FolderService, ArchiveService, OutboxService],
