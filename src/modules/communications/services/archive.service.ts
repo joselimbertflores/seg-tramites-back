@@ -17,7 +17,6 @@ import { Account } from 'src/modules/administration/schemas';
 import { Folder, Archive, Communication, FolderDocument, ArchiveDocument, SendStatus } from '../schemas';
 import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { InboxService } from './inbox.service';
-import { MessagingService } from 'src/modules/messaging/messaging.service';
 
 interface buildArchiveInstanteProps {
   item: Communication;
@@ -36,7 +35,6 @@ export class ArchiveService {
     @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
     private inboxService: InboxService,
-    private messagginService: MessagingService,
   ) {}
 
   async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
@@ -82,14 +80,6 @@ export class ArchiveService {
       await this.archiveModel.insertMany(models, { session });
 
       await session.commitTransaction();
-      for (const element of models) {
-        await this.messagginService.sendTextMessage({
-          fullName: 'Jose Limbert Flores Suarez',
-          code: element.procedure.code,
-          state: element.state,
-        });
-      }
-
       return { message: `Archived communications: ${items.length}`, itemIds: items.map((item) => item.id) };
     } catch (error) {
       await session.abortTransaction();

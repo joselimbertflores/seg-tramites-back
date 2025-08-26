@@ -11,7 +11,7 @@ import mongoose, { FilterQuery, isValidObjectId, Model, Types } from 'mongoose';
 import { CreateAccountDto, CreateAccountWithUserDto, FilterAccountDto, UpdateAccountWithUserDto } from '../dtos';
 import { getAccountAssignmentReport } from 'src/modules/printer/templates';
 import { PrinterService } from 'src/modules/printer/printer.service';
-import { MailService } from 'src/modules/mail/mail.service';
+import { MailService } from 'src/modules/notifications/services/mail.service';
 import { UserService } from 'src/modules/users/services';
 import { UpdateUserDto } from 'src/modules/users/dtos';
 import { Account, Dependency, Officer } from '../schemas';

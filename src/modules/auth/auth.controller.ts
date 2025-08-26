@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Get, Put, Ip } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { Controller, Post, Body, Get, Put } from '@nestjs/common';
+
 import { AuthDto, UpdateMyUserDto } from './dto';
 import { GetUserRequest, Public } from './decorators';
+import { AuthService } from './auth.service';
 import { User } from '../users/schemas';
 
 @Controller('auth')
@@ -10,8 +11,8 @@ export class AuthController {
 
   @Post()
   @Public()
-  login(@Body() body: AuthDto, @Ip() ip: string) {
-    return this.authService.login(body, ip);
+  login(@Body() body: AuthDto) {
+    return this.authService.login(body);
   }
 
   @Get()

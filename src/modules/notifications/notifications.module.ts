@@ -2,11 +2,10 @@ import { Module } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
-import { MailService } from './mail.service';
+import { MailService, MessagingService } from './services';
 import { EnvVars } from 'src/config';
 
 @Module({
-  providers: [MailService],
   imports: [
     MailerModule.forRootAsync({
       imports: [ConfigModule],
@@ -20,13 +19,12 @@ import { EnvVars } from 'src/config';
             pass: config.get('MAIL_PASSWORD'),
           },
         },
-        defaults: {
-          from: `"Jefatura de Gobierno Electrónico" <${config.get('MAIL_USER')}>`,
-        },
       }),
       inject: [ConfigService],
     }),
   ],
-  exports: [MailService],
+  controllers: [],
+  providers: [MessagingService, MailService],
+  exports: [MessagingService, MailService],
 })
-export class MailModule {}
+export class NotificationsModule {}

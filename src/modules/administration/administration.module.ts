@@ -31,7 +31,7 @@ import {
 } from './services';
 import { UsersModule } from '../users/users.module';
 import { PrinterModule } from '../printer/printer.module';
-import { MailModule } from '../mail/mail.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   controllers: [
@@ -53,7 +53,7 @@ import { MailModule } from '../mail/mail.module';
     ]),
     UsersModule,
     PrinterModule,
-    MailModule,
+    NotificationsModule,
   ],
   exports: [
     MongooseModule,

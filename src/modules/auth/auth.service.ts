@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
@@ -7,21 +6,15 @@ import * as bcrypt from 'bcrypt';
 
 import { AuthDto, UpdateMyUserDto } from './dto';
 
-import { logger } from 'src/config/logger';
 import { User, Role } from 'src/modules/users/schemas';
 import { FRONTEND_MENU } from './constants';
-import { EnvVars } from 'src/config';
 import { JwtPayload } from './interfaces';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private jwtService: JwtService,
-    private configService: ConfigService<EnvVars>,
-    @InjectModel(User.name) private userModel: Model<User>,
-  ) {}
+  constructor(private jwtService: JwtService, @InjectModel(User.name) private userModel: Model<User>) {}
 
-  async login({ login, password }: AuthDto, ip: string) {
+  async login({ login, password }: AuthDto) {
     const user = await this.userModel.findOne({ login });
     if (!user) {
       throw new BadRequestException('Usuario o Contraseña incorrectos');
@@ -32,15 +25,14 @@ export class AuthService {
     if (!user.isActive) {
       throw new BadRequestException('La cuenta ha sido deshabilidata');
     }
-    // logger.info(`Ingreso de usuario (${login}) ${user.fullname} / IP: ${ip}`);
-    return { token: this._generateToken(user) };
+    return { token: this.generateToken(user) };
   }
 
   async checkAuthStatus(user: User) {
     return {
-      token: this._generateToken(user),
+      token: this.generateToken(user),
       menu: this.getFrontMenu(user.role),
-      permissions: this._getPermissions(user.role),
+      permissions: this.getPermissions(user.role),
       updatedPassword: user.updatedPassword,
     };
   }
@@ -53,7 +45,7 @@ export class AuthService {
     return { message: 'Contraseña actualizada' };
   }
 
-  private _generateToken(user: User): string {
+  private generateToken(user: User): string {
     const payload: JwtPayload = {
       userId: user._id.toString(),
       fullname: user.fullname,
@@ -61,7 +53,7 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  private _getPermissions({ permissions }: Role) {
+  private getPermissions({ permissions }: Role) {
     return permissions.reduce((result, { actions, resource }) => ({ [resource]: actions, ...result }), {});
   }
 

@@ -19,9 +19,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { EnvVars, validate } from './config';
 import { ResourcesModule } from './modules/resources/resources.module';
 import { PrinterModule } from './modules/printer/printer.module';
-import { MailModule } from './modules/mail/mail.module';
 import { ChatModule } from './modules/chat/chat.module';
-import { MessagingModule } from './modules/messaging/messaging.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -36,21 +35,20 @@ import { MessagingModule } from './modules/messaging/messaging.module';
     //   rootPath: join(__dirname, '..', 'public'),
     // }),
     ScheduleModule.forRoot(),
-    AuthModule,
-    UsersModule,
     AdministrationModule,
-    ProceduresModule,
-    GroupwareModule,
-    ReportsModule,
-    FilesModule,
-    PublicationsModule,
     CommunicationsModule,
+    PublicationsModule,
+    NotificationsModule,
+    ProceduresModule,
     SchedulerModule,
     ResourcesModule,
+    GroupwareModule,
+    ReportsModule,
     PrinterModule,
-    MailModule,
+    UsersModule,
+    FilesModule,
     ChatModule,
-    MessagingModule,
+    AuthModule,
   ],
   controllers: [],
   providers: [],

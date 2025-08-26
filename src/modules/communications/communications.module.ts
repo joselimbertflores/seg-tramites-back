@@ -2,19 +2,18 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import {
-  ArchiveController,
   InboxController,
   FolderController,
   OutboxController,
+  ArchiveController,
   ProcessController,
 } from './controllers';
 import { ArchiveService, InboxService, FolderService, OutboxService } from './services';
 
-import { AdministrationModule } from '../administration/administration.module';
-import { ProceduresModule } from '../procedures/procedures.module';
 import { GroupwareModule } from '../groupware/groupware.module';
+import { ProceduresModule } from '../procedures/procedures.module';
+import { AdministrationModule } from '../administration/administration.module';
 import { Archive, ArchiveSchema, Communication, CommunicationSchema, Folder, FolderSchema } from './schemas';
-import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
@@ -26,7 +25,6 @@ import { MessagingModule } from '../messaging/messaging.module';
     AdministrationModule,
     GroupwareModule,
     ProceduresModule,
-    MessagingModule
   ],
   controllers: [InboxController, ProcessController, FolderController, ArchiveController, OutboxController],
   providers: [InboxService, FolderService, ArchiveService, OutboxService],
