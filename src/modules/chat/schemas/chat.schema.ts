@@ -14,6 +14,9 @@ export class LastMessage {
   @Prop()
   content: string;
 
+  @Prop()
+  type: 'text' | 'media';
+
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name })
   sender: User;
 

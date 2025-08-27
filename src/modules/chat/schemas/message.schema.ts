@@ -1,8 +1,13 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, raw, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 
 import { User } from 'src/modules/users/schemas';
 import { Chat } from './chat.schema';
+
+interface media {
+  fileName: string;
+  originalName: string;
+}
 @Schema({ timestamps: { createdAt: 'sentAt' } })
 export class Message extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Chat.name, required: true })
@@ -16,6 +21,22 @@ export class Message extends Document {
 
   @Prop({ type: [mongoose.Schema.Types.ObjectId], ref: User.name, default: [] })
   readBy: User[];
+
+  @Prop(
+    raw({
+      fileName: { type: String },
+      originalName: { type: String },
+      type: { type: String },
+    }),
+  )
+  media?: media;
+  
+  @Prop({
+    type: String,
+    enum: ['text', 'media'],
+    default: 'text',
+  })
+  type: 'text' | 'media';
 
   sentAt: Date;
   updatedAt: Date;

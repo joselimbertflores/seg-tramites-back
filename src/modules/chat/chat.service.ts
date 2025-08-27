@@ -7,6 +7,8 @@ import { PaginationDto } from '../common';
 import { Chat, Message } from './schemas';
 import { User } from '../users/schemas';
 import { Account } from '../administration/schemas';
+import { FilesService } from '../files/files.service';
+import { FileGroup } from '../files/file-group.enum';
 
 @Injectable()
 export class ChatService {
@@ -14,6 +16,7 @@ export class ChatService {
     @InjectModel(Chat.name) private chatModel: Model<Chat>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
+    private fileService: FilesService,
   ) {}
 
   async findOrCreateChat(currentUser: User, receiverId: string) {
@@ -72,13 +75,11 @@ export class ChatService {
 
     if (!chat) throw new NotFoundException(`Chat id ${chatId} not found`);
 
-    const { content } = messageDto;
-
     const newMessage = new this.messageModel({
       sender: sender.id,
       chat: chat.id,
       readBy: [sender.id],
-      content,
+      ...messageDto,
     });
 
     await newMessage.save();
@@ -180,6 +181,17 @@ export class ChatService {
     const { participants } = chat;
     const isMine = String(message.sender._id) === user.id;
     const isRead = isMine ? participants.length === message.readBy.length : true;
-    return { ...message.toObject(), isRead };
+    const { media, ...messageProps } = message.toObject();
+    return {
+      ...messageProps,
+      ...(media && {
+        media: {
+          originalName: media.originalName,
+          fileName: this.fileService.buildFileUrl(media.fileName, FileGroup.CHATS),
+          type: media.type,
+        },
+      }),
+      isRead,
+    };
   }
 }

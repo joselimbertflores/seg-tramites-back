@@ -56,6 +56,36 @@ export class FilesController {
     return this.filesService.saveFile(file, FileGroup.RESOURCES);
   }
 
+  @Post('chat')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadChatFile(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addValidator(
+          new CustomUploadFileTypeValidator([
+            'png',
+            'jpeg',
+            'jpg',
+            'mp4',
+            'mp3',
+            'odp',
+            'xls',
+            'xlsx',
+            'ods',
+            'doc',
+            'docx',
+            'odt',
+            'pdf',
+          ]),
+        )
+        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
+        .build(),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.filesService.saveFile(file, FileGroup.CHATS);
+  }
+
   @Get(':group/:fileName')
   getFile(@Res() res: Response, @Param() requestParams: GetFileDto) {
     const path = this.filesService.getStaticFilePath(requestParams);

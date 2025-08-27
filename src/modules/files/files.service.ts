@@ -13,6 +13,7 @@ import { GetFileDto } from './dtos/get-file.dto';
 export interface savedFile {
   fileName: string;
   originalName: string;
+  type: string;
 }
 
 @Injectable()
@@ -22,6 +23,8 @@ export class FilesService {
   private readonly FOLDERS: Record<string, string[]> = {
     images: ['jpg', 'png', 'jpeg'],
     documents: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ods', 'ppt'],
+    videos: ['mp4'],
+    audios: ['mp3'],
   };
 
   constructor(private configService: ConfigService<EnvVars>) {}
@@ -45,13 +48,14 @@ export class FilesService {
     const filePath = join(folderPath, savedFileName);
 
     try {
-      await writeFile(filePath, file.buffer);
+      await writeFile(filePath, new Uint8Array(file.buffer));
 
       const decodedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
 
       return {
         fileName: savedFileName,
         originalName: decodedOriginalName,
+        type: this.getFileType(file.mimetype),
       };
     } catch (error) {
       throw new InternalServerErrorException('Error saving file');
@@ -78,7 +82,6 @@ export class FilesService {
     const extension = extname(fileName).replace('.', '');
     const subfolder = this.getFolderByExtension(extension);
     const filePath = join(this.BASE_UPLOAD_PATH, group, subfolder, fileName);
-
     if (!existsSync(filePath)) {
       throw new BadRequestException(`No file found with name ${fileName}`);
     }
@@ -99,5 +102,12 @@ export class FilesService {
     if (!existsSync(path)) {
       await mkdir(path, { recursive: true });
     }
+  }
+
+  private getFileType(mimetype: string): 'image' | 'video' | 'audio' | 'file' {
+    if (mimetype.startsWith('image/')) return 'image';
+    if (mimetype.startsWith('video/')) return 'video';
+    if (mimetype.startsWith('audio/')) return 'audio';
+    return 'file'; // default
   }
 }

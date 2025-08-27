@@ -7,6 +7,7 @@ import { Chat, ChatSchema, Message, MessageSchema } from './schemas';
 import { UsersModule } from '../users/users.module';
 import { GroupwareModule } from '../groupware/groupware.module';
 import { AdministrationModule } from '../administration/administration.module';
+import { FilesModule } from '../files/files.module';
 
 @Module({
   controllers: [ChatController],
@@ -17,8 +18,9 @@ import { AdministrationModule } from '../administration/administration.module';
       { name: Message.name, schema: MessageSchema },
     ]),
     UsersModule,
+    FilesModule,
     GroupwareModule,
-    AdministrationModule
+    AdministrationModule,
   ],
 })
 export class ChatModule {}
