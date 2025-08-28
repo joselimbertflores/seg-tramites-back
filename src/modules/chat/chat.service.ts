@@ -92,11 +92,12 @@ export class ChatService {
       hasMessages: true,
       lastMessage: {
         ref: newMessage._id,
-        content: newMessage.content,
         sender: newMessage.sender,
         sentAt: newMessage.sentAt,
         senderName: sender.fullname,
         isRead: false,
+        type: newMessage.type,
+        content: newMessage.type === 'text' ? newMessage.content : newMessage.media.originalName ?? '',
       },
     };
 

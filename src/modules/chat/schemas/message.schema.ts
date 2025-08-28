@@ -8,6 +8,14 @@ interface media {
   fileName: string;
   originalName: string;
 }
+
+export enum MessageType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  DOCUMENT = 'document',
+}
 @Schema({ timestamps: { createdAt: 'sentAt' } })
 export class Message extends Document {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Chat.name, required: true })
@@ -26,17 +34,16 @@ export class Message extends Document {
     raw({
       fileName: { type: String },
       originalName: { type: String },
-      type: { type: String },
     }),
   )
   media?: media;
-  
+
   @Prop({
     type: String,
-    enum: ['text', 'media'],
-    default: 'text',
+    enum: MessageType,
+    default: MessageType.TEXT,
   })
-  type: 'text' | 'media';
+  type: MessageType;
 
   sentAt: Date;
   updatedAt: Date;

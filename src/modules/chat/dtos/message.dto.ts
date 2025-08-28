@@ -9,6 +9,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { MessageType } from '../schemas';
 
 export class StartChatDto {
   @IsMongoId()
@@ -31,10 +32,6 @@ export class MessageMediaDto {
   @IsString()
   @IsNotEmpty()
   originalName: string;
-
-  @IsString()
-  @IsNotEmpty()
-  type: string;
 }
 export class CreateMessageDto {
   @IsString()
@@ -42,13 +39,13 @@ export class CreateMessageDto {
   @IsOptional()
   content?: string;
 
-  @IsEnum(['text', 'media'])
-  type: 'text' | 'media';
+  @IsEnum(MessageType)
+  type: MessageType;
 
   @IsNotEmptyObject()
   @IsObject()
   @ValidateNested()
   @Type(() => MessageMediaDto)
   @IsOptional()
-  media: MessageMediaDto;
+  media?: MessageMediaDto;
 }

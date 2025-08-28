@@ -104,10 +104,10 @@ export class FilesService {
     }
   }
 
-  private getFileType(mimetype: string): 'image' | 'video' | 'audio' | 'file' {
+  private getFileType(mimetype: string): 'image' | 'video' | 'audio' | 'document' {
     if (mimetype.startsWith('image/')) return 'image';
     if (mimetype.startsWith('video/')) return 'video';
     if (mimetype.startsWith('audio/')) return 'audio';
-    return 'file'; // default
+    return 'document'; // default
   }
 }

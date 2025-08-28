@@ -2,7 +2,8 @@ import { Controller, Get, Param, ParseFilePipeBuilder, Post, Res, UploadedFile, 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 
-import { CustomUploadFileTypeValidator } from './validators/upload-file-type.validator';
+import { CustomFileTypeValidator } from './validators/custom-file-type.validator';
+import { ALLOWED_FILE_TYPES } from './constants';
 import { GetFileDto } from './dtos/get-file.dto';
 import { FilesService } from './files.service';
 import { FileGroup } from './file-group.enum';
@@ -16,8 +17,8 @@ export class FilesController {
   uploadPostFile(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addValidator(new CustomUploadFileTypeValidator(['png', 'jpg', 'jpeg', 'pdf']))
-        .addMaxSizeValidator({ maxSize: 5 * 1000000 })
+        .addValidator(new CustomFileTypeValidator({ validTypes: ALLOWED_FILE_TYPES.POST }))
+        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
         .build(),
     )
     file: Express.Multer.File,
@@ -30,25 +31,8 @@ export class FilesController {
   uploadResourceFile(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addValidator(
-          new CustomUploadFileTypeValidator([
-            'png',
-            'jpeg',
-            'jpg',
-            'mp4',
-            'ppt',
-            'pptx',
-            'odp',
-            'xls',
-            'xlsx',
-            'ods',
-            'doc',
-            'docx',
-            'odt',
-            'pdf',
-          ]),
-        )
-        .addMaxSizeValidator({ maxSize: 5 * 1000000 })
+        .addValidator(new CustomFileTypeValidator({ validTypes: ALLOWED_FILE_TYPES.RESOURCE }))
+        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
         .build(),
     )
     file: Express.Multer.File,
@@ -61,23 +45,7 @@ export class FilesController {
   uploadChatFile(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addValidator(
-          new CustomUploadFileTypeValidator([
-            'png',
-            'jpeg',
-            'jpg',
-            'mp4',
-            'mp3',
-            'odp',
-            'xls',
-            'xlsx',
-            'ods',
-            'doc',
-            'docx',
-            'odt',
-            'pdf',
-          ]),
-        )
+        .addValidator(new CustomFileTypeValidator({ validTypes: ALLOWED_FILE_TYPES.CHAT }))
         .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
         .build(),
     )
