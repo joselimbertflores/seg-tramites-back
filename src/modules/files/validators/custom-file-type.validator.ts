@@ -1,6 +1,4 @@
 import { FileValidator } from '@nestjs/common';
-// import { parse } from 'file-type-mime';
-
 import { fromBuffer } from 'file-type/';
 import { lookup as mimeLookup } from 'mime-types';
 
@@ -24,6 +22,6 @@ export class CustomFileTypeValidator extends FileValidator {
   }
 
   buildErrorMessage(file: Express.Multer.File): string {
-    return `File "${file.originalname}" is not valid. Allowed extensions: ${this.allowedMimes.join(', ')}`;
+    return `File "${file.originalname}" is not valid.`;
   }
 }
