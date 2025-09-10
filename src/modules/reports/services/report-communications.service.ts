@@ -85,7 +85,7 @@ export class ReportCommunicationsService {
     const interval = { ...(startDate && { $gte: startDate }), ...(endDate && { $lte: endDate }) };
     const query: FilterQuery<Communication> = {
       status: SendStatus.Completed,
-      'recipient.account': accountId,
+      'sender.account': accountId,
       ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
       ...(Object.keys(interval).length > 0 && { sentDate: { $gte: startDate, $lte: endDate } }),
     };
