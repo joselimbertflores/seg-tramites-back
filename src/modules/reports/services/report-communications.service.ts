@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 
 import { Communication, SendStatus } from 'src/modules/communications/schemas';
-import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
+import { GetCommunicationHistoryDto, GetCorrespondenceStatusByUnit, GetTotalCommunicationsByUnit } from '../dtos';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 
@@ -60,6 +60,65 @@ export class ReportCommunicationsService {
       },
     ];
     const result = await this.communicationModel.aggregate(pipeline);
+    const mapResult = new Map(result.map(({ _id, ...props }) => [String(_id), props]));
+    return unit.map((account) => ({
+      id: account._id,
+      fullName: account.officer?.fullName,
+      jobTitle: account.jobtitle,
+      ...(mapResult.get(String(account._id)) || { statusCounts: [], total: 0 }),
+    }));
+  }
+
+  async getCorrespondenceStatusByUnit(params: GetCorrespondenceStatusByUnit, dependencyId: string) {
+    console.log(dependencyId);
+    const { filterBy, group } = params;
+    const unit = await this.accountModel
+      .find({ dependencia: dependencyId })
+      .populate({ path: 'officer', select: 'nombre paterno materno' })
+      .select('officer jobtitle');
+
+    const statuses =
+      filterBy === 'recipient'
+        ? [SendStatus.Pending, SendStatus.Received]
+        : [SendStatus.Pending, SendStatus.Rejected, SendStatus.AutoRejected];
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          [`${filterBy}.account`]: { $in: unit.map((account) => account._id) },
+          ...(group && { ['procedure.group']: group }),
+          status: { $in: statuses },
+        },
+      },
+      // 2. Agrupar por cuenta (funcionario) y estado
+      {
+        $group: {
+          _id: {
+            account: `$${filterBy}.account`,
+            status: '$status',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      // 3. Agrupar por cuenta y acumular statusCounts + total
+      {
+        $group: {
+          _id: '$_id.account',
+          statusCounts: {
+            $push: {
+              status: '$_id.status',
+              count: '$count',
+            },
+          },
+          total: { $sum: '$count' },
+        },
+      },
+      {
+        $sort: { total: -1 },
+      },
+    ];
+    const result = await this.communicationModel.aggregate(pipeline);
+    result.forEach((item) => console.log(item));
     const mapResult = new Map(result.map(({ _id, ...props }) => [String(_id), props]));
     return unit.map((account) => ({
       id: account._id,

@@ -116,18 +116,5 @@ export class OfficerService {
       }
       throw new InternalServerErrorException('Error update officer');
     }
-
-    // TODO repairt number dnti to string
-    // const officers = await this.officerModel.find();
-    // console.log(`Procesando ${officers.length} funcionarios...`);
-    // for (const officer of officers) {
-    //   const dni = officer.dni;
-    //   const stringDni = dni.toString().trim();
-    //   await this.officerModel.updateOne({ _id: officer._id }, { $set: { dni: stringDni } });
-    //     console.log(`✅ _id: ${officer._id} - DNI convertido a string: "${stringDni}"`);
-    // }
-    // TODO: Repair ConflictException, check dni_1
-    // db.officers.dropIndex('dni_1');
-    // db.officers.createIndex({ dni: 1 }, { unique: true });
   }
 }

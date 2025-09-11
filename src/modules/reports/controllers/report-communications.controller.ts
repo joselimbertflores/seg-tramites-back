@@ -6,7 +6,7 @@ import { RequirePermissions } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 
-import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit } from '../dtos';
+import { GetCommunicationHistoryDto, GetCorrespondenceStatusByUnit, GetTotalCommunicationsByUnit } from '../dtos';
 import { ReportCommunicationsService } from '../services';
 import { reportType } from '../enums/report-types.enum';
 
@@ -64,5 +64,14 @@ export class ReportCommunicationsController {
   @Get('tray-status/:accountId')
   getAccountTrayStatus(@Param('accountId') accountId: string) {
     return this.reportService.getAccountTrayStatus(accountId);
+  }
+
+  @RequirePermissions({
+    resource: SystemResource.ACCOUNTS,
+    actions: ['read'],
+  })
+  @Post('correspondence-status/:dependencyId')
+  getCorrespondenceStatusByUnit(@Param('dependencyId') dependencyId: string, @Body() body: GetCorrespondenceStatusByUnit) {
+    return this.reportService.getCorrespondenceStatusByUnit(body, dependencyId);
   }
 }

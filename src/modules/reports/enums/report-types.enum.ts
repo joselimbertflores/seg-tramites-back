@@ -6,4 +6,5 @@ export enum reportType {
   UNLINK = 'unlink',
   HISTORY = 'history',
   EFFICIENCY = 'efficiency',
+  UNIT_FLOW = 'unit_flow',
 }

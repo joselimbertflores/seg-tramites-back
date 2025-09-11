@@ -1,5 +1,5 @@
 import { FileValidator } from '@nestjs/common';
-import { fromBuffer } from 'file-type/';
+import { fromBuffer } from 'file-type';
 import { lookup as mimeLookup } from 'mime-types';
 
 export class CustomFileTypeValidator extends FileValidator {
@@ -16,6 +16,7 @@ export class CustomFileTypeValidator extends FileValidator {
     if (!file) return false;
 
     const detected = await fromBuffer(file.buffer);
+    
     if (!detected) return false;
 
     return this.allowedMimes.includes(detected.mime);
