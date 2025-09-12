@@ -140,6 +140,7 @@ export class ChatService {
           })),
       };
     } catch (error) {
+      console.log(error);
       if (session.inTransaction()) await session.abortTransaction();
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException('Error send message');

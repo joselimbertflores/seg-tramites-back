@@ -1,11 +1,7 @@
-import { IsEnum, IsIn, IsOptional } from 'class-validator';
-import { procedureGroup } from 'src/modules/procedures/schemas';
+import { IsIn, IsOptional } from 'class-validator';
 
-export class GetCorrespondenceStatusByUnit {
-  @IsIn(['recipient', 'sender'])
-  filterBy: 'recipient' | 'sender';
-
-  @IsEnum(procedureGroup)
+export class GetCorrespondenceByAccountDto {
   @IsOptional()
-  group: procedureGroup;
+  @IsIn(['recipient', 'sender'])
+  filterBy: 'recipient' | 'sender' = 'recipient';
 }

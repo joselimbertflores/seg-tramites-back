@@ -91,9 +91,7 @@ export const SYSTEM_RESOURCES = [
   {
     value: SystemResource.GROUPWARE,
     label: 'GRUPO DE TRABAJO',
-    actions: [
-      { value: 'kick', label: 'Expulsar' },
-    ],
+    actions: [{ value: 'kick', label: 'Expulsar' }],
   },
   {
     value: SystemResource.PUBLICATIONS,
@@ -155,6 +153,7 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.UNLINK, label: 'Desvinculacion' },
       { value: reportType.HISTORY, label: 'Historial' },
       { value: reportType.EFFICIENCY, label: 'Eficiencia' },
+      { value: reportType.UNIT_CORRESPONDENCE_STATUS, label: 'Estado correspondencia por unidad' },
     ],
   },
 ];

@@ -6,7 +6,7 @@ import { RequirePermissions } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 
-import { GetCommunicationHistoryDto, GetCorrespondenceStatusByUnit, GetTotalCommunicationsByUnit } from '../dtos';
+import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit, GetCorrespondenceByAccountDto } from '../dtos';
 import { ReportCommunicationsService } from '../services';
 import { reportType } from '../enums/report-types.enum';
 
@@ -25,10 +25,13 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.UNIT] })
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.UNIT_CORRESPONDENCE_STATUS] })
   @Get('inbox/:accountId')
-  getInboxByAccount(@Param('accountId', IsMongoidPipe) accountId: string) {
-    return this.reportService.getInboxByAccount(accountId);
+  getCorrespondenceByAccount(
+    @Param('accountId', IsMongoidPipe) accountId: string,
+    @Query() queryParams: GetCorrespondenceByAccountDto,
+  ) {
+    return this.reportService.getCorrespondenceByAccount(accountId, queryParams);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -66,12 +69,16 @@ export class ReportCommunicationsController {
     return this.reportService.getAccountTrayStatus(accountId);
   }
 
+  @HttpCode(HttpStatus.OK)
   @RequirePermissions({
-    resource: SystemResource.ACCOUNTS,
-    actions: ['read'],
+    resource: SystemResource.REPORTS,
+    actions: [reportType.UNIT_CORRESPONDENCE_STATUS],
   })
   @Post('correspondence-status/:dependencyId')
-  getCorrespondenceStatusByUnit(@Param('dependencyId') dependencyId: string, @Body() body: GetCorrespondenceStatusByUnit) {
+  getCorrespondenceStatusByUnit(
+    @Param('dependencyId') dependencyId: string,
+    @Body() body: GetCorrespondenceByAccountDto,
+  ) {
     return this.reportService.getCorrespondenceStatusByUnit(body, dependencyId);
   }
 }
