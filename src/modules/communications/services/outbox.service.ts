@@ -423,7 +423,7 @@ export class OutboxService {
       throw new NotFoundException({ message: `Some elements with sender ${accountId} dont exist`, ids: notFoundIds });
     }
 
-    const invalidItems = items.filter(({ status }) => status !== SendStatus.Pending);
+    const invalidItems = items.filter(({ status }) => status !== SendStatus.Pending && status !== SendStatus.AutoRejected);
 
     if (invalidItems.length > 0) {
       throw new UnprocessableEntityException({
