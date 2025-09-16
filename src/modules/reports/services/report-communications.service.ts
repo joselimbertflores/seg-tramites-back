@@ -69,11 +69,11 @@ export class ReportCommunicationsService {
     }));
   }
 
-  async getCorrespondenceStatusByUnit(params: GetCorrespondenceByAccountDto, dependencyId: string) {
-    const { filterBy } = params;
+  async getCorrespondenceStatusByUnit(params: GetCorrespondenceByAccountDto, defaultDependencyId: string) {
+    const { filterBy, dependencyId } = params;
 
     const unit = await this.accountModel
-      .find({ dependencia: dependencyId })
+      .find({ dependencia: dependencyId ?? defaultDependencyId })
       .populate({ path: 'officer', select: 'nombre paterno materno' })
       .select('officer jobtitle');
 

@@ -25,16 +25,6 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.UNIT_CORRESPONDENCE_STATUS] })
-  @Get('inbox/:accountId')
-  getCorrespondenceByAccount(
-    @Param('accountId', IsMongoidPipe) accountId: string,
-    @Query() queryParams: GetCorrespondenceByAccountDto,
-  ) {
-    return this.reportService.getCorrespondenceByAccount(accountId, queryParams);
-  }
-
-  @HttpCode(HttpStatus.OK)
   @onlyAssignedAccount()
   @RequirePermissions({
     resource: SystemResource.REPORTS,
@@ -74,11 +64,22 @@ export class ReportCommunicationsController {
     resource: SystemResource.REPORTS,
     actions: [reportType.UNIT_CORRESPONDENCE_STATUS],
   })
-  @Post('correspondence-status/:dependencyId')
-  getCorrespondenceStatusByUnit(
-    @Param('dependencyId') dependencyId: string,
-    @Body() body: GetCorrespondenceByAccountDto,
+  @onlyAssignedAccount()
+  @Post('correspondence-status')
+  getCorrespondenceStatusByUnit(@GetAccountRequest() account: Account, @Body() body: GetCorrespondenceByAccountDto) {
+    return this.reportService.getCorrespondenceStatusByUnit(body, account.dependencia._id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({
+    resource: SystemResource.REPORTS,
+    actions: [reportType.UNIT_CORRESPONDENCE_STATUS],
+  })
+  @Get('inbox/:accountId')
+  getCorrespondenceByAccount(
+    @Param('accountId', IsMongoidPipe) accountId: string,
+    @Query() queryParams: GetCorrespondenceByAccountDto,
   ) {
-    return this.reportService.getCorrespondenceStatusByUnit(body, dependencyId);
+    return this.reportService.getCorrespondenceByAccount(accountId, queryParams);
   }
 }
