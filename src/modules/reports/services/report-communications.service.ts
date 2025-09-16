@@ -167,7 +167,12 @@ export class ReportCommunicationsService {
       ...(Object.keys(interval).length > 0 && { sentDate: { $gte: startDate, $lte: endDate } }),
     };
     const [communications, length] = await Promise.all([
-      this.communicationModel.find(query).limit(limit).skip(offset).lean(),
+      this.communicationModel
+        .find(query)
+        .populate({ path: 'procedure.ref', select: 'state' })
+        .limit(limit)
+        .skip(offset)
+        .lean(),
       this.communicationModel.count(query),
     ]);
     return { communications, length };
