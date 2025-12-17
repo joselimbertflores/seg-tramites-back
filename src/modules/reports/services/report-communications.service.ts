@@ -161,14 +161,12 @@ export class ReportCommunicationsService {
   }
 
   async getHistory(accountId: string, paginationParams: PaginationReportDto, filterParams: GetCommunicationHistoryDto) {
-    console.log(paginationParams);
     const { term, limit, offset, export: isExport } = paginationParams;
     const { startDate, endDate } = filterParams;
 
     const regex = term ? new RegExp(term, 'i') : undefined;
 
     const dateRange = this.normalizeDateRange(startDate, endDate);
-    console.log(isExport);
     const query: FilterQuery<Communication> = {
       status: SendStatus.Completed,
       'sender.account': accountId,
@@ -178,7 +176,6 @@ export class ReportCommunicationsService {
       ...(dateRange && { sentDate: dateRange }),
     };
     if (isExport) {
-      console.log("todo");
       const communications = await this.communicationModel
         .find(query)
         .populate({ path: 'procedure.ref', select: 'state' })

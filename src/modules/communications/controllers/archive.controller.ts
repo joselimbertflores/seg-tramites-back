@@ -28,9 +28,8 @@ export class ArchiveController {
     return this.archiveService.remove(id, account);
   }
 
-  @Get('generate-colection')
-  @Public()
-  getnerateColection() {
-    return this.archiveService.buildArchiveSchemaColecction();
+  @Get('dependency')
+  getAccountByDependency(@GetAccountRequest() account: Account) {
+    return this.archiveService.getAccountByDependency(account.dependencia.id);
   }
 }

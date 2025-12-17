@@ -34,28 +34,64 @@ export class ArchiveService {
     @InjectModel(Procedure.name) private procedureModel: Model<Procedure>,
     @InjectModel(Archive.name) private archiveModel: Model<ArchiveDocument>,
     @InjectModel(Communication.name) private communicationModel: Model<Communication>,
+    @InjectModel(Account.name) private accountModel: Model<Account>,
     private inboxService: InboxService,
   ) {}
 
-  async findAll({ limit, offset, term, folder }: FilterArchiveDto, account: Account) {
+  async findAll(
+    { limit, offset, term, folder, accountId, startDate, endDate, isExport }: FilterArchiveDto,
+    account: Account,
+  ) {
     let folderDB: null | FolderDocument = null;
     if (folder) {
       folderDB = await this.folderModel.findById(folder, { name: 1 });
       if (!folderDB) throw new BadRequestException(`La carpeta ${folder} no existe`);
     }
+    const dateRange = this.normalizeDateRange(startDate, endDate);
+
     const query: FilterQuery<Archive> = {
-      dependency: account.dependencia,
+      ...(accountId ? { account: accountId } : { dependency: account.dependencia }),
       ...(folderDB && { folder: folderDB.id }),
+      ...(dateRange && { createdAt: dateRange }),
     };
     if (term) {
       const regex = new RegExp(term, 'i');
       query.$or = [{ 'procedure.code': regex }, { 'procedure.reference': regex }];
     }
-    const [archives, length] = await Promise.all([
-      this.archiveModel.find(query).lean().limit(limit).skip(offset).sort({ createdAt: -1 }),
-      this.archiveModel.count(query),
-    ]);
-    return { archives, length, ...(folderDB && { folderName: folderDB.name }) };
+    const result = {
+      archives: [],
+      length: 0,
+    };
+    if (isExport) {
+      result.archives = await this.archiveModel.find(query).lean().sort({ createdAt: -1 });
+      result.length = result.archives.length;
+    } else {
+      const [archives, length] = await Promise.all([
+        this.archiveModel.find(query).lean().limit(limit).skip(offset).sort({ createdAt: -1 }),
+        this.archiveModel.count(query),
+      ]);
+      result.archives = archives;
+      result.length = length;
+    }
+    return { ...result, ...(folderDB && { folderName: folderDB.name }) };
+  }
+
+  normalizeDateRange(start?: Date, end?: Date) {
+    const range: any = {};
+
+    if (start) {
+      const startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+      range.$gte = startDate;
+    }
+
+    if (end) {
+      const endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+      range.$lte = endDate;
+    }
+
+    return Object.keys(range).length ? range : undefined;
   }
 
   async create(account: Account, archiveDto: CreateArchiveDto) {
@@ -193,39 +229,7 @@ export class ArchiveService {
     });
   }
 
-  // ! for new update
-  async buildArchiveSchemaColecction() {
-    // const communications = await this.communicationModel
-    //   .find({ status: communicationStatus.Archived })
-    //   .populate('recipient.account')
-    //   .sort({ _id: 1 })
-    //   .limit(50000)
-    //   .skip(150000);
-
-    // for (const element of communications) {
-    //   const model = new this.archiveModel({
-    //     account: element.recipient.account,
-    //     institution: element.recipient.account.institution,
-    //     dependency: element.recipient.account.dependencia,
-    //     communication: element._id,
-    //     officer: {
-    //       fullname: element.recipient.fullname,
-    //       jobtitle: element.recipient.jobtitle,
-    //     },
-    //     procedure: {
-    //       ref: element.procedure.ref,
-    //       code: element.procedure.code,
-    //       group: element.procedure.group,
-    //       reference: element.procedure.reference,
-    //     },
-    //     folder: null,
-    //     description: element.actionLog.description,
-    //     isOriginal: null,
-    //     createdAt: element.actionLog.date,
-    //     updatedAt: element.actionLog.date,
-    //   });
-    //   await model.save();
-    // }
-    return { message: 'Generated collection' };
+  async getAccountByDependency(id: string) {
+    return await this.accountModel.find({ dependencia: id }).populate({ path: 'officer' });
   }
 }
