@@ -31,9 +31,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
       }),
       inject: [ConfigService],
     }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, '..', 'public'),
-    // }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+    }),
     ScheduleModule.forRoot(),
     AdministrationModule,
     CommunicationsModule,
