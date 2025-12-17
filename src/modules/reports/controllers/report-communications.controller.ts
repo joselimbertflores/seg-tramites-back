@@ -6,7 +6,7 @@ import { RequirePermissions } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 
-import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit, GetCorrespondenceByAccountDto } from '../dtos';
+import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit, GetCorrespondenceByAccountDto, PaginationReportDto } from '../dtos';
 import { ReportCommunicationsService } from '../services';
 import { reportType } from '../enums/report-types.enum';
 
@@ -33,7 +33,7 @@ export class ReportCommunicationsController {
   @Post('history')
   getHistory(
     @GetAccountRequest() account: Account,
-    @Query() queryParams: PaginationDto,
+    @Query() queryParams: PaginationReportDto,
     @Body() rangeProps: GetCommunicationHistoryDto,
   ) {
     return this.reportService.getHistory(account.id, queryParams, rangeProps);

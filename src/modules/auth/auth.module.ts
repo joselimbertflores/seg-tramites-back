@@ -29,7 +29,7 @@ import { EnvVars } from 'src/config';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService<EnvVars>) => ({
         secret: configService.get('JWT_KEY'),
-        signOptions: { expiresIn: '8h' },
+        signOptions: { expiresIn: '10h' },
       }),
       inject: [ConfigService],
     }),

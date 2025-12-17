@@ -3,7 +3,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, PipelineStage, Types } from 'mongoose';
 
 import { Communication, SendStatus } from 'src/modules/communications/schemas';
-import { GetCommunicationHistoryDto, GetCorrespondenceByAccountDto, GetTotalCommunicationsByUnit } from '../dtos';
+import {
+  GetCommunicationHistoryDto,
+  GetCorrespondenceByAccountDto,
+  GetTotalCommunicationsByUnit,
+  PaginationReportDto,
+} from '../dtos';
 import { Account } from 'src/modules/administration/schemas';
 import { PaginationDto } from 'src/modules/common';
 
@@ -155,17 +160,34 @@ export class ReportCommunicationsService {
       .lean();
   }
 
-  async getHistory(accountId: string, paginationParams: PaginationDto, filterParams: GetCommunicationHistoryDto) {
-    const { term, limit, offset } = paginationParams;
+  async getHistory(accountId: string, paginationParams: PaginationReportDto, filterParams: GetCommunicationHistoryDto) {
+    console.log(paginationParams);
+    const { term, limit, offset, export: isExport } = paginationParams;
     const { startDate, endDate } = filterParams;
-    const regex = new RegExp(term, 'i');
-    const interval = { ...(startDate && { $gte: startDate }), ...(endDate && { $lte: endDate }) };
+
+    const regex = term ? new RegExp(term, 'i') : undefined;
+
+    const dateRange = this.normalizeDateRange(startDate, endDate);
+    console.log(isExport);
     const query: FilterQuery<Communication> = {
       status: SendStatus.Completed,
       'sender.account': accountId,
-      ...(term && { $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }] }),
-      ...(Object.keys(interval).length > 0 && { sentDate: { $gte: startDate, $lte: endDate } }),
+      ...(regex && {
+        $or: [{ 'procedure.code': regex }, { 'procedure.reference': regex }],
+      }),
+      ...(dateRange && { sentDate: dateRange }),
     };
+    if (isExport) {
+      console.log("todo");
+      const communications = await this.communicationModel
+        .find(query)
+        .populate({ path: 'procedure.ref', select: 'state' })
+        .sort({ sentDate: 1 })
+        .lean();
+
+      return { communications, length: communications.length };
+    }
+
     const [communications, length] = await Promise.all([
       this.communicationModel
         .find(query)
@@ -173,75 +195,62 @@ export class ReportCommunicationsService {
         .limit(limit)
         .skip(offset)
         .lean(),
-      this.communicationModel.count(query),
+      this.communicationModel.countDocuments(query),
     ]);
+
     return { communications, length };
   }
 
+  normalizeDateRange(start?: Date, end?: Date) {
+    const range: any = {};
+
+    if (start) {
+      const startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+      range.$gte = startDate;
+    }
+
+    if (end) {
+      const endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+      range.$lte = endDate;
+    }
+
+    return Object.keys(range).length ? range : undefined;
+  }
+
   async getUnlinkData(account: Account) {
-    const [inboxData, outboxCounts] = await Promise.all([
-      this.communicationModel.aggregate([
-        {
-          $match: {
-            status: { $in: ['pending', 'received'] },
-            'recipient.account': account._id,
-          },
-        },
-        {
-          $facet: {
-            items: [{ $project: { __v: 0 } }],
-            counts: [
-              {
-                $group: {
-                  _id: '$status',
-                  count: { $sum: 1 },
-                },
-              },
-            ],
-          },
-        },
-      ]),
-      this.communicationModel.aggregate([
-        {
-          $match: {
-            'sender.account': new Types.ObjectId(account.id),
-            status: {
-              $in: [SendStatus.Pending, SendStatus.Rejected, SendStatus.AutoRejected],
-            },
-          },
-        },
-        {
-          $group: {
-            _id: '$status',
-            count: { $sum: 1 },
-          },
-        },
-      ]),
+    const inboxFilter = {
+      'recipient.account': account._id,
+      status: { $in: [SendStatus.Pending, SendStatus.Received] },
+    };
+
+    const outboxFilter = {
+      'sender.account': account._id,
+      status: { $in: [SendStatus.Pending, SendStatus.AutoRejected] },
+    };
+    const [inboxItems, outboxItems] = await Promise.all([
+      this.communicationModel.find(inboxFilter).sort({ createdAt: 1 }).lean(),
+
+      this.communicationModel.find(outboxFilter).sort({ createdAt: 1 }).lean(),
     ]);
 
-    const [{ items = [], counts = [] }] = inboxData;
-
-    const inboxSummary = {
-      pending: 0,
-      received: 0,
-    };
-    for (const item of counts) {
-      if (item._id === SendStatus.Pending) inboxSummary.pending = item.count;
-      if (item._id === SendStatus.Received) inboxSummary.received = item.count;
-    }
-
-    const outboxSummary = {
-      pending: 0,
-      rejected: 0,
-      autoRejected: 0,
-    };
-
-    for (const item of outboxCounts) {
-      if (item._id === SendStatus.Pending) outboxSummary.pending = item.count;
-      if (item._id === SendStatus.Rejected) outboxSummary.rejected = item.count;
-      if (item._id === SendStatus.AutoRejected) outboxSummary.autoRejected = item.count;
-    }
-
+    const inboxSummary = inboxItems.reduce(
+      (acc, item) => {
+        if (item.status === SendStatus.Pending) acc.pending++;
+        if (item.status === SendStatus.Received) acc.received++;
+        return acc;
+      },
+      { pending: 0, received: 0 },
+    );
+    const outboxSummary = outboxItems.reduce(
+      (acc, item) => {
+        if (item.status === SendStatus.Pending) acc.pending++;
+        if (item.status === SendStatus.AutoRejected) acc.autoRejected++;
+        return acc;
+      },
+      { pending: 0, autoRejected: 0 },
+    );
     return {
       officer: {
         fullname: account.officer.fullName,
@@ -253,7 +262,8 @@ export class ReportCommunicationsService {
         inbox: inboxSummary,
         outbox: outboxSummary,
       },
-      inboxItems: items,
+      inboxItems,
+      outboxItems,
     };
   }
 
