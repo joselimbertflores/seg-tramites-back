@@ -18,7 +18,7 @@ export class FilesController {
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addValidator(new CustomFileTypeValidator({ validTypes: ALLOWED_FILE_TYPES.POST }))
-        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
+        .addMaxSizeValidator({ maxSize: 15 * 1024 * 1024 })
         .build(),
     )
     file: Express.Multer.File,
@@ -32,7 +32,7 @@ export class FilesController {
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addValidator(new CustomFileTypeValidator({ validTypes: ALLOWED_FILE_TYPES.RESOURCE }))
-        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 })
+        .addMaxSizeValidator({ maxSize: 15 * 1024 * 1024 })
         .build(),
     )
     file: Express.Multer.File,
