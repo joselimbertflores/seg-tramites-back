@@ -18,6 +18,7 @@ export class InternalService implements ValidProcedureService {
   ) {}
 
   async create(procedureDto: CreateInternalProcedureDto, account: Account) {
+    const { projectId, ...props } = procedureDto;
     const { correlative, code, prefix } = await this.generateCode(account);
     const createdProcedure = new this.procedureModel({
       account: account._id,
@@ -26,7 +27,8 @@ export class InternalService implements ValidProcedureService {
       code: code,
       prefix,
       correlative,
-      ...procedureDto,
+      ...(projectId && { project: projectId }),
+      ...props,
     });
     return await createdProcedure.save();
   }

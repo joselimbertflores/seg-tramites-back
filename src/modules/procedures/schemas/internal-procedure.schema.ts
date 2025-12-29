@@ -1,8 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 
 import { Account, Dependency, Institution, Officer } from 'src/modules/administration/schemas';
 import { procedureGroup, procedureState, procedureStatus } from './procedure.schema';
+import { Project, ProjectSchema } from 'src/modules/projects/schemas';
 
 @Schema({ _id: false })
 class Worker {
@@ -46,6 +47,9 @@ export class InternalProcedure {
 
   @Prop(WorkerSchema)
   recipient: Worker;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Project.name })
+  project: Project;
 }
 
 export const InternalProcedureSchema = SchemaFactory.createForClass(InternalProcedure);

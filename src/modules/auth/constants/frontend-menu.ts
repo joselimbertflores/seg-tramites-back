@@ -67,7 +67,6 @@ export const FRONTEND_MENU: Menu[] = [
       },
     ],
   },
-
   {
     text: 'Administracion',
     children: [
@@ -114,6 +113,12 @@ export const FRONTEND_MENU: Menu[] = [
     text: 'Reportes',
     icon: 'analytics',
     routerLink: 'reports',
+  },
+  {
+    requiredResources: [SystemResource.INTERNAL],
+    text: 'Proyectos',
+    icon: 'list_alt',
+    routerLink: 'projects',
   },
   {
     requiredResources: [SystemResource.PUBLICATIONS],

@@ -21,6 +21,7 @@ import { ResourcesModule } from './modules/resources/resources.module';
 import { PrinterModule } from './modules/printer/printer.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     FilesModule,
     ChatModule,
     AuthModule,
+    ProjectsModule,
   ],
   controllers: [],
   providers: [],
