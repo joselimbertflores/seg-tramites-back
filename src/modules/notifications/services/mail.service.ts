@@ -27,25 +27,27 @@ export class MailService {
     </p>
   </div>
     `;
-    await this.mailerService.sendMail({
-      html,
-      to: email,
-      subject: 'Asignación de Usuario - Sistema de Seguimiento de Trámites'.replace('Sistema', 'hola'),
-      context: {
-        nombre: 'Juan',
-      },
-      attachments: [
-        {
-          filename: 'Credenciales.pdf',
-          content: pdfBuffer,
-          contentType: 'application/pdf',
-        },
-        {
-          filename: 'logo.png',
-          path: join(__dirname, '..', '..', 'assets', 'gams.png'),
-          cid: 'logo', // esto permite usar"lo en la plantilla
-        },
-      ],
-    });
+    try {
+      await this.mailerService.sendMail({
+        html,
+        to: email,
+        subject: 'Asignación de Usuario - Sistema de Seguimiento de Trámites',
+        attachments: [
+          {
+            filename: 'Credenciales.pdf',
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+          {
+            filename: 'logo.png',
+            path: join(__dirname, '..', '..', '..', 'assets', 'gams.png'),
+            cid: 'logo', // esto permite usar"lo en la plantilla
+          },
+        ],
+      });
+      console.log('Corro enviado para:', email);
+    } catch (error) {
+      console.log('Error send mail', error);
+    }
   }
 }

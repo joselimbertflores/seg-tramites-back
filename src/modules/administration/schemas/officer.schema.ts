@@ -43,7 +43,6 @@ export class Officer extends Document {
 
   @Prop({
     type: String,
-    required: false,
   })
   email?: string;
 

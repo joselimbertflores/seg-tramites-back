@@ -108,12 +108,15 @@ export class AccountService {
         { path: 'user', select: '-password' },
       ]);
 
-      const pdfBase64 = await this.generateAccountPdf(createdAccount, {
+      const pdf = await this.generateAccountPdf(createdAccount, {
         login: userResult.user.login,
         password: userResult.generatedPassword,
       });
+      if (createdAccount.officer && createdAccount.officer.email) {
+        await this.mailService.sendUserAssignment(createdAccount.officer.email, pdf);
+      }
 
-      return { account: createdAccount, pdfBase64 };
+      return { account: createdAccount, pdfBase64: pdf.toString('base64') };
     } catch (error) {
       await session.abortTransaction();
       this.handleAccountErrors(error, 'Error creating account');
@@ -160,14 +163,18 @@ export class AccountService {
 
       await session.commitTransaction();
 
-      const pdfBase64 = userUpdateResult.generatedPassword
+      const pdf = userUpdateResult.generatedPassword
         ? await this.generateAccountPdf(updatedAccount, {
             login: updatedAccount.user.login,
             password: userUpdateResult.generatedPassword,
           })
         : null;
-
-      return { account: updatedAccount, pdfBase64 };
+      if (pdf) {
+        if (updatedAccount.officer && updatedAccount.officer.email) {
+          await this.mailService.sendUserAssignment(updatedAccount.officer.email, pdf);
+        }
+      }
+      return { account: updatedAccount, pdfBase64: pdf?.toString('base64') };
     } catch (error) {
       if (session.inTransaction()) await session.abortTransaction();
       this.handleAccountErrors(error, 'Error updating account');
@@ -255,9 +262,11 @@ export class AccountService {
 
     const { password } = await this.userService.resetPassword(account.user);
 
-    const pdfBase64 = await this.generateAccountPdf(account, { login: account.user.login, password });
-    // this.mailService.sendUserAssignment('work000100@gmail.com', "");
-    return { pdfBase64 };
+    const pdf = await this.generateAccountPdf(account, { login: account.user.login, password });
+    if (account.officer && account.officer.email) {
+       this.mailService.sendUserAssignment(account.officer.email, pdf);
+    }
+    return { pdfBase64: pdf.toString('base64') };
   }
 
   private async loadAccountProps({ officerId, dependencyId }: CreateAccountDto) {
@@ -289,6 +298,6 @@ export class AccountService {
       password: crendetials.password,
     });
     const pdf = await this.printerService.createPdfBuffer(pdfContent);
-    return pdf.toString('base64');
+    return pdf;
   }
 }
