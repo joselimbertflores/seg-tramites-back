@@ -7,7 +7,7 @@ import {
   OfficerService,
 } from 'src/modules/administration/services';
 import { CreateAccountWithUserDto, FilterAccountDto, UpdateAccountWithUserDto } from '../dtos';
-import { ResourceProtected } from 'src/modules/auth/decorators';
+import { GetUserRequest, ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { IsMongoidPipe } from 'src/modules/common';
 import { RoleService } from '../../users/services';
@@ -29,13 +29,17 @@ export class AccountController {
   }
 
   @Post()
-  create(@Body() accountDto: CreateAccountWithUserDto) {
-    return this.accountService.create(accountDto);
+  create(@Body() accountDto: CreateAccountWithUserDto, @GetUserRequest('fullname') fullName: string) {
+    return this.accountService.create(accountDto, fullName);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: UpdateAccountWithUserDto) {
-    return this.accountService.update(id, body);
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdateAccountWithUserDto,
+    @GetUserRequest('fullname') fullName: string,
+  ) {
+    return this.accountService.update(id, body, fullName);
   }
 
   @Get('institutions')
@@ -58,8 +62,8 @@ export class AccountController {
     return this.roleService.getActiveRoles();
   }
 
-  @Get('reset-password/:accountId')
-  resetCrendtials(@Param('accountId') accountId: string) {
-    return this.accountService.resetAccountPassword(accountId);
+  @Patch('reset-password/:accountId')
+  resetCrendtials(@Param('accountId') accountId: string, @GetUserRequest('fullname') fullName: string) {
+    return this.accountService.resetAccountPassword(accountId, fullName);
   }
 }

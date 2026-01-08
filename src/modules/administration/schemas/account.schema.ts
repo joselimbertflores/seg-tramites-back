@@ -31,8 +31,13 @@ export class Account extends Document {
   })
   officer: Officer | null;
 
-  @Prop({ type: String, uppercase:true })
+  @Prop({ type: String, uppercase: true })
   jobtitle: string;
+
+  @Prop({
+    type: String,
+  })
+  employmentType?: string;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

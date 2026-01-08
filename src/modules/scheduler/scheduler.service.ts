@@ -21,10 +21,43 @@ export class SchedulerService {
   @Cron('0 3 * * 1-5')
   async autoRejectExpiredCommunications() {
     const expirationDate = this.calculateBusinessDaysDeadline(this.AUTO_REJECT_DAYS);
-    await this.communicationModel.updateMany(
-      { status: SendStatus.Pending, sentDate: { $lte: expirationDate } },
-      { $set: { status: SendStatus.AutoRejected } },
-    );
+    const ids = await this.communicationModel.aggregate([
+      {
+        $match: {
+          status: SendStatus.Pending,
+          sentDate: { $lte: expirationDate },
+        },
+      },
+      {
+        $lookup: {
+          from: 'cuentas',
+          localField: 'sender.account',
+          foreignField: '_id',
+          as: 'senderAccount',
+        },
+      },
+      { $unwind: '$senderAccount' },
+      {
+        $match: {
+          'senderAccount.officer': { $ne: null },
+        },
+      },
+      { $project: { _id: 1 } },
+    ]);
+
+    const chunkSize = 1000;
+
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      await this.communicationModel.bulkWrite(
+        chunk.map(({ _id }) => ({
+          updateOne: {
+            filter: { _id },
+            update: { $set: { status: SendStatus.AutoRejected } },
+          },
+        })),
+      );
+    }
   }
 
   calculateBusinessDaysDeadline(daysLimit: number): Date {

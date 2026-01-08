@@ -19,9 +19,14 @@ export class CreateAccountDto {
   @IsOptional()
   @IsBoolean()
   isVisible?: boolean;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  employmentType?: string;
 }
 
-export class UpdateAccountDto extends PartialType(PickType(CreateAccountDto, ['isVisible', 'jobtitle'] as const)) {
+export class UpdateAccountDto extends PartialType(PickType(CreateAccountDto, ['isVisible', 'jobtitle', "employmentType"] as const)) {
   @IsMongoId()
   @IsOptional()
   officerId?: string;

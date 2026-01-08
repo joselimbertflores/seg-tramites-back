@@ -81,7 +81,7 @@ export class AccountService {
     return { accounts, length };
   }
 
-  async create({ user, account }: CreateAccountWithUserDto) {
+  async create({ user, account }: CreateAccountWithUserDto, generatedBy: string) {
     const { officer, dependency } = await this.loadAccountProps(account);
     const session = await this.connection.startSession();
     try {
@@ -96,6 +96,7 @@ export class AccountService {
         institution: dependency.institucion,
         jobtitle: account.jobtitle,
         isVisible: account.isVisible,
+        employmentType: account.employmentType,
       });
 
       await createdAccount.save({ session });
@@ -108,15 +109,25 @@ export class AccountService {
         { path: 'user', select: '-password' },
       ]);
 
-      const pdf = await this.generateAccountPdf(createdAccount, {
-        login: userResult.user.login,
-        password: userResult.generatedPassword,
-      });
+      const pdf = await this.generateAccountPdf(
+        createdAccount,
+        {
+          login: userResult.user.login,
+          password: userResult.generatedPassword,
+        },
+        generatedBy,
+      );
+      let mailResult = null;
       if (createdAccount.officer && createdAccount.officer.email) {
-        await this.mailService.sendUserAssignment(createdAccount.officer.email, pdf);
+        mailResult = await this.mailService.sendUserAssignment({
+          type: 'ASSIGNMENT',
+          pdfBuffer: pdf,
+          attachmentName: `Credenciales - ${createdAccount.officer.fullName}`,
+          email: createdAccount.officer.email,
+        });
       }
 
-      return { account: createdAccount, pdfBase64: pdf.toString('base64') };
+      return { account: createdAccount, pdfBase64: pdf.toString('base64'), ...(mailResult && { mail: mailResult }) };
     } catch (error) {
       await session.abortTransaction();
       this.handleAccountErrors(error, 'Error creating account');
@@ -125,7 +136,7 @@ export class AccountService {
     }
   }
 
-  async update(id: string, { user, account }: UpdateAccountWithUserDto) {
+  async update(id: string, { user, account }: UpdateAccountWithUserDto, generatedBy: string) {
     const { officerId, ...toUpdateAccount } = account;
 
     const accountDB = await this.accountModel.findById(id).populate('officer');
@@ -156,7 +167,6 @@ export class AccountService {
         resetPassword,
         session,
       });
-
       const updatedAccount = await this.accountModel
         .findByIdAndUpdate(id, { ...toUpdateAccount, officer: officerId }, { new: true, session })
         .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password' }]);
@@ -164,17 +174,26 @@ export class AccountService {
       await session.commitTransaction();
 
       const pdf = userUpdateResult.generatedPassword
-        ? await this.generateAccountPdf(updatedAccount, {
-            login: updatedAccount.user.login,
-            password: userUpdateResult.generatedPassword,
-          })
+        ? await this.generateAccountPdf(
+            updatedAccount,
+            {
+              login: updatedAccount.user.login,
+              password: userUpdateResult.generatedPassword,
+            },
+            generatedBy,
+          )
         : null;
-      if (pdf) {
-        if (updatedAccount.officer && updatedAccount.officer.email) {
-          await this.mailService.sendUserAssignment(updatedAccount.officer.email, pdf);
-        }
+
+      let mailResult = null;
+      if (pdf && updatedAccount.officer && updatedAccount.officer.email) {
+        mailResult = await this.mailService.sendUserAssignment({
+          type: 'ASSIGNMENT',
+          pdfBuffer: pdf,
+          attachmentName: `Credenciales - ${updatedAccount.officer.fullName}`,
+          email: updatedAccount.officer.email,
+        });
       }
-      return { account: updatedAccount, pdfBase64: pdf?.toString('base64') };
+      return { account: updatedAccount, pdfBase64: pdf?.toString('base64'), ...(mailResult && { mail: mailResult }) };
     } catch (error) {
       if (session.inTransaction()) await session.abortTransaction();
       this.handleAccountErrors(error, 'Error updating account');
@@ -251,7 +270,7 @@ export class AccountService {
     return await this.accountModel.populate(docs, { path: 'user', select: '-password' });
   }
 
-  async resetAccountPassword(accountId: string) {
+  async resetAccountPassword(accountId: string, generatedBy: string) {
     const account = await this.accountModel
       .findById(accountId)
       .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password' }]);
@@ -262,11 +281,17 @@ export class AccountService {
 
     const { password } = await this.userService.resetPassword(account.user);
 
-    const pdf = await this.generateAccountPdf(account, { login: account.user.login, password });
+    const pdf = await this.generateAccountPdf(account, { login: account.user.login, password }, generatedBy);
+    let mailResult = null;
     if (account.officer && account.officer.email) {
-       this.mailService.sendUserAssignment(account.officer.email, pdf);
+      mailResult = await this.mailService.sendUserAssignment({
+        type: 'RESET',
+        pdfBuffer: pdf,
+        attachmentName: `Credenciales - ${account.officer.fullName}`,
+        email: account.officer.email,
+      });
     }
-    return { pdfBase64: pdf.toString('base64') };
+    return { pdfBase64: pdf.toString('base64'), ...(mailResult && { mail: mailResult }) };
   }
 
   private async loadAccountProps({ officerId, dependencyId }: CreateAccountDto) {
@@ -292,11 +317,19 @@ export class AccountService {
     throw new InternalServerErrorException(originMessage);
   }
 
-  private async generateAccountPdf(account: Account, crendetials: { login: string; password: string }) {
-    const pdfContent = getAccountAssignmentReport(account, {
-      login: crendetials.login,
-      password: crendetials.password,
-    });
+  private async generateAccountPdf(
+    account: Account,
+    crendetials: { login: string; password: string },
+    generatedBy: string,
+  ) {
+    const pdfContent = getAccountAssignmentReport(
+      account,
+      {
+        login: crendetials.login,
+        password: crendetials.password,
+      },
+      generatedBy,
+    );
     const pdf = await this.printerService.createPdfBuffer(pdfContent);
     return pdf;
   }

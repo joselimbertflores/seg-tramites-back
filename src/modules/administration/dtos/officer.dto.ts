@@ -28,7 +28,7 @@ export class CreateOfficerDto {
   @IsOptional()
   activo?: boolean;
 
-  @IsEmail()
+  @IsString()
   @IsOptional()
   email?: string;
 }

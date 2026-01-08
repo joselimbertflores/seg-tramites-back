@@ -7,7 +7,11 @@ interface Credentials {
   password: string;
 }
 
-export const getAccountAssignmentReport = (account: Account, credentials: Credentials): TDocumentDefinitions => {
+export const getAccountAssignmentReport = (
+  account: Account,
+  credentials: Credentials,
+  generatedBy?: string,
+): TDocumentDefinitions => {
   const fullName = account.officer?.fullName || 'Sin asignar';
   const jobTitle = account.jobtitle || 'Sin cargo';
   const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'escudo.png');
@@ -25,7 +29,7 @@ export const getAccountAssignmentReport = (account: Account, credentials: Creden
               { rowSpan: 4, image: imagePath, fit: [100, 70] },
               {
                 rowSpan: 2,
-                text: 'GOBIERNO ELECTRÓNICO',
+                text: 'JEFATURA DE GOBIERNO ELECTRÓNICO',
               },
               { text: 'SF-000-74-RG26' },
             ],
@@ -34,16 +38,22 @@ export const getAccountAssignmentReport = (account: Account, credentials: Creden
               '',
               {
                 rowSpan: 2,
-                text: 'ASIGNACION DE USUARIO DE SISTEMA DE SEGUIMIENTO DE TRAMITES',
+                text: 'FORMULARIO DE ASIGNACIÓN DE USUARIO\nSistema de Seguimiento de Trámites',
               },
-              `Aprobacion: 20/02/2020`,
+              `Aprobación: 20/02/2020`,
             ],
-            ['', '', 'pagina 1 de 1'],
+            ['', '', 'página 1 de 1'],
           ],
         },
       },
       {
-        text: `Fecha: ${new Date().toLocaleString()}`,
+        text: `Fecha: ${new Date().toLocaleString('es-ES', {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`,
         marginTop: 20,
         style: 'header',
         alignment: 'right',
@@ -73,9 +83,9 @@ export const getAccountAssignmentReport = (account: Account, credentials: Creden
       },
       {
         text: [
-          { text: 'USUARIO: ', bold: true },
+          { text: 'USUARIO ASIGNADO: ', bold: true },
           { text: `${credentials.login}\n\n`, bold: false },
-          { text: 'CONTRASEÑA: ', bold: true },
+          { text: 'CONTRASEÑA INICIAL: ', bold: true },
           { text: `${credentials.password}\n\n`, bold: false },
         ],
         style: 'header',
@@ -83,13 +93,14 @@ export const getAccountAssignmentReport = (account: Account, credentials: Creden
         fontSize: 12,
       },
       {
-        text: 'La contraseña ingresada en el reporte debe ser cambiada una vez ingresada al sistema para que sea solo de conocimiento del usuario ',
+        marginTop: 80,
+        text: 'La contraseña inicial será generada automáticamente por el sistema y deberá ser cambiada en el primer ingreso, para que sea de exclusivo conocimiento del usuario.',
         style: 'header',
         alignment: 'center',
         fontSize: 10,
       },
       {
-        text: '\n\nEs responsabilidad del usuario el uso de la cuenta asignada\n\n',
+        text: '\n\nEl usuario es responsable del uso adecuado y seguro de la cuenta asignada, conforme a la normativa institucional vigente.\n\n',
         style: 'header',
         alignment: 'center',
         fontSize: 10,
@@ -101,28 +112,20 @@ export const getAccountAssignmentReport = (account: Account, credentials: Creden
         fit: 100,
       },
       {
-        marginTop: 20,
-        columns: [
+        fontSize: 11,
+        text: [
+          { text: 'Administrador que asigna: ', bold: true },
           {
-            width: 90,
-            text: '',
-          },
-          {
-            width: '*',
-            text: 'Sello y firma \n USUARIO',
-            alignment: 'center',
-          },
-          {
-            width: '*',
-            text: 'Sello y firma \n ADMINISTRADOR',
-            alignment: 'center',
-          },
-          {
-            width: 90,
-            text: '',
+            text: `${generatedBy ?? ''}`.toUpperCase(),
           },
         ],
       },
+      {
+        text: 'Declaro haber recibido mi cuenta de acceso y acepto las condiciones de uso.',
+        fontSize: 11,
+        marginTop: 20,
+      },
+      { text: '(Registro digital) - No requiere firma manuscrita', fontSize: 11 },
     ],
   };
 
