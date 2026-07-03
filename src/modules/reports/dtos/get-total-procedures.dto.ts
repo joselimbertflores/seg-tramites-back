@@ -18,9 +18,10 @@ export class TotalProceduresBySegmentParamsDto extends RangeReportProps {
 }
 
 export class GetProceduresEficiencyParamsDto extends RangeReportProps {
-  @IsArray()
-  @IsString({ each: true })
-  types: string[];
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  segment?: string;
 
   @IsString()
   @IsNotEmpty()

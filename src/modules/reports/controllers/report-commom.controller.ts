@@ -15,6 +15,11 @@ export class ReportCommomController {
     return this.typeProcedureService.getTypesByText(term);
   }
 
+  @Get('procedure-types-segments')
+  getProcedureTypeSegments() {
+    return this.typeProcedureService.getSegments();
+  }
+
   @Get('institutions')
   getInstitutions() {
     return this.institutionService.getActiveInstitutions();

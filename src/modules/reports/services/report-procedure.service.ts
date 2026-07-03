@@ -16,12 +16,14 @@ import {
   SearchProcedureDto,
   TotalProceduresBySegmentParamsDto,
 } from '../dtos';
-import { eachDayOfInterval, isWeekend } from 'date-fns';
+import { addDays, differenceInCalendarDays, isBefore, isWeekend, startOfDay } from 'date-fns';
+import { TypeProcedure } from 'src/modules/administration/schemas';
 
 @Injectable()
 export class ReportProcedureService {
   constructor(
     @InjectModel(Procedure.name) private procedureModel: Model<ProcedureDocument>,
+    @InjectModel(TypeProcedure.name) private procedureTypeModel: Model<TypeProcedure>,
     @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>,
   ) {}
 
@@ -158,67 +160,170 @@ export class ReportProcedureService {
   }
 
   async getProceduresEnficiency(params: GetProceduresEficiencyParamsDto) {
-    const { startDate, endDate, institution, types } = params;
-    const pipeResult = await this.externalModel.aggregate([
-      {
-        $match: {
-          status: procedureStatus.COMPLETED,
-          institution: new Types.ObjectId(institution),
-          createdAt: { $gte: startDate, $lte: endDate },
-          type: {
-            $in: types.map((item) => new Types.ObjectId(item)),
-          },
-        },
-      },
-      {
-        $group: {
-          _id: '$type',
-          procedures: {
-            $push: {
-              createdAt: '$createdAt',
-              completedAt: '$completedAt',
-            },
-          },
-          total: { $sum: 1 },
-        },
-      },
+    const { startDate, endDate, institution, segment = 'APR' } = params;
 
+    const from = new Date(startDate);
+    from.setUTCHours(0, 0, 0, 0);
+
+    const to = new Date(endDate);
+    to.setUTCHours(23, 59, 59, 999);
+
+    const procedureTypes = await this.procedureTypeModel
+      .find({
+        segmento: segment,
+      })
+      .select('_id nombre')
+      .lean();
+
+    if (!procedureTypes.length) {
+      return [];
+    }
+
+    const typeIds = procedureTypes.map((type) => type._id);
+
+    const typeNameMap = new Map(procedureTypes.map((type) => [type._id.toString(), type.nombre]));
+
+    type ProcedureResume = {
+      id: Types.ObjectId;
+      code?: string;
+      group?: string;
+      createdAt: Date;
+      completedAt: Date;
+      workingDays: number;
+    };
+
+    const resultMap = new Map<
+      string,
       {
-        $lookup: {
-          from: 'tipos_tramites',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'type',
+        typeId: Types.ObjectId;
+        typeName: string;
+        count: number;
+        totalWorkingDays: number;
+        minWorkingDays: number;
+        maxWorkingDays: number;
+        fastestProcedure: ProcedureResume;
+        slowestProcedure: ProcedureResume;
+      }
+    >();
+
+    const cursor = this.externalModel
+      .find({
+        status: procedureStatus.COMPLETED,
+        institution: new Types.ObjectId(institution),
+        type: {
+          $in: typeIds,
         },
-      },
-      {
-        $unwind: '$type',
-      },
-      {
-        $project: {
-          type: '$_id',
-          name: '$type.nombre',
-          procedures: 1,
-          total: 1,
+        completedAt: {
+          $gte: from,
+          $lte: to,
         },
-      },
-    ]);
-    return pipeResult.map((group) => {
-      const totalWorkingDays = group.procedures.reduce((sum, p) => {
-        return sum + this.calculateWorkingDays(new Date(p.createdAt), new Date(p.completedAt));
-      }, 0);
-      const average = totalWorkingDays / group.total;
-      return {
-        typeId: group.type,
-        typeName: group.name,
-        count: group.total,
-        averageWorkingDays: +average.toFixed(2),
+        createdAt: {
+          $ne: null,
+        },
+      })
+      .select({
+        _id: 1,
+        type: 1,
+        code: 1,
+        group: 1,
+        createdAt: 1,
+        completedAt: 1,
+      })
+      .lean()
+      .cursor();
+
+    for await (const procedure of cursor) {
+      if (!procedure.createdAt || !procedure.completedAt) {
+        continue;
+      }
+
+      const typeId = procedure.type.toString();
+      const typeName = typeNameMap.get(typeId);
+
+      if (!typeName) {
+        continue;
+      }
+
+      const workingDays = this.calculateWorkingDays(new Date(procedure.createdAt), new Date(procedure.completedAt));
+
+      const procedureResume: ProcedureResume = {
+        id: procedure._id,
+        code: procedure.code,
+        group: procedure.group,
+        createdAt: procedure.createdAt,
+        completedAt: procedure.completedAt,
+        workingDays,
       };
-    });
+
+      const current = resultMap.get(typeId);
+
+      if (!current) {
+        resultMap.set(typeId, {
+          typeId: procedure.type._id,
+          typeName,
+          count: 1,
+          totalWorkingDays: workingDays,
+          minWorkingDays: workingDays,
+          maxWorkingDays: workingDays,
+          fastestProcedure: procedureResume,
+          slowestProcedure: procedureResume,
+        });
+
+        continue;
+      }
+
+      current.count += 1;
+      current.totalWorkingDays += workingDays;
+
+      if (workingDays < current.minWorkingDays) {
+        current.minWorkingDays = workingDays;
+        current.fastestProcedure = procedureResume;
+      }
+
+      if (workingDays > current.maxWorkingDays) {
+        current.maxWorkingDays = workingDays;
+        current.slowestProcedure = procedureResume;
+      }
+    }
+
+    return Array.from(resultMap.values())
+      .map((item) => ({
+        typeId: item.typeId,
+        typeName: item.typeName,
+        count: item.count,
+        averageWorkingDays: +(item.totalWorkingDays / item.count).toFixed(2),
+        minWorkingDays: item.minWorkingDays,
+        maxWorkingDays: item.maxWorkingDays,
+        fastestProcedure: item.fastestProcedure,
+        slowestProcedure: item.slowestProcedure,
+      }))
+      .sort((a, b) => b.count - a.count);
   }
 
   calculateWorkingDays(start: Date, end: Date): number {
-    const days = eachDayOfInterval({ start, end });
-    return days.filter((d) => !isWeekend(d)).length;
+    const startDate = startOfDay(start);
+    const endDate = startOfDay(end);
+
+    if (isBefore(endDate, startDate)) {
+      return 0;
+    }
+
+    const totalDays = differenceInCalendarDays(endDate, startDate) + 1;
+    const fullWeeks = Math.floor(totalDays / 7);
+
+    let workingDays = fullWeeks * 5;
+
+    const remainingDays = totalDays % 7;
+    const firstRemainingDay = addDays(startDate, fullWeeks * 7);
+
+    for (let i = 0; i < remainingDays; i++) {
+      const day = addDays(firstRemainingDay, i);
+
+      if (!isWeekend(day)) {
+        workingDays++;
+      }
+    }
+
+    return workingDays;
   }
 }
