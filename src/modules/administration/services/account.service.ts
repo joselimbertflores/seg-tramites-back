@@ -195,6 +195,7 @@ export class AccountService {
       }
       return { account: updatedAccount, pdfBase64: pdf?.toString('base64'), ...(mailResult && { mail: mailResult }) };
     } catch (error) {
+      console.log(error);
       if (session.inTransaction()) await session.abortTransaction();
       this.handleAccountErrors(error, 'Error updating account');
     } finally {

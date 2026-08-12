@@ -1,21 +1,50 @@
-version: '3.8'
-
 services:
   mongo:
-    image: mongo:latest
+    image: mongo:8.0.4
     container_name: mongo
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-    command: mongod --replSet rs0 --bind_ip_all
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --bind_ip_all
 
   mongo-setup:
-    image: mongo:latest
+    image: mongo:8.0.4
     container_name: mongo_setup
     depends_on:
       - mongo
-    entrypoint: [ "bash", "-c", "sleep 10 && mongosh --host mongo --eval 'rs.initiate()'" ]
+    restart: "no"
+    entrypoint:
+      - bash
+      - -c
+      - |
+        until mongosh --host mongo:27017 --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+          echo "Esperando MongoDB..."
+          sleep 2
+        done
+
+        mongosh --host mongo:27017 --eval '
+          try {
+            rs.status();
+            print("Replica Set ya inicializado");
+          } catch (e) {
+            print("Inicializando Replica Set...");
+            rs.initiate({
+              _id: "rs0",
+              members: [
+                {
+                  _id: 0,
+                  host: "mongo:27017"
+                }
+              ]
+            });
+          }
+        '
 
 volumes:
   mongo_data:

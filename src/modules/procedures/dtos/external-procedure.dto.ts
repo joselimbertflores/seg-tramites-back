@@ -9,6 +9,8 @@ import {
   ValidateNested,
   IsArray,
   IsMongoId,
+  MaxLength,
+  IsEmail,
 } from 'class-validator';
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { ProcedureDto } from './procedure.dto';
@@ -29,6 +31,12 @@ class Person {
   @IsString()
   @IsOptional()
   phone: string;
+
+  @IsOptional()
+  @IsString()
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
 
   @IsOptional()
   dni?: string;

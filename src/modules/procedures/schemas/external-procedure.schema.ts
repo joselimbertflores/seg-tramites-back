@@ -17,6 +17,12 @@ abstract class Person {
   @Prop()
   phone: string;
 
+  @Prop({
+    trim: true,
+    lowercase: true,
+  })
+  email?: string;
+
   @Prop({ trim: true })
   dni: string;
 }
