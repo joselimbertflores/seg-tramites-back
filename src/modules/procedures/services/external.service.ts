@@ -71,7 +71,7 @@ export class ExternalService implements ValidProcedureService {
       .findOne({ prefix: prefix, institution, createdAt: { $gte: startDate, $lt: endDate } }, { correlative: 1 })
       .sort({ _id: -1 });
 
-    const correlative = last ? last.correlative + 1 : 1;
+      const correlative = last ? last.correlative + 1 : 1;
 
     return {
       prefix,

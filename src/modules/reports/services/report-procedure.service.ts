@@ -17,7 +17,8 @@ import {
   TotalProceduresBySegmentParamsDto,
 } from '../dtos';
 import { addDays, differenceInCalendarDays, isBefore, isWeekend, startOfDay } from 'date-fns';
-import { TypeProcedure } from 'src/modules/administration/schemas';
+import { Account, TypeProcedure } from 'src/modules/administration/schemas';
+import { Communication, SendStatus } from 'src/modules/communications/schemas/communication.schema';
 
 @Injectable()
 export class ReportProcedureService {
@@ -25,6 +26,8 @@ export class ReportProcedureService {
     @InjectModel(Procedure.name) private procedureModel: Model<ProcedureDocument>,
     @InjectModel(TypeProcedure.name) private procedureTypeModel: Model<TypeProcedure>,
     @InjectModel(ExternalProcedure.name) private externalModel: Model<ExternalProcedureDocument>,
+    @InjectModel(Communication.name) private communicationModel: Model<Communication>,
+    @InjectModel(Account.name) private accountModel: Model<Account>,
   ) {}
 
   async getTotalBySegment(params: TotalProceduresBySegmentParamsDto) {
@@ -299,6 +302,225 @@ export class ReportProcedureService {
       }))
       .sort((a, b) => b.count - a.count);
   }
+
+ async searchProcedureCurrentHolders(
+  dto: SearchProcedureDto,
+  { limit, offset }: PaginationDto,
+) {
+  const { start, end, ...values } = dto;
+
+  const query: mongoose.FilterQuery<Procedure>[] = Object.entries(values).map(
+    ([key, value]) => {
+      if (key === 'code' || key === 'reference') {
+        return { [key]: new RegExp(value, 'i') };
+      }
+
+      return { [key]: value };
+    },
+  );
+
+  const interval = {
+    ...(start && { $gte: start }),
+    ...(end && { $lte: end }),
+  };
+
+  if (Object.keys(interval).length > 0) {
+    query.push({ createdAt: interval });
+  }
+
+  if (query.length < 2) {
+    throw new BadRequestException(
+      'Debe proporcionar al menos 2 campos para realizar la búsqueda.',
+    );
+  }
+
+  /*
+   * 1. Buscar únicamente los datos necesarios del trámite.
+   */
+  const [procedures, length] = await Promise.all([
+    this.procedureModel
+      .find({ $and: query })
+      .select({
+        _id: 1,
+        group: 1,
+        code: 1,
+        reference: 1,
+        state: 1,
+      })
+      .limit(limit)
+      .skip(offset)
+      .lean(),
+
+    this.procedureModel.countDocuments({ $and: query }),
+  ]);
+
+  if (procedures.length === 0) {
+    return {
+      procedures: [],
+      length,
+    };
+  }
+
+  const procedureIds = procedures.map((procedure) => procedure._id);
+
+  /*
+   * 2. Buscar las comunicaciones que representan una ubicación actual.
+   *
+   * No necesitamos sender/recipient completos, solamente sus account.
+   */
+  const communications = await this.communicationModel
+    .find({
+      'procedure.ref': { $in: procedureIds },
+      status: {
+        $in: [
+          SendStatus.Pending,
+          SendStatus.Received,
+          SendStatus.Archived,
+          SendStatus.Rejected,
+          SendStatus.AutoRejected,
+        ],
+      },
+    })
+    .select({
+      'procedure.ref': 1,
+      'sender.account': 1,
+      'recipient.account': 1,
+      status: 1,
+    })
+    .lean();
+
+  /*
+   * procedureId -> Set<accountId>
+   *
+   * Se usa Set para evitar repetir una misma cuenta dentro de un trámite.
+   */
+  const holdersByProcedure = new Map<string, Set<string>>();
+  const accountIds = new Set<string>();
+
+  for (const communication of communications) {
+    const procedureId = communication.procedure?.ref?.toString();
+
+    if (!procedureId) {
+      continue;
+    }
+
+    let accountId: string | undefined;
+
+    switch (communication.status) {
+      case SendStatus.Pending:
+      case SendStatus.Received:
+      case SendStatus.Archived:
+        accountId = communication.recipient?.account?.toString();
+        break;
+
+      case SendStatus.Rejected:
+      case SendStatus.AutoRejected:
+        accountId = communication.sender?.account?.toString();
+        break;
+
+      default:
+        break;
+    }
+
+    if (!accountId) {
+      continue;
+    }
+
+    let procedureHolders = holdersByProcedure.get(procedureId);
+
+    if (!procedureHolders) {
+      procedureHolders = new Set<string>();
+      holdersByProcedure.set(procedureId, procedureHolders);
+    }
+
+    procedureHolders.add(accountId);
+    accountIds.add(accountId);
+  }
+
+  /*
+   * 3. Buscar las cuentas actuales.
+   *
+   * De Account solamente necesitamos:
+   * - officer
+   * - jobtitle
+   * - dependencia
+   * - institution
+   *
+   * Y de las relaciones solamente los campos que aparecerán
+   * en el reporte.
+   */
+  const accounts = await this.accountModel
+    .find({
+      _id: { $in: [...accountIds] },
+    })
+    .select({
+      officer: 1,
+      jobtitle: 1,
+      dependencia: 1,
+      institution: 1,
+    })
+    .populate({
+      path: 'officer',
+      select: {
+        nombre: 1,
+        paterno: 1,
+        materno: 1,
+      },
+    })
+    .populate({
+      path: 'dependencia',
+      select: {
+        nombre: 1,
+      },
+    })
+    .populate({
+      path: 'institution',
+      select: {
+        nombre: 1,
+      },
+    })
+    .lean();
+
+  const accountsById = new Map(
+    accounts.map((account) => [account._id.toString(), account]),
+  );
+
+  /*
+   * 4. Armar una respuesta específica para el reporte.
+   */
+  const result = procedures.map((procedure) => {
+    const procedureHolders = holdersByProcedure.get(
+      procedure._id.toString(),
+    );
+
+    const holders = procedureHolders
+      ? [...procedureHolders]
+          .map((accountId) => accountsById.get(accountId))
+          .filter((account) => account !== undefined)
+          .map((account) => ({
+            officer: account.officer ?? null,
+            jobtitle: account.jobtitle ?? null,
+            dependency: account.dependencia ?? null,
+            institution: account.institution ?? null,
+          }))
+      : [];
+
+    return {
+      id: procedure._id,
+      group: procedure.group,
+      code: procedure.code,
+      reference: procedure.reference,
+      state: procedure.state,
+      holders,
+    };
+  });
+
+  return {
+    procedures: result,
+    length,
+  };
+}
+
 
   calculateWorkingDays(start: Date, end: Date): number {
     const startDate = startOfDay(start);

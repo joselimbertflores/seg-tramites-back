@@ -48,4 +48,11 @@ export class ReportProceduresController {
   getProceduresEnficiency(@Body() body: GetProceduresEficiencyParamsDto) {
     return this.reportService.getProceduresEnficiency(body);
   }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('location')
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.LOCATION] })
+  searchProcedureLocations(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
+    return this.reportService.searchProcedureCurrentHolders(body, queryParams);
+  }
 }

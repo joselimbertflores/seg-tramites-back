@@ -7,4 +7,5 @@ export enum reportType {
   HISTORY = 'history',
   EFFICIENCY = 'efficiency',
   UNIT_CORRESPONDENCE_STATUS = 'unit_correspondence_status',
+  LOCATION = 'location',
 }

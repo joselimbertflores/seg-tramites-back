@@ -154,6 +154,7 @@ export const SYSTEM_RESOURCES = [
       { value: reportType.HISTORY, label: 'Historial' },
       { value: reportType.EFFICIENCY, label: 'Eficiencia' },
       { value: reportType.UNIT_CORRESPONDENCE_STATUS, label: 'Estado correspondencia por unidad' },
+      { value: reportType.LOCATION, label: 'Ubicación' },
     ],
   },
 ];
