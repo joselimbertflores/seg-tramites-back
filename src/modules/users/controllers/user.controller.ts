@@ -1,28 +1,17 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
-import { Public, ResourceProtected } from 'src/modules/auth/decorators';
+import { ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { PaginationDto } from 'src/modules/common';
 
-
 import { RoleService, UserService } from '../services';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
+import { RoleContext } from '../schemas';
 
 @Controller('user')
 @ResourceProtected(SystemResource.USERS)
 export class UserController {
-  constructor(
-    private userService: UserService,
-    private roleService: RoleService,
-  ) {}
+  constructor(private userService: UserService, private roleService: RoleService) {}
 
   @Get()
   findAll(@Query() params: PaginationDto) {
@@ -41,6 +30,6 @@ export class UserController {
 
   @Get('roles')
   getRoles() {
-    return this.roleService.getActiveRoles();
+    return this.roleService.getRolesByContext(RoleContext.USER);
   }
 }

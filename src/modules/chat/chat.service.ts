@@ -47,6 +47,7 @@ export class ChatService {
   async getAccountChat(currentUser: User, accounId: string) {
     const account = await this.accountModel.findById(accounId);
     if (!account) throw new BadRequestException(`La cuenta no existe`);
+    if (!account.user) throw new BadRequestException(`La cuenta no está asignada`);
     return await this.findOrCreateChat(currentUser, String(account.user._id));
   }
 

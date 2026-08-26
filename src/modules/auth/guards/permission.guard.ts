@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { User } from 'src/modules/users/schemas';
+import { RoleContext, User } from 'src/modules/users/schemas';
 import { META_PERMISSIONS } from '../decorators';
 import { RequirePermissionsMetadata } from '../interfaces';
 
@@ -25,7 +25,10 @@ export class PermissionGuard implements CanActivate {
 
     if (!user) throw new InternalServerErrorException('ReportGuard error, no user in request');
 
-    const resourcePermissions = user.role.permissions.find((role) => role.resource === resource);
+    if (!user.directRole || user.directRole.context !== RoleContext.USER) {
+      throw new ForbiddenException(`Access denied: Missing direct role`);
+    }
+    const resourcePermissions = user.directRole.permissions.find((role) => role.resource === resource);
     if (!resourcePermissions) {
       throw new ForbiddenException(`Access denied: Missing permissions for ${resource}`);
     }

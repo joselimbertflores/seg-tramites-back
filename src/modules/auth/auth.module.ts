@@ -10,6 +10,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards';
 import { UsersModule } from 'src/modules/users/users.module';
 import { EnvVars } from 'src/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { Account, AccountSchema } from '../administration/schemas';
 
 @Module({
   controllers: [AuthController],
@@ -24,6 +26,7 @@ import { EnvVars } from 'src/config';
   imports: [
     ConfigModule,
     UsersModule,
+    MongooseModule.forFeature([{ name: Account.name, schema: AccountSchema }]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

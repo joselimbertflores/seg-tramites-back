@@ -209,10 +209,12 @@ export class OutboxService {
       await session.commitTransaction();
 
       return {
-        canceledCommunications: items.map((item) => ({
-          toUser: item.recipient.account.user._id.toString(),
-          id: item.id,
-        })),
+        canceledCommunications: items
+          .filter((item) => Boolean(item.recipient.account.user))
+          .map((item) => ({
+            toUser: item.recipient.account.user._id.toString(),
+            id: item.id,
+          })),
         restoredItems: restoreResult,
         canceledIds: itemIds,
       };
@@ -269,7 +271,13 @@ export class OutboxService {
 
   private async getRecipientAccountsMap(recipients: RecipientDto[]) {
     const recipientIds = recipients.map(({ accountId }) => accountId);
-    const accounts = await this.accountModel.find({ _id: { $in: recipientIds } }).populate('officer');
+    const accounts = await this.accountModel
+      .find({
+        _id: { $in: recipientIds },
+        user: { $ne: null },
+        officer: { $ne: null },
+      })
+      .populate('officer');
     return new Map(accounts.map((acc) => [String(acc._id), acc]));
   }
 
@@ -386,7 +394,9 @@ export class OutboxService {
   private mapRecipients(recipients: RecipientDto[], accountMap: Map<string, Account>) {
     return recipients.map(({ accountId, isOriginal }) => {
       const account = accountMap.get(accountId);
-      if (!account) throw new BadRequestException(`Recipient ${accountId} does not exist`);
+      if (!account || !account.user || !account.officer) {
+        throw new BadRequestException(`Recipient ${accountId} does not exist or is not assigned`);
+      }
       return { toUser: String(account.user._id), recipient: account, isOriginal };
     });
   }
@@ -423,7 +433,9 @@ export class OutboxService {
       throw new NotFoundException({ message: `Some elements with sender ${accountId} dont exist`, ids: notFoundIds });
     }
 
-    const invalidItems = items.filter(({ status }) => status !== SendStatus.Pending && status !== SendStatus.AutoRejected);
+    const invalidItems = items.filter(
+      ({ status }) => status !== SendStatus.Pending && status !== SendStatus.AutoRejected,
+    );
 
     if (invalidItems.length > 0) {
       throw new UnprocessableEntityException({

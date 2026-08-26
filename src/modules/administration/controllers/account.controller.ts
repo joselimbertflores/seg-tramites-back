@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 
 import {
   AccountService,
@@ -6,11 +6,12 @@ import {
   InstitutionService,
   OfficerService,
 } from 'src/modules/administration/services';
-import { CreateAccountWithUserDto, FilterAccountDto, UpdateAccountWithUserDto } from '../dtos';
+import { AssignAccountDto, CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
 import { GetUserRequest, ResourceProtected } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { IsMongoidPipe } from 'src/modules/common';
 import { RoleService } from '../../users/services';
+import { RoleContext } from '../../users/schemas';
 
 @Controller('accounts')
 @ResourceProtected(SystemResource.ACCOUNTS)
@@ -29,17 +30,23 @@ export class AccountController {
   }
 
   @Post()
-  create(@Body() accountDto: CreateAccountWithUserDto, @GetUserRequest('fullname') fullName: string) {
-    return this.accountService.create(accountDto, fullName);
+  create(@Body() accountDto: CreateAccountDto) {
+    return this.accountService.create(accountDto);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() body: UpdateAccountWithUserDto,
-    @GetUserRequest('fullname') fullName: string,
-  ) {
-    return this.accountService.update(id, body, fullName);
+  update(@Param('id') id: string, @Body() body: UpdateAccountDto) {
+    return this.accountService.update(id, body);
+  }
+
+  @Put(':id/assignment')
+  assign(@Param('id', IsMongoidPipe) id: string, @Body() assignment: AssignAccountDto) {
+    return this.accountService.assign(id, assignment);
+  }
+
+  @Patch(':id/unassign')
+  unassign(@Param('id', IsMongoidPipe) id: string) {
+    return this.accountService.unassign(id);
   }
 
   @Get('institutions')
@@ -57,9 +64,14 @@ export class AccountController {
     return this.officerService.searchOfficersWithoutAccount(text);
   }
 
+  @Get('assign/users')
+  searchUsersWithoutAccount(@Query('term') text: string) {
+    return this.accountService.searchUsersWithoutAccount(text);
+  }
+
   @Get('roles')
   getRoles() {
-    return this.roleService.getActiveRoles();
+    return this.roleService.getRolesByContext(RoleContext.ACCOUNT);
   }
 
   @Patch('reset-password/:accountId')

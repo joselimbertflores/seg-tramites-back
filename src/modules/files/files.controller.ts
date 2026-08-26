@@ -7,12 +7,16 @@ import { ALLOWED_FILE_TYPES } from './constants';
 import { GetFileDto } from './dtos/get-file.dto';
 import { FilesService } from './files.service';
 import { FileGroup } from './file-group.enum';
+import { ResourceProtected } from '../auth/decorators';
+import { SystemResource } from '../auth/constants';
+import { AccountProtected } from '../administration/decorators';
 
 @Controller('files')
 export class FilesController {
   constructor(private filesService: FilesService) {}
 
   @Post('post')
+  @AccountProtected(SystemResource.PUBLICATIONS)
   @UseInterceptors(FileInterceptor('file'))
   uploadPostFile(
     @UploadedFile(
@@ -27,6 +31,7 @@ export class FilesController {
   }
 
   @Post('resource')
+  @ResourceProtected(SystemResource.RESOURCES)
   @UseInterceptors(FileInterceptor('file'))
   uploadResourceFile(
     @UploadedFile(

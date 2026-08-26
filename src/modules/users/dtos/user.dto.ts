@@ -11,7 +11,8 @@ export class CreateUserDto {
   login: string;
 
   @IsMongoId()
-  role: string;
+  @IsOptional()
+  directRole?: string | null;
 
   @IsBoolean()
   @IsOptional()

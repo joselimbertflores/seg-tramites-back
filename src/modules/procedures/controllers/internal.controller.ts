@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ResourceProtected } from 'src/modules/auth/decorators';
 
 import { InternalService } from '../services';
 import { AccountService } from 'src/modules/administration/services';
@@ -7,11 +6,10 @@ import { SystemResource } from 'src/modules/auth/constants';
 import { Account } from 'src/modules/administration/schemas';
 
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
-import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
 import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 
-@onlyAssignedAccount()
-@ResourceProtected(SystemResource.INTERNAL)
+@AccountProtected(SystemResource.INTERNAL)
 @Controller('internal')
 export class InternalController {
   constructor(private readonly accountService: AccountService, private readonly internalService: InternalService) {}

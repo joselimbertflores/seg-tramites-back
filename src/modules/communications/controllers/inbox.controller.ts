@@ -1,17 +1,15 @@
 import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
 
-import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
 import { InstitutionService, DependencieService } from 'src/modules/administration/services';
 import { AccountService } from 'src/modules/administration/services';
-import { MultiResourceProtected } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 import { IsMongoidPipe } from 'src/modules/common';
 import { FilterInboxDto, RejectCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 import { InboxService } from '../services';
 
-@onlyAssignedAccount()
-@MultiResourceProtected({ resources: [SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT] })
+@AccountProtected([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
 @Controller('inbox')
 export class InboxController {
   constructor(

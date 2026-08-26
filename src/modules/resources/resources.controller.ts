@@ -5,12 +5,12 @@ import { CreateResourceFileDto } from './dtos/resource-file.dto';
 import { ResourceProtected } from '../auth/decorators';
 import { SystemResource } from '../auth/constants';
 
-@ResourceProtected(SystemResource.RESOURCES)
 @Controller('resources')
 export class ResourcesController {
   constructor(private readonly resourcesService: ResourcesService) {}
 
   @Post()
+  @ResourceProtected(SystemResource.RESOURCES)
   create(@Body() resourceDto: CreateResourceFileDto) {
     return this.resourcesService.create(resourceDto);
   }
@@ -21,6 +21,7 @@ export class ResourcesController {
   }
 
   @Delete(':id')
+  @ResourceProtected(SystemResource.RESOURCES)
   remove(@Param('id') id: string) {
     return this.resourcesService.remove(id);
   }

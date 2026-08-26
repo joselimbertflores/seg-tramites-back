@@ -23,6 +23,7 @@ export class ReportProceduresController {
   }
 
   @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.SEGMENTS] })
   @Post('segments')
   getTotalBySegment(@Body() params: TotalProceduresBySegmentParamsDto) {
     return this.reportService.getTotalBySegment(params);
@@ -36,7 +37,7 @@ export class ReportProceduresController {
   }
 
   @HttpCode(HttpStatus.OK)
-  // @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.SEARCH] })
+  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.SEARCH] })
   @Post('search')
   searcProcedureByProperties(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
     return this.reportService.searchProcedureByProperties(body, queryParams);

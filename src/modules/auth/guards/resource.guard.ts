@@ -7,25 +7,27 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { User } from 'src/modules/users/schemas';
+import { RoleContext, User } from 'src/modules/users/schemas';
 import { META_RESOURCE } from '../decorators';
 import { SystemResource } from '../constants';
 
-  const  methodToActionMap = {
-    PATCH: 'update',
-    POST: 'create',
-    GET: 'read',
-    PUT: 'update',
-    DELETE: 'delete',
-  };
+const methodToActionMap = {
+  PATCH: 'update',
+  POST: 'create',
+  GET: 'read',
+  PUT: 'update',
+  DELETE: 'delete',
+};
 
 @Injectable()
 export class ResourceGuard implements CanActivate {
-  
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const validResource: SystemResource | undefined = this.reflector.get(META_RESOURCE, context.getClass());
+    const validResource = this.reflector.getAllAndOverride<SystemResource>(META_RESOURCE, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (!validResource) return true;
 
     const req = context.switchToHttp().getRequest();
@@ -33,7 +35,11 @@ export class ResourceGuard implements CanActivate {
 
     if (!user) throw new InternalServerErrorException('ResourceGuard error, no user in request');
 
-    const permissions = user.role.permissions.find((permission) => permission.resource === validResource);
+    if (!user.directRole || user.directRole.context !== RoleContext.USER) {
+      throw new ForbiddenException(`Esta identidad no tiene un rol administrativo.`);
+    }
+
+    const permissions = user.directRole.permissions.find((permission) => permission.resource === validResource);
 
     if (!permissions) throw new ForbiddenException(`Esta cuenta no tiene los permisos necesarios.`);
 

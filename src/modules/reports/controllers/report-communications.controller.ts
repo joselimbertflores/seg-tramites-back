@@ -1,12 +1,17 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 
-import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
-import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
+import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
+import { IsMongoidPipe } from 'src/modules/common';
 import { RequirePermissions } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 
-import { GetCommunicationHistoryDto, GetTotalCommunicationsByUnit, GetCorrespondenceByAccountDto, PaginationReportDto } from '../dtos';
+import {
+  GetCommunicationHistoryDto,
+  GetTotalCommunicationsByUnit,
+  GetCorrespondenceByAccountDto,
+  PaginationReportDto,
+} from '../dtos';
 import { ReportCommunicationsService } from '../services';
 import { reportType } from '../enums/report-types.enum';
 
@@ -25,11 +30,7 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @onlyAssignedAccount()
-  @RequirePermissions({
-    resource: SystemResource.REPORTS,
-    actions: [reportType.HISTORY],
-  })
+  @AccountProtected(SystemResource.REPORTS, reportType.HISTORY)
   @Post('history')
   getHistory(
     @GetAccountRequest() account: Account,
@@ -40,11 +41,7 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @onlyAssignedAccount()
-  @RequirePermissions({
-    resource: SystemResource.REPORTS,
-    actions: [reportType.UNLINK],
-  })
+  @AccountProtected(SystemResource.REPORTS, reportType.UNLINK)
   @Get('unlink')
   getUnlinkData(@GetAccountRequest() account: Account) {
     return this.reportService.getUnlinkData(account);
@@ -60,11 +57,7 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({
-    resource: SystemResource.REPORTS,
-    actions: [reportType.UNIT_CORRESPONDENCE_STATUS],
-  })
-  @onlyAssignedAccount()
+  @AccountProtected(SystemResource.REPORTS, reportType.UNIT_CORRESPONDENCE_STATUS)
   @Post('correspondence-status')
   getCorrespondenceStatusByUnit(@GetAccountRequest() account: Account, @Body() body: GetCorrespondenceByAccountDto) {
     return this.reportService.getCorrespondenceStatusByUnit(body, account.dependencia._id);

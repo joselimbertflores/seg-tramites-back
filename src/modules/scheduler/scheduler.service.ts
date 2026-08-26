@@ -40,6 +40,7 @@ export class SchedulerService {
       {
         $match: {
           'senderAccount.officer': { $ne: null },
+          'senderAccount.user': { $ne: null },
         },
       },
       { $project: { _id: 1 } },

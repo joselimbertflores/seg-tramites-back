@@ -26,8 +26,9 @@ export class User extends Document {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: Role.name,
+    default: null,
   })
-  role: Role;
+  directRole?: Role | null;
 
   @Prop({
     type: Boolean,

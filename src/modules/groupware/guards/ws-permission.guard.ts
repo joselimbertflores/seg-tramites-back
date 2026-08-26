@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Reflector } from '@nestjs/core';
 
-import { User } from 'src/modules/users/schemas';
+import { RoleContext, User } from 'src/modules/users/schemas';
 import { RequirePermissionsMetadata } from 'src/modules/auth/interfaces';
 import { WS_META_PERMISSIONS } from '../decorators/ws-require-permissions.decorator';
 
@@ -23,7 +23,10 @@ export class WsPermissionGuard implements CanActivate {
 
     const { resource, actions, match = 'every' } = metadata;
 
-    const permissions = user.role.permissions.find((per) => per.resource === resource);
+    if (!user.directRole || user.directRole.context !== RoleContext.USER) {
+      throw new WsException(`Access denied: Missing direct role`);
+    }
+    const permissions = user.directRole.permissions.find((per) => per.resource === resource);
 
     if (!permissions) {
       throw new WsException(`Access denied: Missing permissions for ${resource}`);

@@ -20,9 +20,9 @@ export class WsJwtGuard implements CanActivate {
     try {
       const payload = this.jwtService.verify(token);
 
-      const user = await this.userModel.findById(payload.userId).select('-password').populate('role');
+      const user = await this.userModel.findById(payload.userId).select('-password').populate('directRole');
 
-      if (!user) throw new WsException('User not found.');
+      if (!user || !user.isActive) throw new WsException('User not found.');
 
       client.data['user'] = user;
 

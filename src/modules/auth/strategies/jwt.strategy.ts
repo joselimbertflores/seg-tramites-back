@@ -19,8 +19,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
   async validate(payload: JwtPayload): Promise<User> {
-    const user = await this.userModel.findById(payload.userId).select('-password').populate('role');
-    if (!user) throw new UnauthorizedException();
+    const user = await this.userModel.findById(payload.userId).select('-password').populate('directRole');
+    if (!user || !user.isActive) throw new UnauthorizedException();
     return user;
   }
 }

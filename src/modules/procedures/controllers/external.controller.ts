@@ -9,11 +9,9 @@ import { SystemResource } from 'src/modules/auth/constants';
 import { TypeProcedureService } from 'src/modules/administration/services';
 import { ExternalService } from '../services';
 
-import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
-import { ResourceProtected } from 'src/modules/auth/decorators';
+import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
 
-@onlyAssignedAccount()
-@ResourceProtected(SystemResource.EXTERNAL)
+@AccountProtected(SystemResource.EXTERNAL)
 @Controller('external')
 export class ExternalController {
   constructor(

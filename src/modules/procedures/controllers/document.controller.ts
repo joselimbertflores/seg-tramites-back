@@ -1,16 +1,16 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
-import { onlyAssignedAccount } from 'src/modules/administration/decorators/only-assigned-account.decorator';
-import { GetAccountRequest } from 'src/modules/administration/decorators/get-account-request.decorator';
+import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
 import { AccountService } from 'src/modules/administration/services';
 import { Account } from 'src/modules/administration/schemas';
 import { IsMongoidPipe } from 'src/modules/common';
+import { SystemResource } from 'src/modules/auth/constants';
 
 import { DocumentService } from '../services';
 import { CreateDocDto, FilterDocsDto, UpdateDocDto } from '../../communications/dtos';
 
 @Controller('documents')
-@onlyAssignedAccount()
+@AccountProtected([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
 export class DocumentController {
   constructor(private documentService: DocumentService, private accountService: AccountService) {}
 

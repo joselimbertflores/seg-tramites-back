@@ -6,6 +6,8 @@ import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { CreatePublicationDto, UpdatePublicationDto } from './dtos';
 import { PublicationPriority } from './schemas/publication.schema';
 import { GetUserRequest } from 'src/modules/auth/decorators';
+import { SystemResource } from 'src/modules/auth/constants';
+import { AccountProtected } from '../administration/decorators';
 import { PublicationsService } from './publications.service';
 import { User } from '../users/schemas';
 
@@ -14,6 +16,7 @@ export class PostsController {
   constructor(private readonly postsService: PublicationsService, private groupwareGateway: GroupwareGateway) {}
 
   @Post()
+  @AccountProtected(SystemResource.PUBLICATIONS)
   async create(@Body() publicationDto: CreatePublicationDto, @GetUserRequest() user: User) {
     const publication = await this.postsService.create(publicationDto, user);
     if (publication.priority === PublicationPriority.HIGH) {
@@ -23,11 +26,13 @@ export class PostsController {
   }
 
   @Patch(':id')
+  @AccountProtected(SystemResource.PUBLICATIONS)
   update(@Param('id') id: string, @Body() publicationDto: UpdatePublicationDto) {
     return this.postsService.update(id, publicationDto);
   }
 
   @Delete(':id')
+  @AccountProtected(SystemResource.PUBLICATIONS)
   delete(@Param('id') id: string) {
     return this.postsService.delete(id);
   }
