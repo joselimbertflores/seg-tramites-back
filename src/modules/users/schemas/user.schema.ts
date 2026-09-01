@@ -24,11 +24,11 @@ export class User extends Document {
   password: string;
 
   @Prop({
-    type: mongoose.Schema.Types.ObjectId,
+    type: [mongoose.Schema.Types.ObjectId],
     ref: Role.name,
-    default: null,
+    default: [],
   })
-  directRole?: Role | null;
+  roles: Role[];
 
   @Prop({
     type: Boolean,

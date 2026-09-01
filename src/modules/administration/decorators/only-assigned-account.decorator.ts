@@ -1,6 +1,6 @@
 import { UseGuards, applyDecorators } from '@nestjs/common';
 import { AccountGuard } from '../guards/account.guard';
 
-export function onlyAssignedAccount() {
+export function OnlyAssignedAccount() {
   return applyDecorators(UseGuards(AccountGuard));
 }

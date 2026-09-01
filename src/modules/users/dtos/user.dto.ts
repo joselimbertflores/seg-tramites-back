@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsBoolean, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -10,9 +10,11 @@ export class CreateUserDto {
   @IsNotEmpty()
   login: string;
 
-  @IsMongoId()
+  @IsArray()
+  @ArrayUnique()
+  @IsMongoId({ each: true })
   @IsOptional()
-  directRole?: string | null;
+  roles?: string[];
 
   @IsBoolean()
   @IsOptional()

@@ -7,7 +7,7 @@ import {
   TotalProceduresBySegmentParamsDto,
 } from '../dtos';
 import { TypeProcedureService } from 'src/modules/administration/services';
-import { RequirePermissions } from 'src/modules/auth/decorators';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { PaginationDto } from 'src/modules/common';
 import { ReportProcedureService } from '../services';
@@ -23,28 +23,28 @@ export class ReportProceduresController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.SEGMENTS] })
+  @RequirePermission(SystemResource.REPORTS, reportType.SEGMENTS)
   @Post('segments')
   getTotalBySegment(@Body() params: TotalProceduresBySegmentParamsDto) {
     return this.reportService.getTotalBySegment(params);
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.APPLICANT] })
+  @RequirePermission(SystemResource.REPORTS, reportType.APPLICANT)
   @Post('applicant')
   searchProcedureByApplicant(@Body() body: SearchProcedureByApplicantDto, @Query() queryParams: PaginationDto) {
     return this.reportService.searchProcedureByApplicant(body, queryParams);
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.SEARCH] })
+  @RequirePermission(SystemResource.REPORTS, reportType.SEARCH)
   @Post('search')
   searcProcedureByProperties(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
     return this.reportService.searchProcedureByProperties(body, queryParams);
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.EFFICIENCY] })
+  @RequirePermission(SystemResource.REPORTS, reportType.EFFICIENCY)
   @Post('eficiency')
   getProceduresEnficiency(@Body() body: GetProceduresEficiencyParamsDto) {
     return this.reportService.getProceduresEnficiency(body);
@@ -52,7 +52,7 @@ export class ReportProceduresController {
 
   @HttpCode(HttpStatus.OK)
   @Post('location')
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.LOCATION] })
+  @RequirePermission(SystemResource.REPORTS, reportType.LOCATION)
   searchProcedureLocations(@Body() body: SearchProcedureDto, @Query() queryParams: PaginationDto) {
     return this.reportService.searchProcedureCurrentHolders(body, queryParams);
   }

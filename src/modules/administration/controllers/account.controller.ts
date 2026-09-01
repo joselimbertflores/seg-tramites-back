@@ -7,14 +7,13 @@ import {
   OfficerService,
 } from 'src/modules/administration/services';
 import { AssignAccountDto, CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
-import { GetUserRequest, ResourceProtected } from 'src/modules/auth/decorators';
+import { GetUserRequest, RequirePermission } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { IsMongoidPipe } from 'src/modules/common';
 import { RoleService } from '../../users/services';
-import { RoleContext } from '../../users/schemas';
 
 @Controller('accounts')
-@ResourceProtected(SystemResource.ACCOUNTS)
+@RequirePermission(SystemResource.ACCOUNTS)
 export class AccountController {
   constructor(
     private readonly accountService: AccountService,
@@ -71,7 +70,7 @@ export class AccountController {
 
   @Get('roles')
   getRoles() {
-    return this.roleService.getRolesByContext(RoleContext.ACCOUNT);
+    return this.roleService.getAll();
   }
 
   @Patch('reset-password/:accountId')

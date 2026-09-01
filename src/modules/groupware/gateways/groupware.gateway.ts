@@ -14,7 +14,7 @@ import { Model } from 'mongoose';
 
 import { Communication } from '../../communications/schemas';
 import { GroupwareService } from '../groupware.service';
-import { WsRequirePermissions } from '../decorators';
+import { WsRequirePermission } from '../decorators';
 import { WsJwtGuard } from '../guards/ws-jwt.guard';
 import { SystemResource } from '../../auth/constants';
 import { IKickUserData } from '../interfaces';
@@ -85,7 +85,7 @@ export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   @SubscribeMessage('kickUser')
-  @WsRequirePermissions({ resource: SystemResource.GROUPWARE, actions: ['kick'] })
+  @WsRequirePermission(SystemResource.GROUPWARE, 'kick')
   handlekickUser(@MessageBody() { userIds, message }: IKickUserData) {
     const users = userIds.map((id) => this.groupwareService.remove(id)).filter((user) => !!user);
     users.forEach((user) => this.server.to(user.socketIds).emit('userKicked', message));

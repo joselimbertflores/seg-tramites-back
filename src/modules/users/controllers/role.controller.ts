@@ -1,14 +1,14 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
 import { SYSTEM_RESOURCES, SystemResource } from 'src/modules/auth/constants';
-import { ResourceProtected } from 'src/modules/auth/decorators';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { PaginationDto } from 'src/modules/common';
 
 import { CreateRoleDto, UpdateRoleDto } from '../dtos';
 import { RoleService } from '../services';
 
 @Controller('roles')
-@ResourceProtected(SystemResource.ROLES)
+@RequirePermission(SystemResource.ROLES)
 export class RoleController {
   constructor(private readonly roleService: RoleService) {}
 

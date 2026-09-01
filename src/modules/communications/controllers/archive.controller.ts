@@ -1,12 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 
-import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
+import { GetAccountRequest, OnlyAssignedAccount } from 'src/modules/administration/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { CreateArchiveDto, FilterArchiveDto } from '../dtos';
 import { ArchiveService } from '../services';
 
-@AccountProtected([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
+@OnlyAssignedAccount()
+@RequirePermission([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
 @Controller('archives')
 export class ArchiveController {
   constructor(private readonly archiveService: ArchiveService) {}

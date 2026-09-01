@@ -1,13 +1,15 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
-import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
+import { GetAccountRequest, OnlyAssignedAccount } from 'src/modules/administration/decorators';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 import { ProcurementService } from '../services';
 import { CreateProcurementProcedureDto, UpdatedDocumentProcurementDto, UpdateProcurementProcedureDto } from '../dtos';
 
-@AccountProtected(SystemResource.PROCUREMENT)
+@OnlyAssignedAccount()
+@RequirePermission(SystemResource.PROCUREMENT)
 @Controller('procurement')
 export class ProcurementController {
   constructor(private procurementService: ProcurementService) {}

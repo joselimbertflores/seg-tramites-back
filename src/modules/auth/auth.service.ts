@@ -6,17 +6,17 @@ import * as bcrypt from 'bcrypt';
 
 import { AuthDto, UpdateMyUserDto } from './dto';
 
-import { RoleContext, User, Role } from 'src/modules/users/schemas';
-import { Account } from 'src/modules/administration/schemas';
-import { FRONTEND_MENU, SystemResource } from './constants';
+import { User } from 'src/modules/users/schemas';
+import { FRONTEND_MENU } from './constants';
 import { JwtPayload } from './interfaces';
+import { AuthorizationContextService, EffectivePermissions } from './services';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
     @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Account.name) private accountModel: Model<Account>,
+    private authorizationContext: AuthorizationContextService,
   ) {}
 
   async login({ login, password }: AuthDto) {
@@ -34,21 +34,12 @@ export class AuthService {
   }
 
   async checkAuthStatus(user: User) {
-    const account = await this.accountModel
-      .findOne({ user: user._id, officer: { $ne: null } })
-      .populate(['role', 'officer', 'dependencia', 'institution']);
-    const directRole = user.directRole?.context === RoleContext.USER ? user.directRole : null;
-    const accountRole = account?.role?.context === RoleContext.ACCOUNT ? account.role : null;
-    const directPermissions = this.getPermissions(directRole);
-    const accountPermissions = this.getPermissions(accountRole);
+    const { account, permissions } = await this.authorizationContext.resolveUser(user);
     return {
       token: this.generateToken(user),
-      menu: this.getFrontMenu(directRole, accountRole),
-      permissions: {
-        direct: directPermissions,
-        account: accountPermissions,
-      },
-      account: account ?? null,
+      menu: this.getFrontMenu(permissions),
+      permissions,
+      account,
       updatedPassword: user.updatedPassword,
     };
   }
@@ -69,29 +60,13 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  private getPermissions(role?: Role | null) {
-    const permissions = role?.permissions ?? [];
-    return permissions.reduce((result, { actions, resource }) => ({ [resource]: actions, ...result }), {});
-  }
-
-  private getFrontMenu(directRole?: Role | null, accountRole?: Role | null) {
-    const accountMenuResources = new Set([
-      SystemResource.EXTERNAL,
-      SystemResource.INTERNAL,
-      SystemResource.PROCUREMENT,
-      SystemResource.REPORTS,
-      SystemResource.PUBLICATIONS,
-    ]);
-    const permissions = [
-      ...(directRole?.permissions ?? []),
-      ...(accountRole?.permissions.filter(({ resource }) => accountMenuResources.has(resource)) ?? []),
-    ];
+  private getFrontMenu(permissions: EffectivePermissions) {
     return structuredClone(FRONTEND_MENU).filter((menu) => {
       if (!menu.children) {
-        return permissions.some(({ resource }) => menu.requiredResources.includes(resource));
+        return menu.requiredResources.some((resource) => permissions[resource]?.length);
       }
       menu.children = menu.children.filter((submenu) =>
-        permissions.some(({ resource }) => submenu.requiredResources.includes(resource)),
+        submenu.requiredResources.some((resource) => permissions[resource]?.length),
       );
       return menu.children.length > 0;
     });

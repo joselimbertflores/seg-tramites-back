@@ -1,8 +1,8 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 
-import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
+import { GetAccountRequest, OnlyAssignedAccount } from 'src/modules/administration/decorators';
 import { IsMongoidPipe } from 'src/modules/common';
-import { RequirePermissions } from 'src/modules/auth/decorators';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
 
@@ -20,7 +20,7 @@ export class ReportCommunicationsController {
   constructor(private reportService: ReportCommunicationsService) {}
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({ resource: SystemResource.REPORTS, actions: [reportType.UNIT] })
+  @RequirePermission(SystemResource.REPORTS, reportType.UNIT)
   @Post('unit/:dependencyId')
   getTotalByUnit(
     @Param('dependencyId', IsMongoidPipe) dependencyId: string,
@@ -30,7 +30,8 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @AccountProtected(SystemResource.REPORTS, reportType.HISTORY)
+  @OnlyAssignedAccount()
+  @RequirePermission(SystemResource.REPORTS, reportType.HISTORY)
   @Post('history')
   getHistory(
     @GetAccountRequest() account: Account,
@@ -41,33 +42,29 @@ export class ReportCommunicationsController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @AccountProtected(SystemResource.REPORTS, reportType.UNLINK)
+  @OnlyAssignedAccount()
+  @RequirePermission(SystemResource.REPORTS, reportType.UNLINK)
   @Get('unlink')
   getUnlinkData(@GetAccountRequest() account: Account) {
     return this.reportService.getUnlinkData(account);
   }
 
-  @RequirePermissions({
-    resource: SystemResource.ACCOUNTS,
-    actions: ['read'],
-  })
+  @RequirePermission(SystemResource.ACCOUNTS, 'read')
   @Get('tray-status/:accountId')
   getAccountTrayStatus(@Param('accountId') accountId: string) {
     return this.reportService.getAccountTrayStatus(accountId);
   }
 
   @HttpCode(HttpStatus.OK)
-  @AccountProtected(SystemResource.REPORTS, reportType.UNIT_CORRESPONDENCE_STATUS)
+  @OnlyAssignedAccount()
+  @RequirePermission(SystemResource.REPORTS, reportType.UNIT_CORRESPONDENCE_STATUS)
   @Post('correspondence-status')
   getCorrespondenceStatusByUnit(@GetAccountRequest() account: Account, @Body() body: GetCorrespondenceByAccountDto) {
     return this.reportService.getCorrespondenceStatusByUnit(body, account.dependencia._id);
   }
 
   @HttpCode(HttpStatus.OK)
-  @RequirePermissions({
-    resource: SystemResource.REPORTS,
-    actions: [reportType.UNIT_CORRESPONDENCE_STATUS],
-  })
+  @RequirePermission(SystemResource.REPORTS, reportType.UNIT_CORRESPONDENCE_STATUS)
   @Get('inbox/:accountId')
   getCorrespondenceByAccount(
     @Param('accountId', IsMongoidPipe) accountId: string,

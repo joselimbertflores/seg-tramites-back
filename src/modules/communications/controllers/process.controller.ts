@@ -1,13 +1,15 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { IsMongoidPipe } from 'src/modules/common';
 
-import { AccountProtected } from 'src/modules/administration/decorators';
+import { OnlyAssignedAccount } from 'src/modules/administration/decorators';
 import { ProcedureFactoryService } from 'src/modules/procedures/services';
 import { SystemResource } from 'src/modules/auth/constants';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { InboxService } from '../services';
 import { ProcessParamDto } from '../dtos';
 
-@AccountProtected([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
+@OnlyAssignedAccount()
+@RequirePermission([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
 @Controller('process')
 export class ProcessController {
   constructor(private inboxService: InboxService, private procedureFactoryService: ProcedureFactoryService) {}

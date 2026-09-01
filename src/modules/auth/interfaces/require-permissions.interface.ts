@@ -1,7 +1,7 @@
 import { SystemResource } from "../constants";
 
 export interface RequirePermissionsMetadata {
-  resource: SystemResource;
+  resources: SystemResource[];
   actions: string[];
   match?: 'every' | 'some';
 }

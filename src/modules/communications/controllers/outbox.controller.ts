@@ -1,15 +1,17 @@
 import { Body, Controller, Delete, Get, Post, Query } from '@nestjs/common';
 
-import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
+import { GetAccountRequest, OnlyAssignedAccount } from 'src/modules/administration/decorators';
 import { GroupwareGateway } from 'src/modules/groupware/gateways/groupware.gateway';
 import { Account } from 'src/modules/administration/schemas';
 import { SystemResource } from 'src/modules/auth/constants';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { PaginationDto } from 'src/modules/common';
 import { OutboxService } from '../services';
 import { CreateCommunicationDto, ReplyCommunicationDto, SelectedCommunicationsDto } from '../dtos';
 
 @Controller('outbox')
-@AccountProtected([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
+@OnlyAssignedAccount()
+@RequirePermission([SystemResource.EXTERNAL, SystemResource.INTERNAL, SystemResource.PROCUREMENT])
 export class OutboxController {
   constructor(private outboxService: OutboxService, private groupwareGateway: GroupwareGateway) {}
 

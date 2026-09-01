@@ -2,15 +2,16 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Reflector } from '@nestjs/core';
 
-import { RoleContext, User } from 'src/modules/users/schemas';
+import { User } from 'src/modules/users/schemas';
 import { RequirePermissionsMetadata } from 'src/modules/auth/interfaces';
 import { WS_META_PERMISSIONS } from '../decorators/ws-require-permissions.decorator';
+import { AuthorizationContextService } from 'src/modules/auth/services';
 
 @Injectable()
 export class WsPermissionGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector, private authorizationContext: AuthorizationContextService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const client = context.switchToWs().getClient();
 
     const user: User = client.data.user;
@@ -21,22 +22,9 @@ export class WsPermissionGuard implements CanActivate {
 
     if (!metadata) return true;
 
-    const { resource, actions, match = 'every' } = metadata;
-
-    if (!user.directRole || user.directRole.context !== RoleContext.USER) {
-      throw new WsException(`Access denied: Missing direct role`);
-    }
-    const permissions = user.directRole.permissions.find((per) => per.resource === resource);
-
-    if (!permissions) {
-      throw new WsException(`Access denied: Missing permissions for ${resource}`);
-    }
-
-    const hasRequiredActions = actions[match]((action) => permissions.actions.includes(action));
-
-    if (!hasRequiredActions) {
-      const mode = match === 'some' ? 'one of' : 'all of';
-      throw new WsException(`Access denied: Missing required actions (${mode}): ${actions.join(', ')}`);
+    const authorization = await this.authorizationContext.resolveUser(user);
+    if (!this.authorizationContext.hasPermission(authorization, metadata)) {
+      throw new WsException('Access denied: Missing required permission');
     }
     return true;
   }

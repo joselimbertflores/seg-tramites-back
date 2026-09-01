@@ -13,7 +13,7 @@ import { getAccountAssignmentReport } from 'src/modules/printer/templates';
 import { PrinterService } from 'src/modules/printer/printer.service';
 import { MailService } from 'src/modules/notifications/services/mail.service';
 import { RoleService, UserService } from 'src/modules/users/services';
-import { RoleContext, User } from 'src/modules/users/schemas';
+import { User } from 'src/modules/users/schemas';
 import { Account, Dependency, Officer } from '../schemas';
 
 @Injectable()
@@ -77,7 +77,7 @@ export class AccountService {
   async create(account: CreateAccountDto) {
     const [dependency, role] = await Promise.all([
       this.requireDependency(account.dependencyId),
-      this.roleService.requireContext(account.roleId, RoleContext.ACCOUNT),
+      this.roleService.requireRole(account.roleId),
     ]);
 
     try {
@@ -104,7 +104,7 @@ export class AccountService {
     const { dependencyId, roleId, ...properties } = account;
     const [dependency, role] = await Promise.all([
       dependencyId ? this.requireDependency(dependencyId) : null,
-      roleId ? this.roleService.requireContext(roleId, RoleContext.ACCOUNT) : null,
+      roleId ? this.roleService.requireRole(roleId) : null,
     ]);
     const update = {
       ...properties,

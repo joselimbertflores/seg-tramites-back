@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, FilterQuery, Model } from 'mongoose';
+import { ClientSession, FilterQuery, Model, Types } from 'mongoose';
 
 import { CreateRoleDto, UpdateRoleDto } from '../dtos';
 import { PaginationDto } from 'src/modules/common';
-import { areValidPermissions, Role, RoleContext } from '../schemas';
+import { areValidPermissions, Role } from '../schemas';
 
 @Injectable()
 export class RoleService {
@@ -34,11 +34,8 @@ export class RoleService {
 
   async update(id: string, role: UpdateRoleDto) {
     if (role.permissions) this.validatePermissions(role.permissions);
-    const current = await this.roleModel.findById(id);
+    const current = await this.roleModel.exists({ _id: id });
     if (!current) throw new NotFoundException(`Role ${id} not found`);
-    if (role.context && role.context !== current.context) {
-      throw new BadRequestException('Role context cannot be changed after creation');
-    }
     try {
       const updated = await this.roleModel.findByIdAndUpdate(id, role, { new: true, runValidators: true });
       return updated;
@@ -48,17 +45,26 @@ export class RoleService {
     }
   }
 
-  async getRolesByContext(context: RoleContext) {
-    return await this.roleModel.find({ context });
+  async getAll() {
+    return await this.roleModel.find().sort({ name: 1 });
   }
 
-  async requireContext(id: string, context: RoleContext, session?: ClientSession) {
+  async requireRole(id: string, session?: ClientSession) {
     const role = await this.roleModel.findById(id, null, session ? { session } : undefined);
     if (!role) throw new NotFoundException(`Role ${id} not found`);
-    if (role.context !== context) {
-      throw new BadRequestException(`Role ${role.name} cannot be assigned in ${context} context`);
-    }
     return role;
+  }
+
+  async requireRoles(ids: string[], session?: ClientSession) {
+    if (!ids.length) return [];
+    const uniqueIds = [...new Set(ids)];
+    const roles = await this.roleModel.find(
+      { _id: { $in: uniqueIds.map((id) => new Types.ObjectId(id)) } },
+      null,
+      session ? { session } : undefined,
+    );
+    if (roles.length !== uniqueIds.length) throw new NotFoundException('One or more roles do not exist');
+    return roles;
   }
 
   private validatePermissions(permissions: CreateRoleDto['permissions']) {

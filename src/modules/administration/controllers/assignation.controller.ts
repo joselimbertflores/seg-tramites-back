@@ -1,9 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
-import { GetAccountRequest, onlyAssignedAccount } from 'src/modules/administration/decorators';
+import { GetAccountRequest, OnlyAssignedAccount } from 'src/modules/administration/decorators';
 import { Account } from '../schemas';
 
 @Controller('assignation')
-@onlyAssignedAccount()
+@OnlyAssignedAccount()
 export class AssigationController {
   // * Get current active account
   @Get()

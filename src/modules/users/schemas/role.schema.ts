@@ -2,11 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { SYSTEM_RESOURCES, SystemResource } from 'src/modules/auth/constants';
 
-export enum RoleContext {
-  USER = 'USER',
-  ACCOUNT = 'ACCOUNT',
-}
-
 const validActionsByResource = new Map(
   SYSTEM_RESOURCES.map(({ value, actions }) => [value, new Set(actions.map(({ value: action }) => action))]),
 );
@@ -44,9 +39,6 @@ export class Role extends Document {
     uppercase: true,
   })
   name: string;
-
-  @Prop({ type: String, enum: RoleContext, required: true })
-  context: RoleContext;
 
   @Prop({
     type: [PermissionSchema],

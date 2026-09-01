@@ -6,10 +6,12 @@ import { SystemResource } from 'src/modules/auth/constants';
 import { Account } from 'src/modules/administration/schemas';
 
 import { CreateInternalProcedureDto, UpdateInternalProcedureDto } from '../dtos';
-import { AccountProtected, GetAccountRequest } from 'src/modules/administration/decorators';
+import { GetAccountRequest, OnlyAssignedAccount } from 'src/modules/administration/decorators';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { IsMongoidPipe, PaginationDto } from 'src/modules/common';
 
-@AccountProtected(SystemResource.INTERNAL)
+@OnlyAssignedAccount()
+@RequirePermission(SystemResource.INTERNAL)
 @Controller('internal')
 export class InternalController {
   constructor(private readonly accountService: AccountService, private readonly internalService: InternalService) {}

@@ -1,23 +1,20 @@
 import { config } from 'dotenv';
-import mongoose, { Types } from 'mongoose';
+import mongoose, { ClientSession, Types } from 'mongoose';
 import { SYSTEM_RESOURCES } from '../src/modules/auth/constants';
 
 config();
 
-type RoleContext = 'USER' | 'ACCOUNT';
-
 interface LegacyRole {
   _id: Types.ObjectId;
   name: string;
-  context?: RoleContext;
   permissions?: { resource: string; actions: string[] }[];
 }
 
 interface LegacyUser {
   _id: Types.ObjectId;
   fullname?: string;
-  role?: Types.ObjectId;
-  directRole?: Types.ObjectId;
+  role?: Types.ObjectId | null;
+  roles?: Types.ObjectId[];
 }
 
 interface LegacyOfficer {
@@ -35,22 +32,12 @@ interface LegacyAccount {
 }
 
 const dryRun = process.argv.includes('--dry-run');
-const configuredAdminNames = (process.env.MIGRATION_ADMIN_ROLES ?? 'ADMIN,ADMINISTRADOR,ADMINISTRATOR')
-  .split(',')
-  .map(normalize)
-  .filter(Boolean);
-const adminRoleNames = new Set(configuredAdminNames);
-const operationalResources = new Set(['external', 'internal', 'procurement']);
-const administrativeResources = new Set([
-  'institutions',
-  'dependencies',
-  'types-procedures',
-  'officers',
-  'accounts',
-  'user',
-  'roles',
-  'groupware',
-]);
+const vacantUserNames = new Set(
+  (process.env.MIGRATION_VACANT_USERS ?? 'SIN ASIGNAR,SIN FUNCIONARIO,VACANTE,ACEFALO')
+    .split(',')
+    .map(normalize)
+    .filter(Boolean),
+);
 const validActionsByResource = new Map(
   SYSTEM_RESOURCES.map(({ value, actions }) => [value as string, new Set(actions.map(({ value: action }) => action))]),
 );
@@ -64,23 +51,23 @@ function normalize(value?: string) {
     .toUpperCase();
 }
 
-function canonicalRoleName(value?: string) {
-  return (value ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
-}
-
 function id(value?: Types.ObjectId | null) {
   return value ? value.toString() : null;
 }
 
-function groupDuplicates(values: { ownerId: string; value: string | null }[]) {
+function isArtificialVacancy(user?: LegacyUser | null) {
+  return !!user && vacantUserNames.has(normalize(user.fullname));
+}
+
+function groupDuplicates(values: { accountId: string; value: string | null }[]) {
   const grouped = new Map<string, string[]>();
-  for (const { ownerId, value } of values) {
+  for (const { accountId, value } of values) {
     if (!value) continue;
-    grouped.set(value, [...(grouped.get(value) ?? []), ownerId]);
+    grouped.set(value, [...(grouped.get(value) ?? []), accountId]);
   }
   return [...grouped.entries()]
-    .filter(([, ownerIds]) => ownerIds.length > 1)
-    .map(([value, ownerIds]) => ({ value, accountIds: ownerIds }));
+    .filter(([, accountIds]) => accountIds.length > 1)
+    .map(([value, accountIds]) => ({ value, accountIds }));
 }
 
 async function main() {
@@ -112,10 +99,12 @@ async function main() {
   }
 
   const missingReferences: object[] = [];
-  const halfAssignedAccounts: object[] = [];
+  const uninterpretablePartialAccounts: object[] = [];
   const legacyVacantAccounts: object[] = [];
   const fullnameMismatches: object[] = [];
-  const accountsWithoutOperationalRole: object[] = [];
+  const accountsWithoutRole: object[] = [];
+  const accountRoleConflicts: object[] = [];
+  const usedRoleIds = new Set<string>();
 
   for (const account of accounts) {
     const accountId = id(account._id);
@@ -124,6 +113,7 @@ async function main() {
     const accountRoleId = id(account.role);
     const user = userId ? usersById.get(userId) : null;
     const officer = officerId ? officersById.get(officerId) : null;
+    const legacyUserRoleId = id(user?.role);
 
     if (userId && !user) missingReferences.push({ accountId, property: 'user', reference: userId });
     if (officerId && !officer) missingReferences.push({ accountId, property: 'officer', reference: officerId });
@@ -132,11 +122,10 @@ async function main() {
     }
 
     if (Boolean(userId) !== Boolean(officerId)) {
-      const artificialVacancy = user && !officerId && normalize(user.fullname) === 'SIN ASIGNAR';
-      if (artificialVacancy) {
-        legacyVacantAccounts.push({ accountId, userId, legacyRoleId: id(user.role) });
+      if (user && !officerId && isArtificialVacancy(user)) {
+        legacyVacantAccounts.push({ accountId, userId, legacyRoleId: legacyUserRoleId, accountRoleId });
       } else {
-        halfAssignedAccounts.push({ accountId, userId, officerId });
+        uninterpretablePartialAccounts.push({ accountId, userId, officerId });
       }
     }
 
@@ -147,28 +136,45 @@ async function main() {
       }
     }
 
-    const candidateRoleId = accountRoleId ?? id(user?.role);
-    if (!candidateRoleId || !rolesById.has(candidateRoleId)) {
-      accountsWithoutOperationalRole.push({ accountId, accountRoleId, legacyUserRoleId: id(user?.role) });
+    if (accountRoleId && legacyUserRoleId && accountRoleId !== legacyUserRoleId) {
+      accountRoleConflicts.push({ accountId, userId, accountRoleId, legacyUserRoleId });
+    }
+
+    const roleId = accountRoleId ?? legacyUserRoleId;
+    if (!roleId || !rolesById.has(roleId)) {
+      accountsWithoutRole.push({ accountId, accountRoleId, legacyUserRoleId });
+    } else {
+      usedRoleIds.add(roleId);
     }
   }
 
+  const usersWithConflictingRoleModels: object[] = [];
   for (const user of users) {
-    const directRoleId = id(user.directRole);
+    const userId = id(user._id);
     const legacyRoleId = id(user.role);
-    if (directRoleId && !rolesById.has(directRoleId)) {
-      missingReferences.push({ userId: id(user._id), property: 'directRole', reference: directRoleId });
-    }
+    const currentRoleIds = (user.roles ?? []).map((roleId) => id(roleId));
+
     if (legacyRoleId && !rolesById.has(legacyRoleId)) {
-      missingReferences.push({ userId: id(user._id), property: 'role', reference: legacyRoleId });
+      missingReferences.push({ userId, property: 'role', reference: legacyRoleId });
     }
+    for (const roleId of currentRoleIds) {
+      if (roleId && !rolesById.has(roleId)) {
+        missingReferences.push({ userId, property: 'roles', reference: roleId });
+      }
+      if (roleId) usedRoleIds.add(roleId);
+    }
+    if (legacyRoleId && currentRoleIds.length) {
+      usersWithConflictingRoleModels.push({ userId, legacyRoleId, roles: currentRoleIds });
+    }
+
+    if (!accountsByUser.has(userId) && legacyRoleId) usedRoleIds.add(legacyRoleId);
   }
 
   const duplicateUserAssignments = groupDuplicates(
-    accounts.map((account) => ({ ownerId: id(account._id), value: id(account.user) })),
+    accounts.map((account) => ({ accountId: id(account._id), value: id(account.user) })),
   );
   const duplicateOfficerAssignments = groupDuplicates(
-    accounts.map((account) => ({ ownerId: id(account._id), value: id(account.officer) })),
+    accounts.map((account) => ({ accountId: id(account._id), value: id(account.officer) })),
   );
   const usersWithoutAccount = users
     .filter((user) => !accountsByUser.has(id(user._id)))
@@ -176,15 +182,15 @@ async function main() {
       userId: id(user._id),
       fullname: user.fullname,
       legacyRoleId: id(user.role),
-      directRoleId: id(user.directRole),
+      roles: (user.roles ?? []).map((roleId) => id(roleId)),
     }));
 
   const duplicateRoleNames = [
     ...roles
-      .reduce((map, role) => {
+      .reduce((grouped, role) => {
         const name = normalize(role.name);
-        map.set(name, [...(map.get(name) ?? []), id(role._id)]);
-        return map;
+        grouped.set(name, [...(grouped.get(name) ?? []), id(role._id)]);
+        return grouped;
       }, new Map<string, string[]>())
       .entries(),
   ]
@@ -208,198 +214,148 @@ async function main() {
         : null;
     })
     .filter(Boolean);
-
-  const inferredContexts = new Map<string, Set<RoleContext>>();
-  const accountUsageByRole = new Map<string, string[]>();
-  const userUsageByRole = new Map<string, string[]>();
-  const infer = (roleId: string | null, context: RoleContext) => {
-    if (!roleId || !rolesById.has(roleId)) return;
-    inferredContexts.set(roleId, new Set([...(inferredContexts.get(roleId) ?? []), context]));
-  };
-
-  for (const role of roles) if (role.context) infer(id(role._id), role.context);
-  for (const account of accounts) {
-    const accountRoleId = id(account.role);
-    const user = account.user ? usersById.get(id(account.user)) : null;
-    const usedRoleId = accountRoleId ?? id(user?.role);
-    infer(usedRoleId, 'ACCOUNT');
-    if (usedRoleId) {
-      accountUsageByRole.set(usedRoleId, [...(accountUsageByRole.get(usedRoleId) ?? []), id(account._id)]);
-    }
-  }
-  for (const user of users) {
-    const directRoleId = id(user.directRole);
-    infer(directRoleId, 'USER');
-    if (directRoleId) userUsageByRole.set(directRoleId, [...(userUsageByRole.get(directRoleId) ?? []), id(user._id)]);
-    const legacyRole = user.role ? rolesById.get(id(user.role)) : null;
-    if (legacyRole && adminRoleNames.has(normalize(legacyRole.name))) {
-      const legacyRoleId = id(legacyRole._id);
-      infer(legacyRoleId, 'USER');
-      userUsageByRole.set(legacyRoleId, [...(userUsageByRole.get(legacyRoleId) ?? []), id(user._id)]);
-    }
-  }
-
-  for (const role of roles) {
-    const roleId = id(role._id);
-    if (inferredContexts.has(roleId)) continue;
-    const resources = new Set((role.permissions ?? []).map(({ resource }) => resource));
-    const hasOperational = [...resources].some((resource) => operationalResources.has(resource));
-    const hasAdministrative = [...resources].some((resource) => administrativeResources.has(resource));
-    if (adminRoleNames.has(normalize(role.name)) || (hasAdministrative && !hasOperational)) infer(roleId, 'USER');
-    else if (hasOperational && !hasAdministrative) infer(roleId, 'ACCOUNT');
-  }
-
-  const ambiguousRoleUsage = [...inferredContexts.entries()]
-    .filter(([, contexts]) => contexts.size > 1)
-    .map(([roleId, contexts]) => ({
-      roleId,
-      roleName: rolesById.get(roleId)?.name,
-      contexts: [...contexts],
-      accountIds: accountUsageByRole.get(roleId) ?? [],
-      userIds: userUsageByRole.get(roleId) ?? [],
-    }));
-  const unclassifiedRoles = roles
-    .filter((role) => !inferredContexts.has(id(role._id)))
-    .map((role) => ({
-      roleId: id(role._id),
-      roleName: role.name,
-      accountIds: accountUsageByRole.get(id(role._id)) ?? [],
-      userIds: userUsageByRole.get(id(role._id)) ?? [],
-    }));
-  const contextConflicts = roles
-    .filter(
-      (role) =>
-        role.context && inferredContexts.get(id(role._id)) && !inferredContexts.get(id(role._id)).has(role.context),
-    )
-    .map((role) => ({
-      roleId: id(role._id),
-      roleName: role.name,
-      stored: role.context,
-      inferred: [...inferredContexts.get(id(role._id))],
-    }));
-  const mixedPermissionRoles = roles
-    .map((role) => {
-      const resources = new Set((role.permissions ?? []).map(({ resource }) => resource));
-      const hasOperational = [...resources].some((resource) => operationalResources.has(resource));
-      const hasAdministrative = [...resources].some((resource) => administrativeResources.has(resource));
-      return hasOperational && hasAdministrative
-        ? {
-            roleId: id(role._id),
-            roleName: role.name,
-            resources: [...resources],
-            inferredContexts: [...(inferredContexts.get(id(role._id)) ?? [])],
-          }
-        : null;
-    })
-    .filter(Boolean);
-
-  const report = {
-    mode: dryRun ? 'dry-run' : 'apply',
-    totals: { users: users.length, roles: roles.length, accounts: accounts.length, officers: officers.length },
+  const unusedRoles = roles
+    .filter((role) => !usedRoleIds.has(id(role._id)))
+    .map((role) => ({ roleId: id(role._id), roleName: role.name }));
+  const blockers = {
     missingReferences,
     duplicateUserAssignments,
     duplicateOfficerAssignments,
-    halfAssignedAccounts,
-    legacyVacantAccounts,
-    usersWithoutAccount,
-    fullnameMismatches,
-    accountsWithoutOperationalRole,
+    uninterpretablePartialAccounts,
+    accountsWithoutRole,
+    accountRoleConflicts,
     duplicateRoleNames,
-    invalidRolePermissions,
-    ambiguousRoleUsage,
-    contextConflicts,
-    unclassifiedRoles,
-    mixedPermissionRoles,
+    usersWithConflictingRoleModels,
+  };
+  const blockerCount = Object.values(blockers).reduce((total, findings) => total + findings.length, 0);
+  const report = {
+    mode: dryRun ? 'dry-run' : 'apply',
+    totals: { users: users.length, roles: roles.length, accounts: accounts.length, officers: officers.length },
+    blockerCount,
+    findingCounts: {
+      legacyVacantAccounts: legacyVacantAccounts.length,
+      usersWithoutAccount: usersWithoutAccount.length,
+      fullnameMismatches: fullnameMismatches.length,
+      invalidRolePermissions: invalidRolePermissions.length,
+      unusedRoles: unusedRoles.length,
+    },
+    blockers,
+    migrationPreview: {
+      legacyVacantAccounts,
+      usersWithoutAccount,
+    },
+    warnings: {
+      fullnameMismatches,
+      invalidRolePermissions,
+      unusedRoles,
+    },
   };
 
   console.log(JSON.stringify(report, null, 2));
 
-  const blockers = [
-    ...missingReferences,
-    ...duplicateUserAssignments,
-    ...duplicateOfficerAssignments,
-    ...halfAssignedAccounts,
-    ...fullnameMismatches,
-    ...accountsWithoutOperationalRole,
-    ...duplicateRoleNames,
-    ...invalidRolePermissions,
-    ...ambiguousRoleUsage,
-    ...contextConflicts,
-    ...unclassifiedRoles,
-  ];
-
-  if (blockers.length > 0) {
+  if (blockerCount > 0) {
     process.exitCode = 2;
-    if (!dryRun) throw new Error(`Migration stopped: ${blockers.length} blocking findings require manual review`);
+    if (!dryRun) throw new Error(`Migration stopped: ${blockerCount} blocking findings require manual review`);
     return;
   }
   if (dryRun) return;
 
-  const roleContext = new Map<string, RoleContext>(
-    [...inferredContexts.entries()].map(([roleId, contexts]) => [roleId, [...contexts][0]]),
-  );
-  const session = await mongoose.connection.startSession();
-  try {
-    session.startTransaction();
-    const roleOperations = roles.map((role) => ({
+  const accountRoleOperations = accounts.map((account) => {
+    const user = account.user ? usersById.get(id(account.user)) : null;
+    const role = account.role ?? user?.role;
+    return {
       updateOne: {
-        filter: { _id: role._id },
-        update: { $set: { name: canonicalRoleName(role.name), context: roleContext.get(id(role._id)) } },
+        filter: { _id: account._id },
+        update: { $set: { role } },
+      },
+    };
+  });
+  const userOperations = users.map((user) => {
+    const hasLegacyRole = !!user.role;
+    const hasAccount = accountsByUser.has(id(user._id));
+    const shouldInitializeRoles = hasLegacyRole || !Array.isArray(user.roles);
+    const roles = hasLegacyRole ? (hasAccount ? [] : [user.role]) : (user.roles ?? []);
+    return {
+      updateOne: {
+        filter: { _id: user._id },
+        update: {
+          ...(shouldInitializeRoles ? { $set: { roles } } : {}),
+          $unset: { role: '' as const },
+        },
+      },
+    };
+  });
+  const vacancyOperations = accounts
+    .filter((account) => {
+      const user = account.user ? usersById.get(id(account.user)) : null;
+      return !!user && !account.officer && isArtificialVacancy(user);
+    })
+    .map((account) => ({
+      updateOne: {
+        filter: { _id: account._id },
+        update: { $set: { user: null, officer: null } },
       },
     }));
-    const accountOperations = accounts.map((account) => {
-      const user = account.user ? usersById.get(id(account.user)) : null;
-      const roleId = account.role ?? user?.role;
-      const isLegacyVacancy = user && !account.officer && normalize(user.fullname) === 'SIN ASIGNAR';
-      return {
-        updateOne: {
-          filter: { _id: account._id },
-          update: {
-            $set: {
-              role: roleId,
-              ...(isLegacyVacancy ? { user: null, officer: null } : {}),
-            },
-          },
-        },
-      };
-    });
-    const userOperations = users
-      .filter((user) => user.role)
-      .map((user) => {
-        const legacyRole = rolesById.get(id(user.role));
-        const setDirectRole = legacyRole && roleContext.get(id(legacyRole._id)) === 'USER' && !user.directRole;
-        return {
-          updateOne: {
-            filter: { _id: user._id },
-            update: {
-              ...(setDirectRole ? { $set: { directRole: user.role } } : {}),
-              $unset: { role: '' },
-            },
-          },
-        };
-      });
 
-    if (roleOperations.length) await rolesCollection.bulkWrite(roleOperations as any[], { session });
-    if (accountOperations.length) await accountsCollection.bulkWrite(accountOperations as any[], { session });
-    if (userOperations.length) await usersCollection.bulkWrite(userOperations as any[], { session });
-    await session.commitTransaction();
-  } catch (error) {
-    if (session.inTransaction()) await session.abortTransaction();
-    throw error;
-  } finally {
-    await session.endSession();
+  const applyDataChanges = async (session?: ClientSession) => {
+    const options = session ? { session } : undefined;
+    if (accountRoleOperations.length) await accountsCollection.bulkWrite(accountRoleOperations, options);
+    if (userOperations.length) await usersCollection.bulkWrite(userOperations, options);
+    if (vacancyOperations.length) await accountsCollection.bulkWrite(vacancyOperations, options);
+  };
+
+  const hello = await db.admin().command({ hello: 1 });
+  const supportsTransactions = Boolean(hello.setName || hello.msg === 'isdbgrid');
+  if (supportsTransactions) {
+    const session = await mongoose.connection.startSession();
+    try {
+      await session.withTransaction(() => applyDataChanges(session));
+    } finally {
+      await session.endSession();
+    }
+  } else {
+    console.warn('MongoDB standalone detected: applying prevalidated idempotent bulk operations without a transaction.');
+    await applyDataChanges();
   }
 
-  await accountsCollection.createIndex(
+  await ensureUniqueIndex(
+    accountsCollection,
     { user: 1 },
-    { name: 'user_1', unique: true, partialFilterExpression: { user: { $type: 'objectId' } } },
+    'user_1',
+    { user: { $type: 'objectId' } },
   );
-  await accountsCollection.createIndex(
+  await ensureUniqueIndex(
+    accountsCollection,
     { officer: 1 },
-    { name: 'officer_1', unique: true, partialFilterExpression: { officer: { $type: 'objectId' } } },
+    'officer_1',
+    { officer: { $type: 'objectId' } },
   );
-  await rolesCollection.createIndex({ name: 1 }, { name: 'name_1', unique: true });
+  await ensureUniqueIndex(rolesCollection, { name: 1 }, 'name_1');
   console.log('Migration applied successfully. Account and Role unique indexes are active.');
+}
+
+async function ensureUniqueIndex<T extends mongoose.mongo.Document>(
+  collection: mongoose.mongo.Collection<T>,
+  key: Record<string, 1>,
+  name: string,
+  partialFilterExpression?: Record<string, object>,
+) {
+  const indexes = await collection.listIndexes().toArray();
+  const matchingIndexes = indexes.filter((index) => JSON.stringify(index.key) === JSON.stringify(key));
+  const expectedPartial = JSON.stringify(partialFilterExpression ?? null);
+  const current = matchingIndexes.find(
+    (index) => index.unique && JSON.stringify(index.partialFilterExpression ?? null) === expectedPartial,
+  );
+  if (current?.name === name) return;
+
+  for (const index of matchingIndexes) {
+    if (index.name && index.name !== '_id_') await collection.dropIndex(index.name);
+  }
+  await collection.createIndex(key, {
+    name,
+    unique: true,
+    ...(partialFilterExpression && { partialFilterExpression }),
+  });
 }
 
 main()

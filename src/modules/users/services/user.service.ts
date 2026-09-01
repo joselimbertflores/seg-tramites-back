@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { generatePassword } from 'src/helpers';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
-import { RoleContext, User } from '../schemas';
+import { User } from '../schemas';
 import { RoleService } from './role.service';
 
 @Injectable()
@@ -18,16 +18,14 @@ export class UserService {
       ...(term && { fullname: new RegExp(term, 'i') }),
     };
     const [users, length] = await Promise.all([
-      this.userModel.find(query).populate('directRole').skip(offset).limit(limit).sort({ _id: -1 }),
+      this.userModel.find(query).populate('roles').skip(offset).limit(limit).sort({ _id: -1 }),
       this.userModel.count(query),
     ]);
     return { users: users.map((user) => this.plainUser(user)), length };
   }
 
   async create(userDto: CreateUserDto, session?: ClientSession) {
-    if (userDto.directRole) {
-      await this.roleService.requireContext(userDto.directRole, RoleContext.USER, session);
-    }
+    if (userDto.roles) await this.roleService.requireRoles(userDto.roles, session);
     const password = generatePassword();
     const encryptPassword = this.encryptPassword(password);
 
@@ -54,10 +52,10 @@ export class UserService {
     const userDb = await this.userModel.findById(id);
     if (!userDb) throw new NotFoundException(`User ${id} not found`);
 
-    if (userDto.directRole) await this.roleService.requireContext(userDto.directRole, RoleContext.USER);
+    if (userDto.roles) await this.roleService.requireRoles(userDto.roles);
 
     try {
-      const updatedUser = await this.userModel.findByIdAndUpdate(id, userDto, { new: true });
+      const updatedUser = await this.userModel.findByIdAndUpdate(id, userDto, { new: true }).populate('roles');
       return this.plainUser(updatedUser);
     } catch (error) {
       if (error.code === 11000) {

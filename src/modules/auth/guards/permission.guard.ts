@@ -1,43 +1,36 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { RoleContext, User } from 'src/modules/users/schemas';
 import { META_PERMISSIONS } from '../decorators';
 import { RequirePermissionsMetadata } from '../interfaces';
+import { AuthorizationContextService } from '../services';
+
+const methodToActionMap: Record<string, string> = {
+  PATCH: 'update',
+  POST: 'create',
+  GET: 'read',
+  PUT: 'update',
+  DELETE: 'delete',
+};
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector, private authorizationContext: AuthorizationContextService) {}
 
-  canActivate(context: ExecutionContext): boolean {
-    const data: RequirePermissionsMetadata | undefined = this.reflector.get(META_PERMISSIONS, context.getHandler());
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const data = this.reflector.getAllAndOverride<RequirePermissionsMetadata>(META_PERMISSIONS, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
     if (!data) return true;
-    const { resource, actions, match = 'every' } = data;
 
-    const req = context.switchToHttp().getRequest();
-    const user: User = req['user'];
+    const request = context.switchToHttp().getRequest();
+    const actions = data.actions.length ? data.actions : [methodToActionMap[request.method]];
+    const requirement = { ...data, actions: actions.filter(Boolean) };
+    const authorization = await this.authorizationContext.resolveRequest(request);
 
-    if (!user) throw new InternalServerErrorException('ReportGuard error, no user in request');
-
-    if (!user.directRole || user.directRole.context !== RoleContext.USER) {
-      throw new ForbiddenException(`Access denied: Missing direct role`);
-    }
-    const resourcePermissions = user.directRole.permissions.find((role) => role.resource === resource);
-    if (!resourcePermissions) {
-      throw new ForbiddenException(`Access denied: Missing permissions for ${resource}`);
-    }
-
-    const hasRequiredActions = actions[match]((action) => resourcePermissions.actions.includes(action));
-
-    if (!hasRequiredActions) {
-      const mode = data.match === 'some' ? 'one of' : 'all of';
-      throw new ForbiddenException(`Access denied: Missing required actions (${mode}): ${data.actions.join(', ')}`);
+    if (!requirement.actions.length || !this.authorizationContext.hasPermission(authorization, requirement)) {
+      throw new ForbiddenException('No tiene los permisos necesarios para realizar esta acción');
     }
     return true;
   }

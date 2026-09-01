@@ -1,15 +1,14 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 
-import { ResourceProtected } from 'src/modules/auth/decorators';
+import { RequirePermission } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 import { PaginationDto } from 'src/modules/common';
 
 import { RoleService, UserService } from '../services';
 import { CreateUserDto, UpdateUserDto } from '../dtos';
-import { RoleContext } from '../schemas';
 
 @Controller('user')
-@ResourceProtected(SystemResource.USERS)
+@RequirePermission(SystemResource.USERS)
 export class UserController {
   constructor(private userService: UserService, private roleService: RoleService) {}
 
@@ -30,6 +29,6 @@ export class UserController {
 
   @Get('roles')
   getRoles() {
-    return this.roleService.getRolesByContext(RoleContext.USER);
+    return this.roleService.getAll();
   }
 }
