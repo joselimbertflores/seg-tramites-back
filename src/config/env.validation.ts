@@ -1,5 +1,5 @@
 import { plainToInstance } from 'class-transformer';
-import { IsNumber, IsString, Min, validateSync } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min, validateSync } from 'class-validator';
 
 export class EnvVars {
   @IsString()
@@ -32,6 +32,22 @@ export class EnvVars {
 
   @IsString()
   MAIL_PASSWORD: string;
+
+  @IsString()
+  @IsOptional()
+  IDENTITY_HUB_PUBLIC_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  IDENTITY_HUB_INTERNAL_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  OAUTH_CLIENT_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  OAUTH_CLIENT_SECRET?: string;
 }
 
 export function validate(config: Record<string, unknown>): EnvVars {

@@ -34,33 +34,6 @@ export class OfficerService {
         preserveNullAndEmptyArrays: true,
       });
   }
-  async searchOfficersWithoutAccount(text: string, limit = 5) {
-    const regex = new RegExp(text, 'i');
-    return await this.officerModel
-      .aggregate()
-      .addFields({
-        fullname: {
-          $concat: [
-            { $ifNull: ['$nombre', ''] },
-            ' ',
-            { $ifNull: ['$paterno', ''] },
-            ' ',
-            { $ifNull: ['$materno', ''] },
-          ],
-        },
-      })
-      .match({ fullname: regex, activo: true })
-      .lookup({
-        from: 'cuentas',
-        localField: '_id',
-        foreignField: 'officer',
-        as: 'account',
-      })
-      .match({ account: { $size: 0 } })
-      .project({ account: 0, fullname: 0 })
-      .limit(limit);
-  }
-
   async findAll({ limit, offset, term }: PaginationDto) {
     const regex = new RegExp(term, 'i');
     const dataPaginated = await this.officerModel

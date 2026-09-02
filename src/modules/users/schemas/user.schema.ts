@@ -6,22 +6,29 @@ import { Role } from './role.schema';
 export class User extends Document {
   @Prop({
     type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+  })
+  externalKey?: string;
+
+  @Prop({
+    type: String,
     required: true,
   })
   fullname: string;
 
   @Prop({
     type: String,
-    required: true,
     unique: true,
+    sparse: true,
   })
-  login: string;
+  login?: string;
 
   @Prop({
     type: String,
-    required: true,
   })
-  password: string;
+  password?: string;
 
   @Prop({
     type: [mongoose.Schema.Types.ObjectId],

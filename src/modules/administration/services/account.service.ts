@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  BadGatewayException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -8,12 +9,16 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { FilterQuery, isValidObjectId, Model, Types } from 'mongoose';
 
-import { AssignAccountDto, CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
+import { CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
 import { getAccountAssignmentReport } from 'src/modules/printer/templates';
 import { PrinterService } from 'src/modules/printer/printer.service';
 import { MailService } from 'src/modules/notifications/services/mail.service';
-import { RoleService, UserService } from 'src/modules/users/services';
-import { User } from 'src/modules/users/schemas';
+import {
+  IdentityHubAssignableUser,
+  IdentityHubUsersClientService,
+  RoleService,
+  UserService,
+} from 'src/modules/users/services';
 import { Account, Dependency, Officer } from '../schemas';
 
 @Injectable()
@@ -23,11 +28,11 @@ export class AccountService {
     @InjectModel(Officer.name) private officerModel: Model<Officer>,
     @InjectModel(Account.name) private accountModel: Model<Account>,
     @InjectModel(Dependency.name) private dependencyModel: Model<Dependency>,
-    @InjectModel(User.name) private userModel: Model<User>,
     private printerService: PrinterService,
     private userService: UserService,
     private roleService: RoleService,
     private mailService: MailService,
+    private identityHubUsersClient: IdentityHubUsersClientService,
   ) {}
 
   async findAll(filterParams: FilterAccountDto) {
@@ -67,6 +72,7 @@ export class AccountService {
     const accounts = data[0].paginatedResults;
     await this.accountModel.populate(accounts, [
       { path: 'dependencia' },
+      { path: 'institution' },
       { path: 'user', select: '-password' },
       { path: 'role' },
     ]);
@@ -75,118 +81,100 @@ export class AccountService {
   }
 
   async create(account: CreateAccountDto) {
+    const { assigneeExternalKey, ...accountProperties } = account;
     const [dependency, role] = await Promise.all([
       this.requireDependency(account.dependencyId),
       this.roleService.requireRole(account.roleId),
     ]);
+    const identity = assigneeExternalKey ? await this.requireIdentityUser(assigneeExternalKey) : null;
 
-    try {
-      const createdAccount = await this.accountModel.create({
-        user: null,
-        officer: null,
-        role,
-        dependencia: dependency,
-        institution: dependency.institucion,
-        jobtitle: account.jobtitle,
-        isVisible: account.isVisible,
-        employmentType: account.employmentType,
-      });
-      return await this.populateAccount(createdAccount);
-    } catch (error) {
-      this.handleAccountErrors(error, 'Error creating account');
-    }
-  }
-
-  async update(id: string, account: UpdateAccountDto) {
-    const accountDB = await this.accountModel.findById(id);
-    if (!accountDB) throw new NotFoundException(`Account ${id} not found`);
-
-    const { dependencyId, roleId, ...properties } = account;
-    const [dependency, role] = await Promise.all([
-      dependencyId ? this.requireDependency(dependencyId) : null,
-      roleId ? this.roleService.requireRole(roleId) : null,
-    ]);
-    const update = {
-      ...properties,
-      ...(dependency && { dependencia: dependency, institution: dependency.institucion }),
-      ...(role && { role }),
-    };
-
-    try {
-      const updated = await this.accountModel.findByIdAndUpdate(id, update, {
-        new: true,
-        runValidators: true,
-      });
-      return await this.populateAccount(updated);
-    } catch (error) {
-      this.handleAccountErrors(error, 'Error updating account');
-    }
-  }
-
-  async assign(id: string, { userId, officerId }: AssignAccountDto) {
     const session = await this.connection.startSession();
+
     try {
       session.startTransaction();
-      const [account, user, officer] = await Promise.all([
-        this.accountModel.findById(id, null, { session }),
-        this.userModel.findById(userId, null, { session }),
-        this.officerModel.findById(officerId, null, { session }),
-      ]);
-
-      if (!account) throw new NotFoundException(`Account ${id} not found`);
-      if (!user) throw new NotFoundException(`User ${userId} not found`);
-      if (!officer) throw new NotFoundException(`Officer ${officerId} not found`);
-      if (!user.isActive) throw new BadRequestException(`User ${userId} is inactive`);
-      if (!officer.activo) throw new BadRequestException(`Officer ${officerId} is inactive`);
-      if (this.normalizeName(user.fullname) !== this.normalizeName(officer.fullName)) {
-        throw new BadRequestException(`User ${userId} does not correspond to officer ${officerId}`);
-      }
-
-      const conflict = await this.accountModel.findOne(
-        { _id: { $ne: account._id }, $or: [{ user: user._id }, { officer: officer._id }] },
-        null,
+      const [createdAccount] = await this.accountModel.create(
+        [
+          {
+            user: null,
+            officer: null,
+            role,
+            dependencia: dependency,
+            institution: dependency.institucion,
+            jobtitle: accountProperties.jobtitle,
+            isVisible: accountProperties.isVisible,
+            employmentType: accountProperties.employmentType,
+          },
+        ],
         { session },
       );
-      if (conflict) {
-        const property = String(conflict.user) === String(user._id) ? 'User' : 'Officer';
-        throw new BadRequestException(`${property} is already assigned to account ${conflict.id}`);
+
+      if (identity) {
+        const assignee = await this.resolveAssignee(identity, createdAccount._id, session);
+        createdAccount.user = assignee.user;
+        createdAccount.officer = assignee.officer;
+        await createdAccount.save({ session });
       }
 
-      account.user = user;
-      account.officer = officer;
-      await account.save({ session });
       await session.commitTransaction();
-      return await this.populateAccount(account);
+      return await this.populateAccount(createdAccount);
     } catch (error) {
       if (session.inTransaction()) await session.abortTransaction();
-      this.handleAccountErrors(error, 'Error assigning account');
+      this.handleAccountErrors(error, 'Error creating account');
     } finally {
       await session.endSession();
     }
   }
 
-  async unassign(id: string) {
-    const account = await this.accountModel.findById(id);
-    if (!account) throw new NotFoundException(`Account ${id} not found`);
-    account.user = null;
-    account.officer = null;
-    await account.save();
-    return await this.populateAccount(account);
+  async update(id: string, account: UpdateAccountDto) {
+    const changesAssignment = Object.prototype.hasOwnProperty.call(account, 'assigneeExternalKey');
+    const { dependencyId, roleId, assigneeExternalKey, ...properties } = account;
+    const [dependency, role] = await Promise.all([
+      dependencyId ? this.requireDependency(dependencyId) : null,
+      roleId ? this.roleService.requireRole(roleId) : null,
+    ]);
+    const identity =
+      changesAssignment && assigneeExternalKey ? await this.requireIdentityUser(assigneeExternalKey) : null;
+
+    const session = await this.connection.startSession();
+
+    try {
+      session.startTransaction();
+      const accountDB = await this.accountModel.findById(id, null, { session });
+      if (!accountDB) throw new NotFoundException(`Account ${id} not found`);
+
+      Object.assign(accountDB, properties);
+      if (dependency) {
+        accountDB.dependencia = dependency;
+        accountDB.institution = dependency.institucion;
+      }
+      if (role) accountDB.role = role;
+
+      if (changesAssignment) {
+        if (identity) {
+          const assignee = await this.resolveAssignee(identity, accountDB._id, session);
+          accountDB.user = assignee.user;
+          accountDB.officer = assignee.officer;
+        } else {
+          accountDB.user = null;
+          accountDB.officer = null;
+        }
+      }
+
+      await accountDB.save({ session });
+      await session.commitTransaction();
+      return await this.populateAccount(accountDB);
+    } catch (error) {
+      if (session.inTransaction()) await session.abortTransaction();
+      this.handleAccountErrors(error, 'Error updating account');
+    } finally {
+      await session.endSession();
+    }
   }
 
-  async searchUsersWithoutAccount(term: string, limit = 5) {
-    return await this.userModel
-      .aggregate()
-      .match({ isActive: true, ...(term && { fullname: new RegExp(term, 'i') }) })
-      .lookup({
-        from: 'cuentas',
-        localField: '_id',
-        foreignField: 'user',
-        as: 'accounts',
-      })
-      .match({ accounts: { $size: 0 } })
-      .project({ password: 0, accounts: 0 })
-      .limit(limit);
+  async searchIdentityCandidates(term: string) {
+    const normalizedTerm = term?.trim() ?? '';
+    if (normalizedTerm.length < 3) return [];
+    return await this.identityHubUsersClient.searchAssignableUsers(normalizedTerm);
   }
 
   async searchActiveAccounts(term: string, limit = 5) {
@@ -258,6 +246,9 @@ export class AccountService {
       .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password' }]);
     if (!account) throw new NotFoundException(`Account ${accountId} not found`);
     if (!account.user || !account.officer) throw new BadRequestException(`Account ${accountId} is not assigned`);
+    if (!account.user.login || account.user.externalKey) {
+      throw new BadRequestException('El usuario institucional no utiliza credenciales locales para restablecer');
+    }
 
     const { password } = await this.userService.resetPassword(account.user);
     const pdf = await this.generateAccountPdf(account, { login: account.user.login, password }, generatedBy);
@@ -279,13 +270,52 @@ export class AccountService {
     return dependency;
   }
 
-  private normalizeName(value: string) {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .replace(/\s+/g, ' ')
-      .toUpperCase();
+  private async requireIdentityUser(externalKey: string) {
+    const identity = await this.identityHubUsersClient.findAssignableUserByExternalKey(externalKey);
+    if (identity.externalKey !== externalKey) {
+      throw new BadGatewayException('Identity Hub devolvió una identidad distinta a la solicitada');
+    }
+    return identity;
+  }
+
+  private async resolveAssignee(
+    identity: IdentityHubAssignableUser,
+    accountId: mongoose.Types.ObjectId,
+    session: mongoose.ClientSession,
+  ) {
+    const relationKey = identity.relationKey?.trim();
+    if (!relationKey) {
+      throw new BadRequestException(
+        'El usuario institucional no tiene un documento de identidad asociado y no puede vincularse a un funcionario',
+      );
+    }
+
+    const officer = await this.officerModel.findOne({ dni: relationKey }, null, { session });
+    if (!officer) {
+      throw new BadRequestException(
+        'No existe un funcionario de Seguimiento de Trámites asociado a esta identidad institucional',
+      );
+    }
+    if (!officer.activo) {
+      throw new BadRequestException('El funcionario asociado a la identidad institucional está inactivo');
+    }
+
+    const user = await this.userService.findOrCreateIdentityShadow(identity, session);
+    const conflict = await this.accountModel.findOne(
+      {
+        _id: { $ne: accountId },
+        $or: [{ user: user._id }, { officer: officer._id }],
+      },
+      null,
+      { session },
+    );
+
+    if (conflict) {
+      const property = String(conflict.user) === String(user._id) ? 'usuario' : 'funcionario';
+      throw new BadRequestException(`El ${property} seleccionado ya ocupa otra Account`);
+    }
+
+    return { user, officer };
   }
 
   private async populateAccount(account: Account) {
@@ -305,6 +335,7 @@ export class AccountService {
       const messages = {
         officer: 'El funcionario seleccionado ya tiene una cuenta asignada',
         user: 'El usuario seleccionado ya tiene una cuenta asignada',
+        externalKey: 'La identidad institucional ya tiene un usuario local asociado',
       };
       throw new BadRequestException(messages[key] ?? 'Duplicate properties');
     }

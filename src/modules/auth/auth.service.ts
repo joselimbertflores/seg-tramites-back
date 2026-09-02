@@ -24,7 +24,7 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('Usuario o Contraseña incorrectos');
     }
-    if (!bcrypt.compareSync(password, user.password)) {
+    if (!user.password || !bcrypt.compareSync(password, user.password)) {
       throw new BadRequestException('Usuario o Contraseña incorrectos');
     }
     if (!user.isActive) {

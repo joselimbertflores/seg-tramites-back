@@ -20,17 +20,20 @@ export class CreateAccountDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  employmentType?: string;
+  employmentType?: string | null;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  assigneeExternalKey?: string | null;
 }
 
 export class UpdateAccountDto extends PartialType(CreateAccountDto) {}
 
 export class AssignAccountDto {
-  @IsMongoId()
-  userId: string;
-
-  @IsMongoId()
-  officerId: string;
+  @IsString()
+  @IsNotEmpty()
+  assigneeExternalKey: string;
 }
 
 export class FilterAccountDto extends PaginationDto {

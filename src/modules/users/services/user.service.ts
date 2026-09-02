@@ -9,6 +9,11 @@ import { CreateUserDto, UpdateUserDto } from '../dtos';
 import { User } from '../schemas';
 import { RoleService } from './role.service';
 
+export interface IdentityShadowUser {
+  externalKey: string;
+  fullName: string;
+}
+
 @Injectable()
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<User>, private roleService: RoleService) {}
@@ -77,6 +82,31 @@ export class UserService {
     const encryptPassword = this.encryptPassword(newPassword);
     await this.userModel.updateOne({ _id: user._id }, { password: encryptPassword, updatedPassword: false });
     return { password: newPassword };
+  }
+
+  async findOrCreateIdentityShadow(identity: IdentityShadowUser, session: ClientSession): Promise<User> {
+    const existingUser = await this.userModel.findOne({ externalKey: identity.externalKey }, null, { session });
+
+    if (existingUser) {
+      if (!existingUser.isActive) {
+        throw new BadRequestException('El usuario local asociado a la identidad institucional está inactivo');
+      }
+      if (existingUser.fullname !== identity.fullName) {
+        existingUser.fullname = identity.fullName;
+        await existingUser.save({ session });
+      }
+      return existingUser;
+    }
+
+    const shadowUser = new this.userModel({
+      externalKey: identity.externalKey,
+      fullname: identity.fullName,
+      roles: [],
+      isActive: true,
+    });
+
+    await shadowUser.save({ session });
+    return shadowUser;
   }
 
   private encryptPassword(password: string): string {

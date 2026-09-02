@@ -1,11 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 
-import {
-  AccountService,
-  DependencieService,
-  InstitutionService,
-  OfficerService,
-} from 'src/modules/administration/services';
+import { AccountService, DependencieService, InstitutionService } from 'src/modules/administration/services';
 import { AssignAccountDto, CreateAccountDto, FilterAccountDto, UpdateAccountDto } from '../dtos';
 import { GetUserRequest, RequirePermission } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
@@ -19,7 +14,6 @@ export class AccountController {
     private readonly accountService: AccountService,
     private readonly institutionService: InstitutionService,
     private readonly dependencieService: DependencieService,
-    private readonly officerService: OfficerService,
     private readonly roleService: RoleService,
   ) {}
 
@@ -40,12 +34,12 @@ export class AccountController {
 
   @Put(':id/assignment')
   assign(@Param('id', IsMongoidPipe) id: string, @Body() assignment: AssignAccountDto) {
-    return this.accountService.assign(id, assignment);
+    return this.accountService.update(id, assignment);
   }
 
   @Patch(':id/unassign')
   unassign(@Param('id', IsMongoidPipe) id: string) {
-    return this.accountService.unassign(id);
+    return this.accountService.update(id, { assigneeExternalKey: null });
   }
 
   @Get('institutions')
@@ -58,14 +52,9 @@ export class AccountController {
     return this.dependencieService.getActiveDependenciesOfInstitution(institutionId);
   }
 
-  @Get('assign')
-  searchOfficersWithoutAccount(@Query('term') text: string) {
-    return this.officerService.searchOfficersWithoutAccount(text);
-  }
-
   @Get('assign/users')
-  searchUsersWithoutAccount(@Query('term') text: string) {
-    return this.accountService.searchUsersWithoutAccount(text);
+  searchIdentityCandidates(@Query('term') text: string) {
+    return this.accountService.searchIdentityCandidates(text);
   }
 
   @Get('roles')
