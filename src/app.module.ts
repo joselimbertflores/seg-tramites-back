@@ -1,9 +1,7 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Module } from '@nestjs/common';
-import { join } from 'path';
 
 import { AdministrationModule } from './modules/administration/administration.module';
 import { CommunicationsModule } from './modules/communications/communications.module';
@@ -16,7 +14,7 @@ import { UsersModule } from './modules/users/users.module';
 import { FilesModule } from './modules/files/files.module';
 import { AuthModule } from './modules/auth/auth.module';
 
-import { EnvVars, validate } from './config';
+import { EnvVars, validationSchema } from './config';
 import { ResourcesModule } from './modules/resources/resources.module';
 import { PrinterModule } from './modules/printer/printer.module';
 import { ChatModule } from './modules/chat/chat.module';
@@ -24,16 +22,20 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ validate, isGlobal: true }),
+    ConfigModule.forRoot({
+      validationSchema,
+      validationOptions: {
+        abortEarly: false,
+        allowUnknown: true,
+      },
+      isGlobal: true,
+    }),
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService<EnvVars>) => ({
         uri: configService.get('DATABASE_URL'),
       }),
       inject: [ConfigService],
     }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, '..', 'public'),
-    // }),
     ScheduleModule.forRoot(),
     AdministrationModule,
     CommunicationsModule,

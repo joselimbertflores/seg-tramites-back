@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { CreateOfficerDto, UpdateOfficerDto } from '../dtos';
+import { UpdateOfficerDto } from '../dtos';
 import { PaginationDto } from 'src/modules/common';
 import { Officer } from '../schemas';
 
@@ -66,27 +66,13 @@ export class OfficerService {
     return { officers, length };
   }
 
-  async create(officer: CreateOfficerDto) {
-    try {
-      const createdOfficer = new this.officerModel(officer);
-      return await createdOfficer.save();
-    } catch (error) {
-      if (error['code'] === 11000) {
-        throw new BadRequestException(`El numero de CI ${officer.dni} ya ha sido registrado`);
-      }
-      throw new InternalServerErrorException('Error create officer');
-    }
-  }
-
   async update(id: string, data: UpdateOfficerDto) {
+    const officerDB = await this.officerModel.findById(id);
+    if (!officerDB) throw new NotFoundException(`El funcionario ${id} no existe`);
+
     try {
-      const officerDB = await this.officerModel.findById(id);
-      if (!officerDB) throw new NotFoundException(`El funcionario ${id} no existe`);
-      return await this.officerModel.findByIdAndUpdate(id, data, { new: true });
-    } catch (error) {
-      if (error['code'] === 11000) {
-        throw new BadRequestException(`El numero de CI ${data.dni} ya ha sido registrado`);
-      }
+      return await this.officerModel.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    } catch {
       throw new InternalServerErrorException('Error update officer');
     }
   }

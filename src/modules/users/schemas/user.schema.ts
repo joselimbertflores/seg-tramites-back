@@ -18,11 +18,7 @@ export class User extends Document {
   })
   fullname: string;
 
-  @Prop({
-    type: String,
-    unique: true,
-    sparse: true,
-  })
+  @Prop({ type: String })
   login?: string;
 
   @Prop({
@@ -51,3 +47,13 @@ export class User extends Document {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.index(
+  { login: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      login: { $type: 'string' },
+    },
+  },
+);

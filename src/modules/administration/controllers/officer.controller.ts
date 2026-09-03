@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { PaginationDto } from 'src/modules/common/dtos/pagination.dto';
 import { RequirePermission } from 'src/modules/auth/decorators';
 import { SystemResource } from 'src/modules/auth/constants';
 
-import { CreateOfficerDto, UpdateOfficerDto } from '../dtos';
+import { UpdateOfficerDto } from '../dtos';
 import { OfficerService } from '../services';
 
 @RequirePermission(SystemResource.OFFICERS)
@@ -14,11 +14,6 @@ export class OfficerController {
   @Get()
   findAll(@Query() params: PaginationDto) {
     return this.officerService.findAll(params);
-  }
-
-  @Post()
-  create(@Body() body: CreateOfficerDto) {
-    return this.officerService.create(body);
   }
 
   @Patch(':id')

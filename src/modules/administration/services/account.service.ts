@@ -20,6 +20,12 @@ import {
   UserService,
 } from 'src/modules/users/services';
 import { Account, Dependency, Officer } from '../schemas';
+import { RrhhActiveEmployee, RrhhEmployeesClientService } from './rrhh-employees-client.service';
+
+interface AssigneeSources {
+  identity: IdentityHubAssignableUser;
+  employee: RrhhActiveEmployee;
+}
 
 @Injectable()
 export class AccountService {
@@ -33,6 +39,7 @@ export class AccountService {
     private roleService: RoleService,
     private mailService: MailService,
     private identityHubUsersClient: IdentityHubUsersClientService,
+    private rrhhEmployeesClient: RrhhEmployeesClientService,
   ) {}
 
   async findAll(filterParams: FilterAccountDto) {
@@ -86,7 +93,7 @@ export class AccountService {
       this.requireDependency(account.dependencyId),
       this.roleService.requireRole(account.roleId),
     ]);
-    const identity = assigneeExternalKey ? await this.requireIdentityUser(assigneeExternalKey) : null;
+    const assigneeSources = assigneeExternalKey ? await this.resolveAssigneeSources(assigneeExternalKey) : null;
 
     const session = await this.connection.startSession();
 
@@ -108,8 +115,8 @@ export class AccountService {
         { session },
       );
 
-      if (identity) {
-        const assignee = await this.resolveAssignee(identity, createdAccount._id, session);
+      if (assigneeSources) {
+        const assignee = await this.resolveAssignee(assigneeSources, createdAccount._id, session);
         createdAccount.user = assignee.user;
         createdAccount.officer = assignee.officer;
         await createdAccount.save({ session });
@@ -132,8 +139,8 @@ export class AccountService {
       dependencyId ? this.requireDependency(dependencyId) : null,
       roleId ? this.roleService.requireRole(roleId) : null,
     ]);
-    const identity =
-      changesAssignment && assigneeExternalKey ? await this.requireIdentityUser(assigneeExternalKey) : null;
+    const assigneeSources =
+      changesAssignment && assigneeExternalKey ? await this.resolveAssigneeSources(assigneeExternalKey) : null;
 
     const session = await this.connection.startSession();
 
@@ -150,8 +157,8 @@ export class AccountService {
       if (role) accountDB.role = role;
 
       if (changesAssignment) {
-        if (identity) {
-          const assignee = await this.resolveAssignee(identity, accountDB._id, session);
+        if (assigneeSources) {
+          const assignee = await this.resolveAssignee(assigneeSources, accountDB._id, session);
           accountDB.user = assignee.user;
           accountDB.officer = assignee.officer;
         } else {
@@ -270,19 +277,12 @@ export class AccountService {
     return dependency;
   }
 
-  private async requireIdentityUser(externalKey: string) {
+  private async resolveAssigneeSources(externalKey: string): Promise<AssigneeSources> {
     const identity = await this.identityHubUsersClient.findAssignableUserByExternalKey(externalKey);
     if (identity.externalKey !== externalKey) {
       throw new BadGatewayException('Identity Hub devolvió una identidad distinta a la solicitada');
     }
-    return identity;
-  }
 
-  private async resolveAssignee(
-    identity: IdentityHubAssignableUser,
-    accountId: mongoose.Types.ObjectId,
-    session: mongoose.ClientSession,
-  ) {
     const relationKey = identity.relationKey?.trim();
     if (!relationKey) {
       throw new BadRequestException(
@@ -290,14 +290,39 @@ export class AccountService {
       );
     }
 
-    const officer = await this.officerModel.findOne({ dni: relationKey }, null, { session });
-    if (!officer) {
-      throw new BadRequestException(
-        'No existe un funcionario de Seguimiento de Trámites asociado a esta identidad institucional',
-      );
-    }
+    const employee = await this.rrhhEmployeesClient.findActiveEmployeeByRelationKey(relationKey);
+    return { identity, employee };
+  }
+
+  private async resolveAssignee(
+    { identity, employee }: AssigneeSources,
+    accountId: mongoose.Types.ObjectId,
+    session: mongoose.ClientSession,
+  ) {
+    const officer = await this.officerModel.findOneAndUpdate(
+      { dni: employee.relationKey },
+      {
+        $set: {
+          nombre: employee.nombre,
+          paterno: employee.paterno,
+          materno: employee.materno,
+          email: identity.email,
+        },
+        $setOnInsert: {
+          activo: true,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+        session,
+      },
+    );
+
     if (!officer.activo) {
-      throw new BadRequestException('El funcionario asociado a la identidad institucional está inactivo');
+      throw new BadRequestException('El funcionario está deshabilitado localmente en Seguimiento de Trámites');
     }
 
     const user = await this.userService.findOrCreateIdentityShadow(identity, session);

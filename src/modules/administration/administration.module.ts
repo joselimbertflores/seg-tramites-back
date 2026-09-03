@@ -27,6 +27,7 @@ import {
   DependencieService,
   InstitutionService,
   OfficerService,
+  RrhhEmployeesClientService,
   TypeProcedureService,
 } from './services';
 import { UsersModule } from '../users/users.module';
@@ -42,7 +43,14 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AccountController,
     AssigationController,
   ],
-  providers: [DependencieService, InstitutionService, TypeProcedureService, OfficerService, AccountService],
+  providers: [
+    DependencieService,
+    InstitutionService,
+    TypeProcedureService,
+    OfficerService,
+    RrhhEmployeesClientService,
+    AccountService,
+  ],
   imports: [
     MongooseModule.forFeature([
       { name: Account.name, schema: AccountSchema },

@@ -14,18 +14,18 @@ export class Officer extends Document {
     type: String,
     uppercase: true,
   })
-  paterno: string;
+  paterno: string | null;
 
   @Prop({
     type: String,
     uppercase: true,
   })
-  materno: string;
+  materno: string | null;
 
   @Prop({
     type: Number,
   })
-  telefono: number;
+  telefono: number | null;
 
   @Prop({
     type: String,
@@ -45,7 +45,7 @@ export class Officer extends Document {
     type: String,
     trim: true,
   })
-  email?: string;
+  email?: string | null;
 
   @Virtual({
     get: function (this: Officer) {

@@ -85,28 +85,30 @@ export class UserService {
   }
 
   async findOrCreateIdentityShadow(identity: IdentityShadowUser, session: ClientSession): Promise<User> {
-    const existingUser = await this.userModel.findOne({ externalKey: identity.externalKey }, null, { session });
+    const user = await this.userModel.findOneAndUpdate(
+      { externalKey: identity.externalKey },
+      {
+        $set: { fullname: identity.fullName },
+        $setOnInsert: {
+          externalKey: identity.externalKey,
+          roles: [],
+          isActive: true,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+        session,
+      },
+    );
 
-    if (existingUser) {
-      if (!existingUser.isActive) {
-        throw new BadRequestException('El usuario local asociado a la identidad institucional está inactivo');
-      }
-      if (existingUser.fullname !== identity.fullName) {
-        existingUser.fullname = identity.fullName;
-        await existingUser.save({ session });
-      }
-      return existingUser;
+    if (!user.isActive) {
+      throw new BadRequestException('El usuario local asociado a la identidad institucional está inactivo');
     }
 
-    const shadowUser = new this.userModel({
-      externalKey: identity.externalKey,
-      fullname: identity.fullName,
-      roles: [],
-      isActive: true,
-    });
-
-    await shadowUser.save({ session });
-    return shadowUser;
+    return user;
   }
 
   private encryptPassword(password: string): string {

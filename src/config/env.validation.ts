@@ -1,61 +1,39 @@
-import { plainToInstance } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Min, validateSync } from 'class-validator';
+import * as Joi from 'joi';
 
-export class EnvVars {
-  @IsString()
+export interface EnvVars {
   DATABASE_URL: string;
-
-  @IsNumber()
   PORT: number;
-
-  @IsString()
   HOST: string;
-
-  @IsString()
   JWT_KEY: string;
-
-  @IsNumber()
-  @Min(1)
   AUTO_REJECT_DAYS: number;
-
-  @IsNumber()
   YEAR: number;
-
-  @IsString()
   MAIL_HOST: string;
-
-  @IsNumber()
   MAIL_PORT: number;
-
-  @IsString()
   MAIL_USER: string;
-
-  @IsString()
   MAIL_PASSWORD: string;
-
-  @IsString()
-  @IsOptional()
   IDENTITY_HUB_PUBLIC_URL?: string;
-
-  @IsString()
-  @IsOptional()
   IDENTITY_HUB_INTERNAL_URL?: string;
-
-  @IsString()
-  @IsOptional()
   OAUTH_CLIENT_ID?: string;
-
-  @IsString()
-  @IsOptional()
   OAUTH_CLIENT_SECRET?: string;
+  RRHH_INTERNAL_URL: string;
+  RRHH_ACCESS_TOKEN: string;
 }
 
-export function validate(config: Record<string, unknown>): EnvVars {
-  const validatedConfig = plainToInstance(EnvVars, config, { enableImplicitConversion: true });
-  const errors = validateSync(validatedConfig, { skipMissingProperties: false });
-
-  if (errors.length > 0) {
-    throw new Error(errors.toString());
-  }
-  return validatedConfig;
-}
+export const validationSchema = Joi.object<EnvVars>({
+  DATABASE_URL: Joi.string().trim().min(1).required(),
+  PORT: Joi.number().port().required(),
+  HOST: Joi.string().trim().min(1).required(),
+  JWT_KEY: Joi.string().min(1).required(),
+  AUTO_REJECT_DAYS: Joi.number().integer().min(1).required(),
+  YEAR: Joi.number().integer().required(),
+  MAIL_HOST: Joi.string().trim().min(1).required(),
+  MAIL_PORT: Joi.number().port().required(),
+  MAIL_USER: Joi.string().trim().min(1).required(),
+  MAIL_PASSWORD: Joi.string().min(1).required(),
+  IDENTITY_HUB_PUBLIC_URL: Joi.string().trim().optional(),
+  IDENTITY_HUB_INTERNAL_URL: Joi.string().trim().optional(),
+  OAUTH_CLIENT_ID: Joi.string().trim().optional(),
+  OAUTH_CLIENT_SECRET: Joi.string().optional(),
+  RRHH_INTERNAL_URL: Joi.string().trim().uri().required(),
+  RRHH_ACCESS_TOKEN: Joi.string().trim().min(1).required(),
+});
