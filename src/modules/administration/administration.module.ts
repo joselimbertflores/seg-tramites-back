@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
-  OfficerController,
   DependencyController,
   InstitutionController,
   TypeProcedureController,
@@ -26,7 +25,6 @@ import {
   AccountService,
   DependencieService,
   InstitutionService,
-  OfficerService,
   RrhhEmployeesClientService,
   TypeProcedureService,
 } from './services';
@@ -39,7 +37,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DependencyController,
     InstitutionController,
     TypeProcedureController,
-    OfficerController,
     AccountController,
     AssigationController,
   ],
@@ -47,7 +44,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     DependencieService,
     InstitutionService,
     TypeProcedureService,
-    OfficerService,
     RrhhEmployeesClientService,
     AccountService,
   ],
@@ -68,7 +64,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     TypeProcedureService,
     InstitutionService,
     DependencieService,
-    OfficerService,
     AccountService,
   ],
 })

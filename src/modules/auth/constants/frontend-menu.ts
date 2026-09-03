@@ -48,12 +48,6 @@ export const FRONTEND_MENU: Menu[] = [
         routerLink: 'dependencies',
       },
       {
-        requiredResources: [SystemResource.OFFICERS],
-        text: 'Funcionarios',
-        icon: 'person',
-        routerLink: 'officers',
-      },
-      {
         requiredResources: [SystemResource.ACCOUNTS],
         text: 'Cuentas',
         icon: 'account_circle',

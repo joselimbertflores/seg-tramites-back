@@ -308,22 +308,14 @@ export class AccountService {
           materno: employee.materno,
           email: identity.email,
         },
-        $setOnInsert: {
-          activo: true,
-        },
       },
       {
         new: true,
         upsert: true,
         runValidators: true,
-        setDefaultsOnInsert: true,
         session,
       },
     );
-
-    if (!officer.activo) {
-      throw new BadRequestException('El funcionario está deshabilitado localmente en Seguimiento de Trámites');
-    }
 
     const user = await this.userService.findOrCreateIdentityShadow(identity, session);
     const conflict = await this.accountModel.findOne(

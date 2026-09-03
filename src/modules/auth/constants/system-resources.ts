@@ -4,7 +4,6 @@ export enum SystemResource {
   INSTITUTIONS = 'institutions',
   DEPENDENCIES = 'dependencies',
   TYPES_PROCEDURES = 'types-procedures',
-  OFFICERS = 'officers',
   ACCOUNTS = 'accounts',
   USERS = 'user',
   ROLES = 'roles',
@@ -46,17 +45,6 @@ export const SYSTEM_RESOURCES = [
       { value: 'delete', label: 'Eliminar' },
     ],
   },
-  {
-    value: SystemResource.OFFICERS,
-    label: 'FUNCIONARIOS',
-    actions: [
-      { value: 'create', label: 'Crear' },
-      { value: 'read', label: 'Ver' },
-      { value: 'update', label: 'Editar' },
-      { value: 'delete', label: 'Eliminar' },
-    ],
-  },
-
   {
     value: SystemResource.ACCOUNTS,
     label: 'CUENTAS',

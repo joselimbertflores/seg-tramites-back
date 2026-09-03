@@ -1,6 +1,10 @@
 import { Prop, Schema, SchemaFactory, Virtual } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+/**
+ * Persistent local projection of an RRHH employee. Officers are retained for
+ * historical references even after the employee is no longer active in RRHH.
+ */
 @Schema({ collection: 'funcionarios' })
 export class Officer extends Document {
   @Prop({
@@ -23,23 +27,12 @@ export class Officer extends Document {
   materno: string | null;
 
   @Prop({
-    type: Number,
-  })
-  telefono: number | null;
-
-  @Prop({
     type: String,
     required: true,
     unique: true,
     trim: true,
   })
   dni: string;
-
-  @Prop({
-    type: Boolean,
-    default: true,
-  })
-  activo: boolean;
 
   @Prop({
     type: String,
