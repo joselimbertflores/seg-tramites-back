@@ -1,5 +1,5 @@
-import { JwtPayload } from 'src/modules/auth/interfaces';
-
-export interface userSocket extends JwtPayload {
+export interface userSocket {
+  userId: string;
+  fullname: string;
   socketIds: string[];
 }

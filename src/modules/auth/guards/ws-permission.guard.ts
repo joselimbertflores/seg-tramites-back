@@ -3,9 +3,9 @@ import { WsException } from '@nestjs/websockets';
 import { Reflector } from '@nestjs/core';
 
 import { User } from 'src/modules/users/schemas';
-import { RequirePermissionsMetadata } from 'src/modules/auth/interfaces';
+import { RequirePermissionsMetadata } from '../interfaces';
 import { WS_META_PERMISSIONS } from '../decorators/ws-require-permissions.decorator';
-import { AuthorizationContextService } from 'src/modules/auth/services';
+import { AuthorizationContextService } from '../services';
 
 @Injectable()
 export class WsPermissionGuard implements CanActivate {

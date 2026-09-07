@@ -32,7 +32,7 @@ export class UserService {
   async create(userDto: CreateUserDto, session?: ClientSession) {
     if (userDto.roles) await this.roleService.requireRoles(userDto.roles, session);
     const password = generatePassword();
-    const encryptPassword = this.encryptPassword(password);
+    const encryptPassword = await this.encryptPassword(password);
 
     const createdUser = new this.userModel({
       ...userDto,
@@ -79,7 +79,7 @@ export class UserService {
 
   async resetPassword(user: User) {
     const newPassword = generatePassword();
-    const encryptPassword = this.encryptPassword(newPassword);
+    const encryptPassword = await this.encryptPassword(newPassword);
     await this.userModel.updateOne({ _id: user._id }, { password: encryptPassword, updatedPassword: false });
     return { password: newPassword };
   }
@@ -111,9 +111,8 @@ export class UserService {
     return user;
   }
 
-  private encryptPassword(password: string): string {
-    const salt = bcrypt.genSaltSync();
-    return bcrypt.hashSync(password, salt);
+  private encryptPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
   }
 
   private plainUser(user: User): User {

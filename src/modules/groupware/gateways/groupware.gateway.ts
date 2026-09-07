@@ -7,47 +7,32 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { UseGuards } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 
 import { Communication } from '../../communications/schemas';
 import { GroupwareService } from '../groupware.service';
-import { WsRequirePermission } from '../decorators';
-import { WsJwtGuard } from '../guards/ws-jwt.guard';
+import { WsRequirePermission } from '../../auth/decorators';
+import { SessionGuard } from '../../auth/guards/session.guard';
 import { SystemResource } from '../../auth/constants';
 import { IKickUserData } from '../interfaces';
-import { JwtPayload } from '../../auth/interfaces';
 import { User } from '../../users/schemas';
 
 interface canceledCommunications {
   toUser: string;
   id: string;
 }
-@UseGuards(WsJwtGuard)
-@WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
-})
+@UseGuards(SessionGuard)
+@WebSocketGateway()
 export class GroupwareGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
-  constructor(
-    private groupwareService: GroupwareService,
-    private jwtService: JwtService,
-    @InjectModel(User.name) private userModel: Model<User>,
-  ) {}
+  constructor(private groupwareService: GroupwareService) {}
 
   async handleConnection(client: Socket): Promise<void> {
     try {
-      const token = client.handshake.auth.token;
-      const decoded: JwtPayload = this.jwtService.verify(token);
-      const user = await this.userModel.exists({ _id: decoded.userId, isActive: true });
-      if (!user) throw new Error('Inactive user');
-      client.data['user'] = decoded;
-      this.groupwareService.onClientConnected(client.id, decoded);
+      const user: User = client.data.user;
+      if (!user) throw new Error('Authenticated user missing');
+      this.groupwareService.onClientConnected(client.id, { userId: user._id.toString(), fullname: user.fullname });
       this.server.emit('clientsList', this.groupwareService.getClients());
     } catch (error) {
       client.disconnect();

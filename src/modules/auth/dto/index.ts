@@ -1,2 +1,2 @@
-export * from './auth.dto';
-export * from './my-account.dto';
+export * from './local-login.dto';
+export * from './change-password.dto';

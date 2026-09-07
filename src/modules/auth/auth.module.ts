@@ -1,48 +1,59 @@
 import { Global, Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { JwtAuthGuard, PermissionGuard } from './guards';
+import { SessionGuard, PermissionGuard } from './guards';
 import { UsersModule } from 'src/modules/users/users.module';
-import { EnvVars } from 'src/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Account, AccountSchema } from '../administration/schemas';
 import { AuthorizationContextService } from './services';
 import { AccountGuard } from '../administration/guards/account.guard';
+import { AuthHttpService } from './services/auth-http.service';
+import { OAuthController } from './oauth.controller';
+import { AuthSession, AuthSessionSchema } from './schemas/auth-session.schema';
+import { OAuthTransaction, OAuthTransactionSchema } from './schemas/oauth-transaction.schema';
+import { AuthSessionService } from './services/auth-session.service';
+import { IdentityHubOAuthService } from './services/identity-hub-oauth.service';
+import { OAuthTransactionService } from './services/oauth-transaction.service';
+import { TokenVerifierService } from './services/token-verifier.service';
 
 @Global()
 @Module({
-  controllers: [AuthController],
+  controllers: [AuthController, OAuthController],
   providers: [
     AuthService,
     AuthorizationContextService,
     PermissionGuard,
     AccountGuard,
-    JwtStrategy,
+    AuthHttpService,
+    AuthSessionService,
+    IdentityHubOAuthService,
+    OAuthTransactionService,
+    TokenVerifierService,
+    SessionGuard,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useExisting: SessionGuard,
     },
   ],
   imports: [
     ConfigModule,
     UsersModule,
-    MongooseModule.forFeature([{ name: Account.name, schema: AccountSchema }]),
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService<EnvVars>) => ({
-        secret: configService.get('JWT_KEY'),
-        signOptions: { expiresIn: '10h' },
-      }),
-      inject: [ConfigService],
-    }),
+    MongooseModule.forFeature([
+      { name: Account.name, schema: AccountSchema },
+      { name: AuthSession.name, schema: AuthSessionSchema },
+      { name: OAuthTransaction.name, schema: OAuthTransactionSchema },
+    ]),
   ],
-  exports: [JwtStrategy, PassportModule, JwtModule, AuthorizationContextService, PermissionGuard, AccountGuard],
+  exports: [
+    AuthHttpService,
+    AuthSessionService,
+    SessionGuard,
+    AuthorizationContextService,
+    PermissionGuard,
+    AccountGuard,
+  ],
 })
 export class AuthModule {}

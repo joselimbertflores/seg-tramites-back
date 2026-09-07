@@ -1,6 +1,6 @@
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
-import { RequirePermissionsMetadata } from 'src/modules/auth/interfaces';
-import { SystemResource } from 'src/modules/auth/constants';
+import { RequirePermissionsMetadata } from '../interfaces';
+import { SystemResource } from '../constants';
 import { WsPermissionGuard } from '../guards/ws-permission.guard';
 
 export const WS_META_PERMISSIONS = 'ws_permissions';

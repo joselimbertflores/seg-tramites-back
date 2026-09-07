@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { userSocket } from './interfaces/user-socket.interface';
-import { JwtPayload } from 'src/modules/auth/interfaces/jwt.interface';
 
 @Injectable()
 export class GroupwareService {
   private clients: Record<string, userSocket> = {};
 
-  onClientConnected(sockerId: string, payload: JwtPayload): void {
+  onClientConnected(sockerId: string, payload: Omit<userSocket, 'socketIds'>): void {
     const { socketIds } = this.clients[payload.userId] ?? { socketIds: [] };
     socketIds.push(sockerId);
     this.clients[payload.userId] = { ...payload, socketIds };
