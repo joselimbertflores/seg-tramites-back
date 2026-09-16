@@ -346,6 +346,7 @@ export class AccountService {
   }
 
   private handleAccountErrors(error: unknown, originMessage: string): never {
+    console.log(error);
     if (error instanceof HttpException) throw error;
     if (error?.['code'] === 11000) {
       const key = Object.keys(error['keyPattern'] ?? {})[0];

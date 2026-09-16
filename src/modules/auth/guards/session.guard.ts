@@ -40,6 +40,7 @@ export class SessionGuard implements CanActivate {
     if (isPublic) return true;
     try {
       const { user, session } = await this.sessions.resolve(this.authHttp.read(request.headers.cookie));
+      
       request['user'] = user;
       request['authSession'] = session;
       return true;

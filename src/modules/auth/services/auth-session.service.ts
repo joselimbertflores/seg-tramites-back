@@ -47,6 +47,7 @@ export class AuthSessionService {
   }
 
   async resolve(id?: string): Promise<AuthenticatedSession> {
+    console.log(id);
     if (!id) throw new UnauthorizedException('Debe iniciar sesión');
     let session = await this.findActive(id);
     const user = await this.users.findById(session.user).select('-password').populate('roles');
