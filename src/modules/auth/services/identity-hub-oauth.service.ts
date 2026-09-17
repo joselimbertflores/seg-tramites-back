@@ -51,6 +51,22 @@ export class IdentityHubOAuthService {
     return this.requestTokens({ grant_type: 'refresh_token', refresh_token: refreshToken });
   }
 
+  async logoutSession(sid: string): Promise<void> {
+    const baseUrl = this.config.get('IDENTITY_HUB_INTERNAL_URL') || this.config.getOrThrow('IDENTITY_HUB_PUBLIC_URL');
+    await axios.post(
+      new URL('/internal/sessions/logout', baseUrl).toString(),
+      { sid },
+      {
+        auth: {
+          username: this.config.getOrThrow('OAUTH_CLIENT_ID'),
+          password: this.config.getOrThrow('OAUTH_CLIENT_SECRET'),
+        },
+        timeout: 10_000,
+        maxRedirects: 0,
+      },
+    );
+  }
+
   private async requestTokens(payload: Record<string, string>): Promise<IdentityHubTokens> {
     const baseUrl = this.config.get('IDENTITY_HUB_INTERNAL_URL') || this.config.getOrThrow('IDENTITY_HUB_PUBLIC_URL');
     const credentials = [this.config.getOrThrow('OAUTH_CLIENT_ID'), this.config.getOrThrow('OAUTH_CLIENT_SECRET')]

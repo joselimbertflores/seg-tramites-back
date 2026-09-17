@@ -40,6 +40,7 @@ export class AuthSessionService {
       _id: randomBytes(32).toString('base64url'),
       user: user._id,
       authMethod: 'IDENTITY_HUB',
+      identitySid: claims.sid,
       ...fields,
       // An absolute lifetime also works when tokens rotate over WebSocket, which cannot renew cookies.
       expiresAt: fields.refreshTokenExpiresAt,
@@ -47,7 +48,6 @@ export class AuthSessionService {
   }
 
   async resolve(id?: string): Promise<AuthenticatedSession> {
-    console.log(id);
     if (!id) throw new UnauthorizedException('Debe iniciar sesión');
     let session = await this.findActive(id);
     const user = await this.users.findById(session.user).select('-password').populate('roles');
@@ -55,6 +55,7 @@ export class AuthSessionService {
     if (!user || (session.authMethod === 'LOCAL' && !user.isActive)) return this.reject(id);
 
     if (session.authMethod === 'IDENTITY_HUB') {
+      if (!session.identitySid) return this.reject(id);
       try {
         if (
           !session.accessToken ||
@@ -74,7 +75,7 @@ export class AuthSessionService {
           session = await this.refreshSession(session);
           claims = await this.verifier.verify(session.accessToken);
         }
-        if (claims.externalKey !== user.externalKey) return this.reject(id);
+        if (claims.externalKey !== user.externalKey || claims.sid !== session.identitySid) return this.reject(id);
         const accessTokenExpiresAt = new Date(Math.min(session.accessTokenExpiresAt.getTime(), claims.exp * 1000));
         if (accessTokenExpiresAt.getTime() !== session.accessTokenExpiresAt.getTime()) {
           await this.sessions.updateOne(
@@ -96,6 +97,18 @@ export class AuthSessionService {
     if (!id) return;
     await this.sessions.deleteOne({ _id: id });
     this.events.emit('deleted', id);
+  }
+
+  findForLogout(id?: string): Promise<AuthSessionDocument | null> {
+    if (!id) return Promise.resolve(null);
+    return this.sessions.findById(id).select('authMethod identitySid').exec();
+  }
+
+  async deleteByIdentitySid(sid: string): Promise<void> {
+    const filter = { authMethod: 'IDENTITY_HUB', identitySid: sid };
+    const sessions = await this.sessions.find(filter).select('_id').lean();
+    await this.sessions.deleteMany(filter);
+    for (const session of sessions) this.events.emit('deleted', session._id);
   }
 
   private async findActive(id: string): Promise<AuthSessionDocument> {

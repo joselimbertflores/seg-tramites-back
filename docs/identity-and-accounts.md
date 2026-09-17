@@ -4,7 +4,7 @@ Seguimiento separa tres conceptos que no deben fusionarse: la identidad local de
 
 ## Autoridades del modelo
 
-- **Identity Hub** es la autoridad de identidad y autenticación, y controla el acceso de la persona a la aplicación.
+- **Identity Hub** es la autoridad de identidad y autenticación institucional mediante SSO; Seguimiento conserva temporalmente la autenticación LOCAL.
 - **RRHH** es la autoridad de los datos del funcionario y de su vigencia laboral.
 - **Seguimiento** es la autoridad de las cuentas, los roles y los permisos operativos.
 
@@ -12,7 +12,7 @@ Seguimiento separa tres conceptos que no deben fusionarse: la identidad local de
 
 `User` representa la identidad local dentro de Seguimiento. Se vincula con la identidad institucional de Identity Hub mediante `externalKey`, pero conserva su `_id` propio de MongoDB como identidad y referencia interna.
 
-Un `User` puede tener roles directos y puede existir sin una `Account`; por ejemplo, un administrador con autoridad transversal. `login` y `password` pertenecen al mecanismo local actual o *legacy* y dejarán de ser relevantes cuando SSO sea el único mecanismo de autenticación.
+Un `User` puede tener roles directos y puede existir sin una `Account`; por ejemplo, un administrador con autoridad transversal. `login` y `password` pertenecen al mecanismo LOCAL que Seguimiento conserva temporalmente y dejarán de ser relevantes cuando se retire ese mecanismo.
 
 ## Officer
 
@@ -74,4 +74,4 @@ User.roles
 Account.role
 ```
 
-Los roles directos de `User` pertenecen a la persona; el `role` de `Account` pertenece al cargo operativo. Identity Hub controla el acceso a la aplicación, pero no define los permisos internos de Seguimiento.
+Los roles directos de `User` pertenecen a la persona; el `role` de `Account` pertenece al cargo operativo. Identity Hub controla el acceso mediante SSO, pero no define los permisos internos de Seguimiento.

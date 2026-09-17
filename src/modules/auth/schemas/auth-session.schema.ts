@@ -15,6 +15,17 @@ export class AuthSession {
   @Prop({ type: String, enum: ['LOCAL', 'IDENTITY_HUB'], required: true })
   authMethod: AuthMethod;
 
+  @Prop({
+    type: String,
+    required: function (this: AuthSession) {
+      return this.authMethod === 'IDENTITY_HUB';
+    },
+    validate: function (this: AuthSession, value?: string) {
+      return this.authMethod === 'IDENTITY_HUB' ? !!value?.trim() : value == null;
+    },
+  })
+  identitySid?: string;
+
   @Prop({ type: Date, required: true })
   expiresAt: Date;
 
@@ -39,3 +50,4 @@ export class AuthSession {
 
 export const AuthSessionSchema = SchemaFactory.createForClass(AuthSession);
 AuthSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+AuthSessionSchema.index({ authMethod: 1, identitySid: 1 });

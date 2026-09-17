@@ -1,4 +1,16 @@
-import { Controller, Post, Body, Get, Put, Req, Res, Header, HttpCode } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Post,
+  Body,
+  Get,
+  Put,
+  Req,
+  Res,
+  Header,
+  HttpCode,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 
 import { LocalLoginDto, ChangePasswordDto } from './dto';
@@ -8,15 +20,21 @@ import { User } from '../users/schemas';
 import { AuthHttpService } from './services/auth-http.service';
 import { AuthSession } from './schemas/auth-session.schema';
 import { AuthSessionService } from './services/auth-session.service';
+import { IdentityHubOAuthService } from './services/identity-hub-oauth.service';
+import { TokenVerifierService } from './services/token-verifier.service';
 
 type SessionRequest = Request & { authSession: AuthSession };
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private authService: AuthService,
     private sessions: AuthSessionService,
     private authHttp: AuthHttpService,
+    private identityHub: IdentityHubOAuthService,
+    private verifier: TokenVerifierService,
   ) {}
 
   @Post()
@@ -53,8 +71,37 @@ export class AuthController {
   @HttpCode(204)
   @Header('Cache-Control', 'no-store')
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    await this.sessions.delete(this.authHttp.read(request.headers.cookie));
-    this.authHttp.clearSession(response);
-    this.authHttp.clearTransaction(response);
+    const id = this.authHttp.read(request.headers.cookie);
+    try {
+      const session = await this.sessions.findForLogout(id);
+      if (session?.authMethod === 'IDENTITY_HUB' && session.identitySid) {
+        try {
+          await this.identityHub.logoutSession(session.identitySid);
+        } catch (error) {
+          this.logger.warn(
+            `No fue posible cerrar la sesión en Identity Hub: ${error instanceof Error ? error.message : error}`,
+          );
+        }
+      }
+    } finally {
+      try {
+        await this.sessions.delete(id);
+      } finally {
+        this.authHttp.clearSession(response);
+        this.authHttp.clearTransaction(response);
+      }
+    }
+  }
+
+  @Post('backchannel-logout')
+  @Public()
+  @HttpCode(204)
+  @Header('Cache-Control', 'no-store')
+  async backchannelLogout(@Body() body: { logout_token?: unknown }) {
+    if (typeof body?.logout_token !== 'string' || !body.logout_token) {
+      throw new BadRequestException('logout_token es obligatorio');
+    }
+    const sid = await this.verifier.verifyLogoutToken(body.logout_token);
+    await this.sessions.deleteByIdentitySid(sid);
   }
 }
