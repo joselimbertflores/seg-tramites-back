@@ -36,11 +36,17 @@ describe('TokenVerifierService', () => {
       { algorithm: 'RS256', keyid: 'test-key', header: { alg: 'RS256', typ } },
     );
 
-  it('requires sid in access tokens', async () => {
-    await expect(
-      verifier.verify(sign({ sub: 'user', externalKey: 'external', sid: 'siau-session' }, 'JWT')),
-    ).resolves.toMatchObject({ sid: 'siau-session' });
-    await expect(verifier.verify(sign({ sub: 'user', externalKey: 'external' }, 'JWT'))).rejects.toThrow();
+  it('validates an ID Token bound to the login nonce and requires sid', async () => {
+    const claims = {
+      sub: 'user',
+      externalKey: 'external',
+      name: 'Usuario',
+      nonce: 'login-nonce',
+      sid: 'siau-session',
+    };
+    await expect(verifier.verifyIdToken(sign(claims, 'JWT'), 'login-nonce')).resolves.toMatchObject({ sid: 'siau-session' });
+    await expect(verifier.verifyIdToken(sign({ ...claims, sid: undefined }, 'JWT'), 'login-nonce')).rejects.toThrow();
+    await expect(verifier.verifyIdToken(sign(claims, 'JWT'), 'other-nonce')).rejects.toThrow();
   });
 
   it('accepts a valid back-channel token and rejects invalid claims', async () => {

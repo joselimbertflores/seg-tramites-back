@@ -72,17 +72,9 @@ export class AuthController {
   @Header('Cache-Control', 'no-store')
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const id = this.authHttp.read(request.headers.cookie);
+    let session: AuthSession;
     try {
-      const session = await this.sessions.findForLogout(id);
-      if (session?.authMethod === 'IDENTITY_HUB' && session.identitySid) {
-        try {
-          await this.identityHub.logoutSession(session.identitySid);
-        } catch (error) {
-          this.logger.warn(
-            `No fue posible cerrar la sesión en Identity Hub: ${error instanceof Error ? error.message : error}`,
-          );
-        }
-      }
+      session = await this.sessions.findForLogout(id);
     } finally {
       try {
         await this.sessions.delete(id);
@@ -90,6 +82,13 @@ export class AuthController {
         this.authHttp.clearSession(response);
         this.authHttp.clearTransaction(response);
       }
+    }
+    if (session?.authMethod === 'IDENTITY_HUB' && session.identitySid) {
+      void this.identityHub.logoutSession(session.identitySid).catch((error) => {
+        this.logger.warn(
+          `No fue posible cerrar la sesión en Identity Hub: ${error instanceof Error ? error.message : error}`,
+        );
+      });
     }
   }
 

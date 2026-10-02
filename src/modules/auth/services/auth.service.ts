@@ -30,7 +30,7 @@ export class AuthService {
     if (!user.isActive) {
       throw new BadRequestException('La cuenta ha sido deshabilitada');
     }
-    return { user, session: await this.sessions.createLocal(user) };
+    return { user, session: await this.sessions.create(user, 'LOCAL') };
   }
 
   async checkAuthStatus(user: User, authMethod: AuthMethod) {
@@ -53,6 +53,10 @@ export class AuthService {
   async changePassword(id: string, data: ChangePasswordDto, authMethod: AuthMethod) {
     if (authMethod !== 'LOCAL')
       throw new ForbiddenException('La contraseña de esta sesión se administra en Identity Hub');
+    const user = await this.userModel.findById(id).select('login password');
+    if (!user?.login || !user.password) {
+      throw new BadRequestException('El usuario no tiene credenciales locales para cambiar');
+    }
     const { password } = data;
     const encryptedPassword = await bcrypt.hash(password, 10);
     await this.userModel.updateOne({ _id: id }, { password: encryptedPassword, updatedPassword: true });

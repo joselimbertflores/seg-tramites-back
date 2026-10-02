@@ -253,10 +253,6 @@ export class AccountService {
       .populate([{ path: 'officer' }, { path: 'dependencia' }, { path: 'user', select: '-password' }]);
     if (!account) throw new NotFoundException(`Account ${accountId} not found`);
     if (!account.user || !account.officer) throw new BadRequestException(`Account ${accountId} is not assigned`);
-    if (!account.user.login || account.user.externalKey) {
-      throw new BadRequestException('El usuario institucional no utiliza credenciales locales para restablecer');
-    }
-
     const { password } = await this.userService.resetPassword(account.user);
     const pdf = await this.generateAccountPdf(account, { login: account.user.login, password }, generatedBy);
     let mailResult = null;

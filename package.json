@@ -19,6 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migrate:account-auth": "ts-node -r tsconfig-paths/register scripts/migrate-account-auth.ts",
+    "migrate:siau-oidc": "ts-node scripts/migrate-siau-oidc.ts",
     "migration:export-identity-users": "ts-node -r tsconfig-paths/register scripts/export-identity-users.ts",
     "migration:apply-identity-mapping": "ts-node -r tsconfig-paths/register scripts/apply-identity-mapping.ts"
   },

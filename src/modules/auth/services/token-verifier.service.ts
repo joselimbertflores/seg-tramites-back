@@ -4,20 +4,17 @@ import * as jwt from 'jsonwebtoken';
 import { JwksClient, SigningKeyNotFoundError } from 'jwks-rsa';
 import { EnvVars } from 'src/config';
 
-export interface IdentityHubClaims extends jwt.JwtPayload {
+export interface IdentityHubIdTokenClaims extends jwt.JwtPayload {
   sub: string;
   externalKey: string;
+  name: string;
+  nonce: string;
+  iat: number;
   exp: number;
   sid: string;
 }
 
 const BACKCHANNEL_LOGOUT_EVENT = 'http://schemas.openid.net/event/backchannel-logout';
-
-export class InvalidIdentityTokenError extends UnauthorizedException {
-  constructor(readonly expired = false) {
-    super('Token de Identity Hub inválido');
-  }
-}
 
 @Injectable()
 export class TokenVerifierService {
@@ -38,29 +35,28 @@ export class TokenVerifierService {
     });
   }
 
-  async verify(token: string): Promise<IdentityHubClaims> {
+  async verifyIdToken(token: string, nonce: string): Promise<IdentityHubIdTokenClaims> {
     const claims = await this.verifyJwt(token);
     if (
       typeof claims.sub !== 'string' ||
       !claims.sub.trim() ||
       typeof claims.externalKey !== 'string' ||
       !claims.externalKey.trim() ||
-      typeof claims.exp !== 'number' ||
-      !Number.isFinite(claims.exp) ||
+      typeof claims.name !== 'string' ||
+      !claims.name.trim() ||
+      typeof claims.nonce !== 'string' ||
+      claims.nonce !== nonce ||
       typeof claims.sid !== 'string' ||
       !claims.sid.trim()
     )
-      throw new InvalidIdentityTokenError();
-    return claims as IdentityHubClaims;
+      throw new UnauthorizedException('ID Token de Identity Hub inválido');
+    return claims as IdentityHubIdTokenClaims;
   }
 
   async verifyLogoutToken(token: string): Promise<string> {
     const claims = await this.verifyJwt(token, 'logout+jwt');
     const events = claims.events;
     if (
-      claims.aud !== this.config.getOrThrow('OAUTH_CLIENT_ID') ||
-      !Number.isSafeInteger(claims.iat) ||
-      !Number.isSafeInteger(claims.exp) ||
       typeof claims.jti !== 'string' ||
       !claims.jti.trim() ||
       typeof claims.sid !== 'string' ||
@@ -74,7 +70,7 @@ export class TokenVerifierService {
       Array.isArray(events[BACKCHANNEL_LOGOUT_EVENT]) ||
       Object.prototype.hasOwnProperty.call(claims, 'nonce')
     )
-      throw new InvalidIdentityTokenError();
+      throw new UnauthorizedException('Logout Token de Identity Hub inválido');
     return claims.sid;
   }
 
@@ -83,28 +79,39 @@ export class TokenVerifierService {
     if (
       decoded?.header?.alg !== 'RS256' ||
       typeof decoded.header.kid !== 'string' ||
-      !decoded.header.kid ||
+      !decoded.header.kid.trim() ||
       (typ && decoded.header.typ !== typ)
     ) {
-      throw new InvalidIdentityTokenError();
+      throw new UnauthorizedException('Token de Identity Hub inválido');
     }
     let publicKey: string;
     try {
       publicKey = (await this.jwks.getSigningKey(decoded.header.kid)).getPublicKey();
     } catch (error) {
-      if (error instanceof SigningKeyNotFoundError) throw new InvalidIdentityTokenError();
+      if (error instanceof SigningKeyNotFoundError) throw new UnauthorizedException('Token de Identity Hub inválido');
       throw new ServiceUnavailableException('No fue posible verificar Identity Hub temporalmente. Intente nuevamente.');
     }
+    let claims: jwt.JwtPayload | string;
     try {
-      const claims = jwt.verify(token, publicKey, {
+      claims = jwt.verify(token, publicKey, {
         algorithms: ['RS256'],
         issuer: this.config.getOrThrow('IDENTITY_HUB_PUBLIC_URL'),
         audience: this.config.getOrThrow('OAUTH_CLIENT_ID'),
       });
-      if (typeof claims === 'string') throw new InvalidIdentityTokenError();
-      return claims;
-    } catch (error) {
-      throw new InvalidIdentityTokenError(error instanceof jwt.TokenExpiredError);
+    } catch {
+      throw new UnauthorizedException('Token de Identity Hub inválido');
     }
+    if (
+      typeof claims === 'string' ||
+      claims.aud !== this.config.getOrThrow('OAUTH_CLIENT_ID') ||
+      !Number.isSafeInteger(claims.iat) ||
+      claims.iat <= 0 ||
+      claims.iat > Math.floor(Date.now() / 1000) ||
+      !Number.isSafeInteger(claims.exp) ||
+      claims.exp <= claims.iat
+    ) {
+      throw new UnauthorizedException('Token de Identity Hub inválido');
+    }
+    return claims;
   }
 }

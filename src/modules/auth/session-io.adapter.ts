@@ -29,7 +29,7 @@ export class SessionIoAdapter extends IoAdapter {
         next(failure);
       }
     });
-    // Message guards do not cover idle sockets; revalidation also expires or refreshes those sessions.
+    // Message guards do not cover idle sockets; check their local session as well.
     server.on('connection', (socket) => {
       let timer: NodeJS.Timeout;
       const check = async () => {
@@ -43,8 +43,7 @@ export class SessionIoAdapter extends IoAdapter {
       };
       const schedule = () => {
         const session = socket.data.session;
-        const expiresAt = Math.min(session.expiresAt.getTime(), session.accessTokenExpiresAt?.getTime() ?? Infinity);
-        timer = setTimeout(check, Math.max(100, Math.min(30_000, expiresAt - Date.now())));
+        timer = setTimeout(check, Math.max(100, Math.min(30_000, session.expiresAt.getTime() - Date.now())));
         timer.unref();
       };
       schedule();

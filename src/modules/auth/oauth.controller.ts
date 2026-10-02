@@ -6,7 +6,7 @@ import { User } from '../users/schemas';
 import { AuthHttpService, OAUTH_TRANSACTION_COOKIE_NAME } from './services/auth-http.service';
 import { Public } from './decorators/public.decorator';
 import { AuthSessionService } from './services/auth-session.service';
-import { IdentityHubOAuthService, IdentityHubTokens } from './services/identity-hub-oauth.service';
+import { IdentityHubOAuthService } from './services/identity-hub-oauth.service';
 import { OAuthTransactionService } from './services/oauth-transaction.service';
 import { TokenVerifierService } from './services/token-verifier.service';
 
@@ -27,8 +27,8 @@ export class OAuthController {
     response.setHeader('Cache-Control', 'no-store');
     try {
       await this.transactions.discard(this.authHttp.read(request.headers.cookie, OAUTH_TRANSACTION_COOKIE_NAME));
-      const { transactionId, state, codeChallenge, expiresAt } = await this.transactions.create();
-      const url = this.identityHub.authorizeUrl(state, codeChallenge);
+      const { transactionId, state, nonce, codeChallenge, expiresAt } = await this.transactions.create();
+      const url = this.identityHub.authorizeUrl(state, nonce, codeChallenge);
       this.authHttp.setTransaction(response, transactionId, expiresAt);
       return response.redirect(url);
     } catch {
@@ -48,15 +48,15 @@ export class OAuthController {
         await this.transactions.discard(transactionId);
         return this.redirectError(response, 'invalid_state');
       }
-      const codeVerifier = await this.transactions.consume(transactionId, state);
-      if (!codeVerifier) return this.redirectError(response, 'invalid_state');
+      const transaction = await this.transactions.consume(transactionId, state);
+      if (!transaction) return this.redirectError(response, 'invalid_state');
       if (error !== undefined)
         return this.redirectError(response, error === 'access_denied' ? 'access_denied' : 'authorization_failed');
       if (typeof code !== 'string' || !code || code.length > 4096) return this.redirectError(response, 'missing_code');
 
-      let tokens: IdentityHubTokens;
+      let idToken: string;
       try {
-        tokens = await this.identityHub.exchangeCode(code, codeVerifier);
+        idToken = await this.identityHub.exchangeCode(code, transaction.codeVerifier);
       } catch (error) {
         return this.redirectError(
           response,
@@ -64,11 +64,11 @@ export class OAuthController {
         );
       }
 
-      const claims = await this.verifier.verify(tokens.access_token);
+      const claims = await this.verifier.verifyIdToken(idToken, transaction.nonce);
       const user = await this.users.findOne({ externalKey: claims.externalKey });
       if (!user) return this.redirectError(response, 'not_provisioned');
 
-      const session = await this.sessions.createIdentityHub(user, tokens, claims);
+      const session = await this.sessions.create(user, 'IDENTITY_HUB', claims.sid);
       try {
         await this.sessions.delete(this.authHttp.read(request.headers.cookie));
         this.authHttp.setSession(response, session._id, session.expiresAt);

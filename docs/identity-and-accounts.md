@@ -12,7 +12,13 @@ Seguimiento separa tres conceptos que no deben fusionarse: la identidad local de
 
 `User` representa la identidad local dentro de Seguimiento. Se vincula con la identidad institucional de Identity Hub mediante `externalKey`, pero conserva su `_id` propio de MongoDB como identidad y referencia interna.
 
-Un `User` puede tener roles directos y puede existir sin una `Account`; por ejemplo, un administrador con autoridad transversal. `login` y `password` pertenecen al mecanismo LOCAL que Seguimiento conserva temporalmente y dejarán de ser relevantes cuando se retire ese mecanismo.
+Un `User` puede tener roles directos y puede existir sin una `Account`; por ejemplo, un administrador con autoridad transversal. `login` y `password` son opcionales y pertenecen al mecanismo LOCAL que Seguimiento conserva temporalmente:
+
+- **LOCAL:** conserva `login` y `password`; puede carecer de `externalKey`.
+- **SIAU-only:** tiene `externalKey` y carece de `login` y `password` (ausentes o `null`); no puede autenticarse por LOCAL.
+- **Híbrido:** tiene `externalKey` y conserva credenciales LOCAL; puede usar ambos métodos y mantener su contraseña local.
+
+La presencia de `externalKey` no determina si existen credenciales LOCAL. Los usuarios SIAU se aprovisionan previamente, sin inventarles credenciales locales. `User.isActive` se conserva para controlar la autenticación LOCAL; no sustituye la autoridad de SIAU sobre el acceso institucional. El flujo de sesión y revocación se describe en [Autenticación LOCAL y SIAU](authentication.md).
 
 ## Officer
 

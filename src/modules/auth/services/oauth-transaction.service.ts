@@ -12,10 +12,12 @@ export class OAuthTransactionService {
 
   async create() {
     const state = randomBytes(32).toString('base64url');
+    const nonce = randomBytes(32).toString('base64url');
     const codeVerifier = randomBytes(64).toString('base64url');
     const transaction = await this.transactions.create({
       _id: randomBytes(32).toString('base64url'),
       stateHash: this.hash(state).toString('hex'),
+      nonce,
       codeVerifier,
       expiresAt: new Date(Date.now() + OAUTH_TRANSACTION_TTL_MS),
     });
@@ -23,17 +25,16 @@ export class OAuthTransactionService {
       transactionId: transaction._id,
       expiresAt: transaction.expiresAt,
       state,
+      nonce,
       codeChallenge: createHash('sha256').update(codeVerifier).digest('base64url'),
     };
   }
 
-  async consume(id: string, state: string): Promise<string | null> {
+  async consume(id: string, state: string): Promise<OAuthTransaction | null> {
     // Atomic removal also consumes expired transactions and incorrect state attempts.
     const transaction = await this.transactions.findOneAndDelete({ _id: id }, { includeResultMetadata: false });
     if (!transaction || transaction.expiresAt.getTime() <= Date.now()) return null;
-    return timingSafeEqual(Buffer.from(transaction.stateHash, 'hex'), this.hash(state))
-      ? transaction.codeVerifier
-      : null;
+    return timingSafeEqual(Buffer.from(transaction.stateHash, 'hex'), this.hash(state)) ? transaction : null;
   }
 
   async discard(id?: string): Promise<void> {

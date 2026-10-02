@@ -9,6 +9,9 @@ export class OAuthTransaction {
   stateHash: string;
 
   @Prop({ type: String, required: true })
+  nonce: string;
+
+  @Prop({ type: String, required: true })
   codeVerifier: string;
 
   @Prop({ type: Date, required: true })

@@ -78,6 +78,10 @@ export class UserService {
   }
 
   async resetPassword(user: User) {
+    const localUser = await this.userModel.findById(user._id).select('login password');
+    if (!localUser?.login || !localUser.password) {
+      throw new BadRequestException('El usuario no tiene credenciales locales para restablecer');
+    }
     const newPassword = generatePassword();
     const encryptPassword = await this.encryptPassword(newPassword);
     await this.userModel.updateOne({ _id: user._id }, { password: encryptPassword, updatedPassword: false });
@@ -103,10 +107,6 @@ export class UserService {
         session,
       },
     );
-
-    if (!user.isActive) {
-      throw new BadRequestException('El usuario local asociado a la identidad institucional está inactivo');
-    }
 
     return user;
   }

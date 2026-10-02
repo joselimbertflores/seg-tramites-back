@@ -4,7 +4,7 @@ import { HydratedDocument, Schema as MongoSchema, Types } from 'mongoose';
 export type AuthMethod = 'LOCAL' | 'IDENTITY_HUB';
 export type AuthSessionDocument = HydratedDocument<AuthSession>;
 
-@Schema({ collection: 'auth_sessions', timestamps: true })
+@Schema({ collection: 'auth_sessions', timestamps: { createdAt: true, updatedAt: false } })
 export class AuthSession {
   @Prop({ type: String })
   _id: string;
@@ -26,26 +26,10 @@ export class AuthSession {
   })
   identitySid?: string;
 
+  createdAt: Date;
+
   @Prop({ type: Date, required: true })
   expiresAt: Date;
-
-  @Prop({ type: String, select: false })
-  accessToken?: string;
-
-  @Prop({ type: String, select: false })
-  refreshToken?: string;
-
-  @Prop({ type: Date })
-  accessTokenExpiresAt?: Date;
-
-  @Prop({ type: Date })
-  refreshTokenExpiresAt?: Date;
-
-  @Prop({ type: String, select: false })
-  refreshLock?: string;
-
-  @Prop({ type: Date, select: false })
-  refreshLockUntil?: Date;
 }
 
 export const AuthSessionSchema = SchemaFactory.createForClass(AuthSession);
