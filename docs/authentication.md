@@ -25,6 +25,38 @@ Ambos métodos usan sesiones de diez horas absolutas desde su creación, sin pro
 
 Los sockets comprueban también su sesión local antes de mensajes protegidos y periódicamente mientras están inactivos. Eliminar una sesión desconecta sus sockets en el mismo proceso; los demás procesos detectan la revocación al comprobar la sesión.
 
+## Orígenes, cookies y comparación con Intranet
+
+| Aspecto | Intranet | Seguimiento |
+| --- | --- | --- |
+| Login | Solo OIDC Authorization Code + PKCE S256 | OIDC con el mismo flujo y login LOCAL por `POST /api/auth` |
+| Sesiones | PostgreSQL, ID opaco aleatorio, diez horas absolutas | MongoDB, ID opaco aleatorio, diez horas absolutas; `isActive` se exige solo para LOCAL |
+| Guard global | Omite primero las rutas `@Public()`; después valida sesión y usuario locales | Valida el origen HTTP antes de `@Public()`; después valida sesión y usuario locales |
+| Cookies de sesión | `HttpOnly`, `SameSite=Lax`, `Path=/`; `Secure` si la URL pública usa HTTPS | `HttpOnly`, `Path=/`; `SameSite` configurable (`lax` por defecto); `Secure` configurable y obligatorio en producción |
+| Cookie OAuth | `HttpOnly`, `SameSite=Lax`, `Path=/auth`; mismo criterio de `Secure` | `HttpOnly`, `SameSite=Lax`, `Path=/auth`; usa `AUTH_COOKIE_SECURE` |
+| CORS HTTP | Un origen UI opcional, con credenciales | Un origen UI opcional, con credenciales |
+| Control adicional de origen | Sin lista de orígenes, comprobación de `Origin`/`Referer`, Fetch Metadata ni token CSRF general en el backend | `assertRequestOrigin()` para métodos distintos de `GET`, `HEAD` y `OPTIONS`; `allowRequest` comprueba el origen del handshake de Socket.IO |
+
+Ambos consumen una transacción OAuth de cinco minutos vinculada al navegador mediante cookie, comprueban `state` y `nonce`, canjean el código con PKCE y validan el ID Token antes de crear la sesión local. Ambos eliminan la sesión local y limpian cookies antes de notificar el logout a SIAU, y validan el Logout Token firmado para Back-Channel Logout. No consultan SIAU para validar cada petición ni delegan los permisos locales en él.
+
+El modelo de Intranet no permite eliminar sin más la comprobación de origen de Seguimiento:
+
+- El login LOCAL acepta `login` y `password` mediante el parser `application/x-www-form-urlencoded` predeterminado de Nest/Express. Sin la comprobación de origen, un formulario externo podría iniciar una sesión con credenciales del atacante en el navegador de la víctima. No necesita una cookie previa, por lo que `SameSite=Lax` no evita por sí solo este login CSRF. `state` y PKCE protegen el flujo OIDC, no el login LOCAL.
+- `AUTH_COOKIE_SAME_SITE=none` permite enviar la cookie de sesión en peticiones entre sitios. Quitar el control de origen dejaría expuestas operaciones autenticadas que aceptan peticiones simples, sin otro mecanismo CSRF general en este backend.
+- `SameSite` distingue sitios, no orígenes: servicios en otros puertos del mismo host o subdominios del mismo sitio requieren una evaluación de confianza adicional.
+
+`HttpOnly` impide que JavaScript lea la cookie; no impide que el navegador la envíe en una petición inducida. CORS limita el acceso del JavaScript externo a las respuestas y determinadas peticiones con preflight, pero no bloquea los formularios simples. Véanse [OWASP: prevención de CSRF y login CSRF](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html) y [MDN: CSRF y límites de SameSite](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/CSRF).
+
+Por ello se conservan `assertRequestOrigin()` y su llamada antes de `@Public()`: una ruta pública de login/logout también puede cambiar la autenticación del navegador. El Back-Channel Logout no necesita una cookie ni un origen de navegador; las llamadas entre servidores sin `Origin` ni `Sec-Fetch-Site: cross-site` siguen llegando a la validación del token firmado. `GET /auth/login` y `GET /auth/callback` ya están exentos de la comprobación de origen; el `403 Origen de solicitud no permitido` descrito corresponde a un método no exento, como el `POST` LOCAL, no a esos `GET` OIDC.
+
+Responsabilidades de las URLs y propiedades actuales:
+
+- `SEG_TRAMITES_PUBLIC_URL` es necesaria para el callback registrado en SIAU y como destino de redirección cuando no hay una UI separada. Su origen alimenta también la lista permitida HTTP y WebSocket.
+- `SEG_TRAMITES_UI_URL` es opcional. Si existe, define los destinos de redirección y el origen CORS HTTP/Socket.IO, y agrega ese origen a la lista permitida. Se omite cuando NestJS sirve Angular desde el mismo origen.
+- `publicOrigin` solo alimenta `trustedOrigins`; `uiOrigin` también configura CORS HTTP y Socket.IO. `trustedOrigins` tiene dos consumidores: la validación HTTP y `SessionIoAdapter.allowRequest`. Incluso si en el futuro se retira la validación HTTP, la lista sigue siendo necesaria para conservar la protección de WebSockets.
+
+Límites pendientes, anteriores a esta revisión: el control actual permite peticiones sin `Origin` ni Fetch Metadata y no comprueba `Referer`; tampoco cubre efectos secundarios de rutas `GET`. En particular, `GET /api/chat/start/:receiverId` y `GET /api/chat/account/:accountId` pueden crear chats. `SameSite=Lax` admite cookies en navegaciones superiores entre sitios mediante `GET`. Estas rutas deben revisarse por separado; eliminar el control HTTP no resuelve esos límites.
+
 ## Logout
 
 `POST /api/auth/logout` elimina la sesión local y limpia las cookies. Para LOCAL termina allí. Para SIAU obtiene primero el `identitySid` y, después del cierre local, notifica en segundo plano a `/internal/sessions/logout` con ese `sid` y las credenciales del cliente. Los fallos remotos se registran y no bloquean ni revierten el logout local.
@@ -36,11 +68,13 @@ Durante la convivencia, un usuario híbrido puede seguir entrando por LOCAL aunq
 ## Configuración y puesta en servicio
 
 - `SEG_TRAMITES_PUBLIC_URL`: URL pública del backend; define el callback `/auth/callback`.
-- `SEG_TRAMITES_UI_URL`: URL opcional del frontend para redirecciones y CORS con credenciales.
+- `SEG_TRAMITES_UI_URL`: URL opcional del frontend para redirecciones y CORS con credenciales. Omitir cuando NestJS sirve el build de Angular; se usa `SEG_TRAMITES_PUBLIC_URL` para las redirecciones y no se habilita CORS HTTP.
 - `IDENTITY_HUB_PUBLIC_URL`: URL canónica de SIAU para autorización y emisor esperado.
 - `IDENTITY_HUB_INTERNAL_URL`: base opcional para token, JWKS, directorio y logout entre servidores; si falta, se usa la URL pública.
 - `OAUTH_CLIENT_ID` y `OAUTH_CLIENT_SECRET`: credenciales del cliente registrado en SIAU.
 
 Registrar en SIAU `launchUrl` con `/auth/login`, `redirectUri` con `/auth/callback` y `backchannelLogoutUri` con `/api/auth/backchannel-logout`, sobre la URL pública del backend.
+
+`SEG_TRAMITES_PUBLIC_URL` debe coincidir con la URL canónica usada por el navegador, incluyendo esquema y puerto, y con el callback registrado en SIAU. Acceder por una IP/puerto alternativos puede provocar `403` en peticiones de escritura y rechazo del handshake WebSocket. Para un despliegue del mismo origen no hace falta duplicar esa URL en `SEG_TRAMITES_UI_URL`. En producción se requiere HTTPS para poder usar las cookies `Secure` obligatorias.
 
 Con todas las instancias del backend detenidas, ejecutar `npm run migrate:siau-oidc` antes de poner en servicio el login OIDC. El script elimina las sesiones institucionales y transacciones OAuth pendientes y limpia los campos obsoletos de las sesiones LOCAL, conservando sus vencimientos y las credenciales de usuarios. `npm run migrate:siau-oidc -- --dry-run` muestra cuántas sesiones institucionales y transacciones se eliminarían. Ejecutarlo con el nuevo backend activo cerraría también sus sesiones SIAU.

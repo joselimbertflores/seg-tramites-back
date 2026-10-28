@@ -19,6 +19,8 @@ import { ResourcesModule } from './modules/resources/resources.module';
 import { PrinterModule } from './modules/printer/printer.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -35,6 +37,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
         uri: configService.get('DATABASE_URL'),
       }),
       inject: [ConfigService],
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'public'),
     }),
     ScheduleModule.forRoot(),
     AdministrationModule,
