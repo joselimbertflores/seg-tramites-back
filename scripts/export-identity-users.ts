@@ -1,9 +1,7 @@
-import { mkdir, writeFile } from 'fs/promises';
+import { chmod, mkdir, mkdtemp, rename, rm, writeFile } from 'fs/promises';
 import { dirname, resolve } from 'path';
 import { config } from 'dotenv';
 import mongoose, { Types } from 'mongoose';
-
-config();
 
 interface LegacyUser {
   _id: Types.ObjectId;
@@ -12,6 +10,8 @@ interface LegacyUser {
   externalKey?: unknown;
   isActive?: unknown;
   roles?: Types.ObjectId[];
+  password?: unknown;
+  updatedPassword?: unknown;
 }
 
 interface LegacyOfficer {
@@ -32,6 +32,8 @@ interface Candidate {
   fullName: string;
   relationKey: string;
   email: string | null;
+  passwordHash: string | null;
+  updatedPassword: boolean;
 }
 
 interface Unresolved {
@@ -49,28 +51,10 @@ function toOptionalString(value: unknown) {
   return String(value).trim() || null;
 }
 
-async function main() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error('DATABASE_URL is required');
+// Only the bcrypt variants supported by the Node bcrypt implementation.
+const BCRYPT_HASH = /^\$2[ab]\$(?:0[4-9]|[12]\d|3[01])\$[./A-Za-z0-9]{53}$/;
 
-  await mongoose.connect(databaseUrl, { autoIndex: false });
-  const db = mongoose.connection.db;
-
-  const [users, officers, accounts] = await Promise.all([
-    db
-      .collection<LegacyUser>('users')
-      .find({}, { projection: { _id: 1, fullname: 1, login: 1, externalKey: 1, isActive: 1, roles: 1 } })
-      .toArray(),
-    db
-      .collection<LegacyOfficer>('funcionarios')
-      .find({}, { projection: { _id: 1, dni: 1, email: 1 } })
-      .toArray(),
-    db
-      .collection<LegacyAccount>('cuentas')
-      .find({}, { projection: { _id: 1, user: 1, officer: 1 } })
-      .toArray(),
-  ]);
-
+export function buildMigrationInput(users: LegacyUser[], officers: LegacyOfficer[], accounts: LegacyAccount[]) {
   const officersById = new Map(officers.map((officer) => [id(officer._id), officer]));
   const accountsByUserId = new Map(
     accounts.flatMap((account) => {
@@ -118,6 +102,11 @@ async function main() {
       fullName,
       relationKey,
       email: toOptionalString(officer.email),
+      passwordHash:
+        user.updatedPassword === true && typeof user.password === 'string' && BCRYPT_HASH.test(user.password)
+          ? user.password
+          : null,
+      updatedPassword: user.updatedPassword === true,
     });
   }
 
@@ -126,17 +115,76 @@ async function main() {
     (left.accountId ?? left.userId ?? '').localeCompare(right.accountId ?? right.userId ?? ''),
   );
 
+  return { candidates, unresolved };
+}
+
+export async function writePrivateJson(path: string, value: unknown): Promise<void> {
+  const directory = dirname(path);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await chmod(directory, 0o700);
+  const temporaryDirectory = await mkdtemp(resolve(directory, '.identity-export-'));
+  try {
+    const temporaryPath = resolve(temporaryDirectory, 'data.json');
+    await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+      flag: 'wx',
+    });
+    await rename(temporaryPath, path);
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+async function main() {
+  process.umask(0o077);
+  config();
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+  await mongoose.connect(databaseUrl, { autoIndex: false, autoCreate: false });
+  const db = mongoose.connection.db;
+  const [users, officers, accounts] = await Promise.all([
+    db
+      .collection<LegacyUser>('users')
+      .find(
+        {},
+        {
+          projection: {
+            _id: 1,
+            fullname: 1,
+            login: 1,
+            externalKey: 1,
+            isActive: 1,
+            roles: 1,
+            password: 1,
+            updatedPassword: 1,
+          },
+        },
+      )
+      .toArray(),
+    db
+      .collection<LegacyOfficer>('funcionarios')
+      .find({}, { projection: { _id: 1, dni: 1, email: 1 } })
+      .toArray(),
+    db
+      .collection<LegacyAccount>('cuentas')
+      .find({}, { projection: { _id: 1, user: 1, officer: 1 } })
+      .toArray(),
+  ]);
+
   const outputPath = resolve(__dirname, '../migration-data/seguimiento-identity-users.json');
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, `${JSON.stringify({ candidates, unresolved }, null, 2)}\n`, 'utf8');
+  await writePrivateJson(outputPath, buildMigrationInput(users, officers, accounts));
   console.log(`Identity migration data exported to ${outputPath}`);
 }
 
-main()
-  .catch((error) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await mongoose.disconnect();
-  });
+if (require.main === module)
+  void main()
+    .catch(() => {
+      // Driver errors may contain source data. Never print credential-bearing errors.
+      console.error('Identity export failed; check configuration, database access and output permissions.');
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await mongoose.disconnect();
+    });
